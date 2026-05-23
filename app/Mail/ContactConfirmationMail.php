@@ -1,0 +1,50 @@
+<?php
+// app/Mail/ContactConfirmationMail.php
+
+namespace App\Mail;
+
+use App\Models\ContactMessage;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class ContactConfirmationMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public $contactMessage;
+    public $supportEmail;
+
+    public function __construct(ContactMessage $contactMessage)
+    {
+        $this->contactMessage = $contactMessage;
+        $this->supportEmail = config('mail.support_email', 'support@trackpro.com');
+    }
+
+    public function envelope(): Envelope
+    {
+        return new Envelope(
+            subject: 'Thank You for Contacting TrackPro GPS',
+            replyTo: [config('mail.reply_to.address', 'support@trackpro.com')]
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            view: 'emails.contact.confirmation',
+            with: [
+                'ticketNumber' => 'TP-' . str_pad($this->contactMessage->id, 6, '0', STR_PAD_LEFT),
+                'estimatedResponseTime' => '24 hours',
+                'supportPhone' => config('app.support_phone', '+1 (555) 123-4567')
+            ]
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}
