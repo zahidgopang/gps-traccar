@@ -51,6 +51,7 @@ return [
             'management' => 'Management',
             'system' => 'System',
             'location_history' => 'Location History',
+            'track_devices' => 'Track Devices',
             'activity_log' => 'Activity Log',
             'settings' => 'Settings',
             'reports' => 'Reports',

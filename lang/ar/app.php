@@ -51,6 +51,7 @@ return [
             'management' => 'الإدارة',
             'system' => 'النظام',
             'location_history' => 'سجل المواقع',
+            'track_devices' => 'تتبع الأجهزة',
             'activity_log' => 'سجل النشاط',
             'settings' => 'الإعدادات',
             'reports' => 'التقارير',
