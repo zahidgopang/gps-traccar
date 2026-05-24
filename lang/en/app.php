@@ -305,7 +305,7 @@ return [
         'play_route' => 'Play Route',
         'route_playback' => 'Route Playback',
         'loading_map' => 'Loading map data...',
-        'dash' => '-',
+        'dash' => '—',
         'km_unit' => 'km',
         'kmh_unit' => 'km/h',
         'copy' => 'Copy',

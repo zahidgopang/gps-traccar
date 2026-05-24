@@ -288,6 +288,11 @@ class User extends Authenticatable
         return $this->getMapTourPreference() !== self::MAP_TOUR_DISMISS;
     }
 
+    /**
+     * Legacy stored preference (not used for UI locale — language is session-scoped per browser).
+     *
+     * @deprecated Locale is session-only; do not use for rendering.
+     */
     public function getLocalePreference(): string
     {
         $locale = $this->preferences['locale'] ?? 'en';
@@ -295,6 +300,9 @@ class User extends Authenticatable
         return in_array($locale, ['en', 'ar'], true) ? $locale : 'en';
     }
 
+    /**
+     * @deprecated Locale is session-only; use LocaleController / session('locale') instead.
+     */
     public function setLocalePreference(string $locale): void
     {
         $prefs = $this->preferences;

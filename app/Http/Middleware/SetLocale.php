@@ -15,21 +15,24 @@ class SetLocale
     {
         $locale = session('locale');
 
-        if (! $locale && $request->user()) {
-            $locale = $request->user()->getLocalePreference();
-        }
-
         if (! in_array($locale, self::SUPPORTED, true)) {
-            $locale = config('app.locale', 'ar');
-        }
-
-        if (! in_array($locale, self::SUPPORTED, true)) {
-            $locale = 'ar';
+            $locale = $this->defaultLocale();
+            session(['locale' => $locale]);
         }
 
         App::setLocale($locale);
-        session(['locale' => $locale]);
 
         return $next($request);
+    }
+
+    private function defaultLocale(): string
+    {
+        $locale = config('app.locale', 'ar');
+
+        if (! in_array($locale, self::SUPPORTED, true)) {
+            return 'ar';
+        }
+
+        return $locale;
     }
 }

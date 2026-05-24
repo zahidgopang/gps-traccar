@@ -7,6 +7,7 @@
     const cfg = window.DEVICE_MAP_CONFIG || {};
     const i18n = cfg.i18n || {};
     const mi = (key, fallback) => (i18n[key] != null && i18n[key] !== '' ? i18n[key] : fallback);
+    const dash = () => mi('dash', '—');
     const deviceId = cfg.deviceId;
     const baseUrl = cfg.baseUrl || '';
     const csrfToken = cfg.csrfToken || '';
@@ -195,7 +196,7 @@
         setText('hudSpeed', speedText);
         setText('hudMiniSpeed', speedText);
         setText('hudHeading', (point.heading ?? 0) + '°');
-        setText('hudUpdated', point.recorded_at ? new Date(point.recorded_at).toLocaleTimeString() : '—');
+        setText('hudUpdated', point.recorded_at ? new Date(point.recorded_at).toLocaleTimeString() : dash());
         setText('hudCoords', point.lat.toFixed(5) + ', ' + point.lng.toFixed(5));
 
         const dot = document.getElementById('hudStatusDot');
@@ -479,14 +480,14 @@ ${pts}
         const speed = parseFloat(point.speed || 0);
         const battery = point.battery != null ? parseInt(point.battery, 10) : null;
 
-        setText('lastSeen', point.recorded_at ? new Date(point.recorded_at).toLocaleString() : '—');
+        setText('lastSeen', point.recorded_at ? new Date(point.recorded_at).toLocaleString() : dash());
         setText('telemetrySpeed', speed.toFixed(0) + ' ' + mi('kmh', 'km/h'));
-        setText('telemetryHeading', (point.heading ?? 0) + '°');
-        setText('telemetryBattery', battery != null ? battery + '%' : '—');
-        setText('telemetryIgnition', point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF'));
-        setText('telemetryGsm', point.gsm_signal != null ? point.gsm_signal + '%' : '—');
-        setText('telemetrySatellites', point.satellites != null ? String(point.satellites) : '—');
-        setText('telemetryOdometer', point.odometer != null ? Number(point.odometer).toLocaleString() + ' ' + mi('km', 'km') : mi('dash', '—'));
+        setText('telemetryHeading', point.heading != null && point.heading !== '' ? point.heading + '°' : dash());
+        setText('telemetryBattery', battery != null ? battery + '%' : dash());
+        setText('telemetryIgnition', point.ignition != null ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF')) : dash());
+        setText('telemetryGsm', point.gsm_signal != null ? point.gsm_signal + '%' : dash());
+        setText('telemetrySatellites', point.satellites != null ? String(point.satellites) : dash());
+        setText('telemetryOdometer', point.odometer != null ? Number(point.odometer).toLocaleString() + ' ' + mi('km', 'km') : dash());
 
         const statusEl = document.getElementById('curStatus');
         if (statusEl) {
@@ -1313,8 +1314,8 @@ ${pts}
         content.style.display = 'block';
         content.querySelector('#statSpeed').textContent = d.speed.toFixed(1) + ' km/h';
         content.querySelector('#statDistance').textContent = (d.distance * 1000).toFixed(0) + ' m';
-        content.querySelector('#detailStartTime').textContent = d.startTime ? new Date(d.startTime).toLocaleTimeString() : '—';
-        content.querySelector('#detailEndTime').textContent = d.endTime ? new Date(d.endTime).toLocaleTimeString() : '—';
+        content.querySelector('#detailStartTime').textContent = d.startTime ? new Date(d.startTime).toLocaleTimeString() : dash();
+        content.querySelector('#detailEndTime').textContent = d.endTime ? new Date(d.endTime).toLocaleTimeString() : dash();
         customInfoWindow.setContent(content);
         customInfoWindow.setPosition(latLng);
         customInfoWindow.open(map);

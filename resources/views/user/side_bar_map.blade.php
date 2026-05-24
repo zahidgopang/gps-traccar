@@ -54,7 +54,7 @@
             <div class="info-row">
                 <div class="info-label">{{ __('app.map.current_status') }}</div>
                 <div class="info-value">
-                    <span class="badge bg-secondary" id="curStatus">—</span>
+                    <span class="badge bg-secondary" id="curStatus">{{ __('app.map.dash') }}</span>
                 </div>
             </div>
         </div>
@@ -64,13 +64,13 @@
     <div class="premium-card mb-4">
         <div class="card-header"><h6 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>{{ __('app.map.live_telemetry') }}</h6></div>
         <div class="card-body">
-            <div class="info-row"><div class="info-label">{{ __('app.map.speed') }}</div><div class="info-value" id="telemetrySpeed">â€”</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.heading') }}</div><div class="info-value" id="telemetryHeading">â€”</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.battery') }}</div><div class="info-value" id="telemetryBattery">â€”</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.ignition') }}</div><div class="info-value" id="telemetryIgnition">â€”</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.gsm_signal') }}</div><div class="info-value" id="telemetryGsm">â€”</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.satellites') }}</div><div class="info-value" id="telemetrySatellites">â€”</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.odometer') }}</div><div class="info-value" id="telemetryOdometer">â€”</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.speed') }}</div><div class="info-value" id="telemetrySpeed">{{ __('app.map.dash') }}</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.heading') }}</div><div class="info-value" id="telemetryHeading">{{ __('app.map.dash') }}</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.battery') }}</div><div class="info-value" id="telemetryBattery">{{ __('app.map.dash') }}</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.ignition') }}</div><div class="info-value" id="telemetryIgnition">{{ __('app.map.dash') }}</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.gsm_signal') }}</div><div class="info-value" id="telemetryGsm">{{ __('app.map.dash') }}</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.satellites') }}</div><div class="info-value" id="telemetrySatellites">{{ __('app.map.dash') }}</div></div>
+            <div class="info-row"><div class="info-label">{{ __('app.map.odometer') }}</div><div class="info-value" id="telemetryOdometer">{{ __('app.map.dash') }}</div></div>
         </div>
     </div>
 
@@ -79,7 +79,7 @@
     <div class="premium-card mb-4" data-map-tour="route-summary">
         <div class="card-header">
             <h6 class="mb-0">
-                <i class="fas fa-route me-2"></i>Route Summary
+                <i class="fas fa-route me-2"></i>{{ __('app.map.route_summary') }}
             </h6>
         </div>
         <div class="card-body">
@@ -101,11 +101,11 @@
             </div>
             <div class="info-row">
                 <div class="info-label">{{ __('app.map.moving_time') }}</div>
-                <div class="info-value" id="movingTime">â€”</div>
+                <div class="info-value" id="movingTime">{{ __('app.map.dash') }}</div>
             </div>
             <div class="info-row">
                 <div class="info-label">{{ __('app.map.stopped_time') }}</div>
-                <div class="info-value" id="stoppedTime">â€”</div>
+                <div class="info-value" id="stoppedTime">{{ __('app.map.dash') }}</div>
             </div>
             <div class="info-row">
                 <div class="info-label">{{ __('app.map.overspeed_events') }}</div>
