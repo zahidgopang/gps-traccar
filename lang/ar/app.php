@@ -360,6 +360,8 @@ return [
         'status_overspeed' => 'تجاوز السرعة',
         'status_stopped' => 'متوقف',
         'status_moving' => 'متحرك',
+        'status_running' => 'يعمل',
+        'status_parked' => 'مركون',
         'status_idle' => 'خامل',
         'status_offline' => 'غير متصل',
         'live_badge' => 'مباشر',

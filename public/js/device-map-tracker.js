@@ -24,6 +24,10 @@
     const accessDeniedRedirect = api.accessDeniedRedirect || `${baseUrl}/user/devices`;
     const overSpeedLimit = cfg.overSpeedLimit || 80;
     const lowBatteryThreshold = cfg.lowBatteryThreshold || 20;
+    const movingSpeedKmh = cfg.movingSpeedKmh ?? 5;
+    const idleSpeedKmh = cfg.idleSpeedKmh ?? 0.5;
+    const parkedIconSpeedKmh = cfg.parkedIconSpeedKmh ?? 0.1;
+    const motionDetectKm = cfg.motionDetectKm ?? 0.004;
     const onlineTimeoutMs = (cfg.onlineMinutes || 5) * 60 * 1000;
     const pollIntervalMs = cfg.pollIntervalMs || 5000;
 
@@ -137,6 +141,15 @@
         return 2 * R * Math.asin(Math.sqrt(a));
     }
 
+    function bearingFromPoints(from, to) {
+        const lat1 = from.lat * Math.PI / 180;
+        const lat2 = to.lat * Math.PI / 180;
+        const dLng = (to.lng - from.lng) * Math.PI / 180;
+        const y = Math.sin(dLng) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    }
+
     function speedToColor(speed) {
         const spd = parseFloat(speed || 0);
         if (spd === 0) return '#9aa0a6';
@@ -148,7 +161,7 @@
 
     function vehicleIcon(speed, heading) {
         const spd = parseFloat(speed || 0);
-        if (spd < 1) {
+        if (spd <= parkedIconSpeedKmh) {
             return {
                 url: cfg.stopIcon || '/images/stop.svg',
                 scaledSize: new google.maps.Size(36, 36),
@@ -157,8 +170,8 @@
         }
         return {
             path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale: 5,
-            fillColor: '#1976D2',
+            scale: spd <= idleSpeedKmh ? 4.5 : 5,
+            fillColor: spd <= idleSpeedKmh ? '#42a5f5' : '#1976D2',
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 1.5,
@@ -180,13 +193,88 @@
         return `${m}m`;
     }
 
+    function effectiveSpeedKmh(point, previous) {
+        const reported = parseFloat(point?.speed ?? 0);
+        if (!previous || !point?.recorded_at || !previous.recorded_at) {
+            return reported;
+        }
+
+        const distKm = haversineDistance(previous.lat, previous.lng, point.lat, point.lng);
+        const elapsedMs = new Date(point.recorded_at).getTime() - new Date(previous.recorded_at).getTime();
+        if (elapsedMs <= 0) {
+            return reported;
+        }
+
+        const computed = (distKm / (elapsedMs / 3600000));
+        if (!Number.isFinite(computed) || computed < 0) {
+            return reported;
+        }
+
+        // Traccar often reports speed=0 while coordinates change — trust GPS motion.
+        if (distKm >= motionDetectKm && (reported < idleSpeedKmh || computed > reported * 1.5)) {
+            return Math.max(reported, computed);
+        }
+
+        return reported;
+    }
+
+    function enrichPointWithMotion(point, previous) {
+        if (!previous) {
+            return point;
+        }
+
+        const distKm = haversineDistance(previous.lat, previous.lng, point.lat, point.lng);
+        const speed = effectiveSpeedKmh(point, previous);
+        let heading = parseFloat(point.heading ?? 0);
+
+        if (distKm >= motionDetectKm) {
+            const travelBearing = bearingFromPoints(
+                { lat: previous.lat, lng: previous.lng },
+                { lat: point.lat, lng: point.lng }
+            );
+            if (!Number.isFinite(heading) || heading === 0 || speed <= idleSpeedKmh) {
+                heading = travelBearing;
+            }
+        }
+
+        if (speed === point.speed && heading === parseFloat(point.heading ?? 0)) {
+            return point;
+        }
+
+        return { ...point, speed, heading };
+    }
+
+    function resolveVehicleStatus(point) {
+        if (!point) {
+            return { key: 'offline', label: mi('statusOffline', 'Offline'), cls: 'bg-secondary' };
+        }
+
+        const speed = parseFloat(point.speed || 0);
+
+        if (point.power_cut) {
+            return { key: 'alert', label: mi('statusPowerCut', 'Power cut'), cls: 'bg-danger' };
+        }
+        if (point.panic) {
+            return { key: 'alert', label: mi('statusSos', 'SOS'), cls: 'bg-danger' };
+        }
+        if (speed > overSpeedLimit) {
+            return { key: 'alert', label: mi('statusOverspeed', 'Overspeed'), cls: 'bg-warning text-dark' };
+        }
+        if (speed > movingSpeedKmh) {
+            return { key: 'moving', label: mi('statusRunning', 'Running'), cls: 'bg-success' };
+        }
+        if (speed > idleSpeedKmh) {
+            return { key: 'idle', label: mi('statusIdle', 'Idle'), cls: 'bg-info' };
+        }
+        if (point.ignition === true) {
+            return { key: 'stopped', label: mi('statusStopped', 'Stopped'), cls: 'bg-warning text-dark' };
+        }
+
+        return { key: 'parked', label: mi('statusParked', 'Parked'), cls: 'bg-secondary' };
+    }
+
     function getVehicleStatusKey(point) {
-        if (!point) return 'offline';
-        if (point.power_cut || point.panic) return 'alert';
-        if (point.speed > overSpeedLimit) return 'alert';
-        if (point.speed < 1) return 'stopped';
-        if (point.speed > 5) return 'moving';
-        return 'online';
+        return resolveVehicleStatus(point).key;
     }
 
     function setMapHudCollapsed(collapsed, persist) {
@@ -520,14 +608,8 @@ ${pts}
 
         const statusEl = document.getElementById('curStatus');
         if (statusEl) {
-            let label = mi('statusOnline', 'Online'), cls = 'bg-success';
-            if (point.power_cut) { label = mi('statusPowerCut', 'Power cut'); cls = 'bg-danger'; }
-            else if (point.panic) { label = mi('statusSos', 'SOS'); cls = 'bg-danger'; }
-            else if (speed > overSpeedLimit) { label = mi('statusOverspeed', 'Overspeed'); cls = 'bg-warning text-dark'; }
-            else if (speed < 1) { label = mi('statusStopped', 'Stopped'); cls = 'bg-secondary'; }
-            else if (speed > 5) { label = mi('statusMoving', 'Moving'); cls = 'bg-success'; }
-            else { label = mi('statusIdle', 'Idle'); cls = 'bg-info'; }
-            statusEl.innerHTML = `<span class="badge ${cls}">${label}</span>`;
+            const status = resolveVehicleStatus(point);
+            statusEl.innerHTML = `<span class="badge ${status.cls}">${status.label}</span>`;
         }
 
         const navStatus = document.getElementById('navLiveStatus');
@@ -761,7 +843,10 @@ ${pts}
         offlineTimer = setTimeout(() => {
             triggerAlert('offline', 'No GPS update received recently', 'warning', 'Device Offline');
             const statusEl = document.getElementById('curStatus');
-            if (statusEl) statusEl.innerHTML = '<span class="badge bg-secondary">OFFLINE</span>';
+            if (statusEl) {
+                const offline = resolveVehicleStatus(null);
+                statusEl.innerHTML = `<span class="badge ${offline.cls}">${offline.label}</span>`;
+            }
         }, onlineTimeoutMs);
     }
 
@@ -802,8 +887,10 @@ ${pts}
     }
 
     function applyLivePoint(raw) {
-        const point = normalizePoint(raw);
+        let point = normalizePoint(raw);
         if (!point) return;
+
+        point = enrichPointWithMotion(point, lastTelemetry);
 
         const key = positionKey(point);
         if (key && key === lastAppliedPositionKey) {

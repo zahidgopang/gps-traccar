@@ -363,6 +363,8 @@ return [
         'status_overspeed' => 'Overspeed',
         'status_stopped' => 'Stopped',
         'status_moving' => 'Moving',
+        'status_running' => 'Running',
+        'status_parked' => 'Parked',
         'status_idle' => 'Idle',
         'status_offline' => 'Offline',
         'live_badge' => 'Live',
