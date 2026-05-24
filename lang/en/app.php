@@ -305,6 +305,8 @@ return [
         'play_route' => 'Play Route',
         'route_playback' => 'Route Playback',
         'loading_map' => 'Loading map data...',
+        'loading_map_retry' => 'Reloading map (attempt :attempt)...',
+        'loading_map_failed' => 'Map failed to load. Retrying automatically...',
         'dash' => '—',
         'km_unit' => 'km',
         'kmh_unit' => 'km/h',

@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -10,6 +11,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        if (config('traccar.broadcast_positions', true)) {
+            $schedule->command('traccar:broadcast-positions')
+                ->everyFiveSeconds()
+                ->withoutOverlapping(2);
+        }
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'map.access' => \App\Http\Middleware\EnsureMapAccess::class,

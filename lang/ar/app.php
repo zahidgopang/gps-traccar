@@ -302,6 +302,8 @@ return [
         'play_route' => 'تشغيل المسار',
         'route_playback' => 'عرض المسار',
         'loading_map' => 'جاري تحميل بيانات الخريطة...',
+        'loading_map_retry' => 'إعادة تحميل الخريطة (المحاولة :attempt)...',
+        'loading_map_failed' => 'تعذّر تحميل الخريطة. إعادة المحاولة تلقائياً...',
         'dash' => '—',
         'km_unit' => 'كم',
         'kmh_unit' => 'كم/س',

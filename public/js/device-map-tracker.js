@@ -59,6 +59,24 @@
     let alertsBootstrapped = false;
     let unreadAlertCount = 0;
 
+    const MAP_BOOT_MAX = 4;
+    const MAP_READY_TIMEOUT_MS = 12000;
+    const MAP_HEALTH_INTERVAL_MS = 20000;
+    let mapReady = false;
+    let mapBootAttempts = 0;
+    let mapBootRunning = false;
+    let mapControlsBound = false;
+    let mapDataStarted = false;
+    let mapHealthTimer = null;
+    let mapResizeObserver = null;
+    let lastAppliedPositionKey = '';
+    let livePollTimer = null;
+    let alertsPollTimer = null;
+
+    function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     const NIGHT_MAP_STYLES = [
         { elementType: 'geometry', stylers: [{ color: '#1d2c4d' }] },
         { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
@@ -89,7 +107,18 @@
             power_cut: raw.power_cut === true || raw.power_cut === 1,
             panic: raw.panic === true || raw.panic === 1,
             recorded_at: ts,
+            position_id: raw.position_id != null ? Number(raw.position_id) : null,
         };
+    }
+
+    function positionKey(point) {
+        if (!point) {
+            return '';
+        }
+        if (point.position_id) {
+            return `id:${point.position_id}`;
+        }
+        return `${point.recorded_at || ''}|${point.lat}|${point.lng}`;
     }
 
     function normalizeResponse(j) {
@@ -776,6 +805,12 @@ ${pts}
         const point = normalizePoint(raw);
         if (!point) return;
 
+        const key = positionKey(point);
+        if (key && key === lastAppliedPositionKey) {
+            return;
+        }
+        lastAppliedPositionKey = key;
+
         updateCurrentMarker(point);
         updateTelemetryUI(point);
         evaluateAlerts(point, lastTelemetry);
@@ -838,17 +873,31 @@ ${pts}
     }
 
     function setupRealtime() {
-        if (window.Echo) {
-            window.Echo.private(`device.${deviceId}`)
-                .listen('.DeviceLocationUpdated', (payload) => {
-                    applyLivePoint(payload.location || payload);
-                    pollNewAlerts();
-                });
-            setInterval(pollNewAlerts, pollIntervalMs);
+        if (livePollTimer) {
+            clearInterval(livePollTimer);
+        }
+        if (alertsPollTimer) {
+            clearInterval(alertsPollTimer);
+        }
+
+        pollLive();
+        livePollTimer = setInterval(() => pollLive(), pollIntervalMs);
+        alertsPollTimer = setInterval(pollNewAlerts, pollIntervalMs);
+
+        if (window.Echo && typeof window.Echo.private === 'function') {
+            try {
+                window.Echo.private(`device.${deviceId}`)
+                    .listen('.DeviceLocationUpdated', (payload) => {
+                        applyLivePoint(payload.location || payload);
+                        pollNewAlerts();
+                    });
+            } catch (err) {
+                console.warn('[device-map] Echo subscribe failed — using polling only', err);
+            }
             return;
         }
-        showNotification('Realtime via polling (5s). Configure Pusher for instant updates.', 'info', 'Tracking');
-        pollTimer = setInterval(() => pollLive(), pollIntervalMs);
+
+        console.info('[device-map] Live updates via polling every', pollIntervalMs, 'ms');
     }
 
     function showLoading(msg) {
@@ -863,14 +912,199 @@ ${pts}
         document.getElementById('loadingOverlay')?.classList.remove('active');
     }
 
-    function resizeMap() {
-        if (map && google?.maps?.event) {
-            setTimeout(() => google.maps.event.trigger(map, 'resize'), 350);
+    function hasGoogleMapDom(el) {
+        return !!(el && el.querySelector('.gm-style'));
+    }
+
+    function waitForMapContainerSize(maxMs = 8000) {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+                const el = document.getElementById('map');
+                const area = document.getElementById('mapArea');
+                const target = el || area;
+                if (target && target.offsetWidth >= 20 && target.offsetHeight >= 20) {
+                    resolve();
+                    return;
+                }
+                if (Date.now() - start > maxMs) {
+                    reject(new Error('Map container not sized'));
+                    return;
+                }
+                requestAnimationFrame(check);
+            };
+            check();
+        });
+    }
+
+    function loadGoogleMapsApi() {
+        return new Promise((resolve, reject) => {
+            if (window.google?.maps?.Map) {
+                resolve();
+                return;
+            }
+
+            const key = cfg.googleMapsKey;
+            if (!key) {
+                reject(new Error('Missing Google Maps API key'));
+                return;
+            }
+
+            const existing = document.querySelector('script[data-device-map-gmaps]');
+            if (existing) {
+                let tries = 0;
+                (function waitExisting() {
+                    if (window.google?.maps?.Map) {
+                        resolve();
+                    } else if (++tries > 120) {
+                        reject(new Error('Google Maps API timeout'));
+                    } else {
+                        setTimeout(waitExisting, 100);
+                    }
+                })();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.dataset.deviceMapGmaps = '1';
+            script.async = true;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=drawing,geometry,visualization,places&loading=async`;
+            script.onerror = () => reject(new Error('Google Maps script failed to load'));
+            script.onload = () => {
+                let tries = 0;
+                (function waitMaps() {
+                    if (window.google?.maps?.Map) {
+                        resolve();
+                    } else if (++tries > 120) {
+                        reject(new Error('Google Maps API unavailable'));
+                    } else {
+                        setTimeout(waitMaps, 50);
+                    }
+                })();
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    function verifyMapRendered() {
+        return new Promise((resolve, reject) => {
+            if (!map) {
+                reject(new Error('Map not initialized'));
+                return;
+            }
+
+            const div = document.getElementById('map');
+            if (!div || div.offsetWidth < 20 || div.offsetHeight < 20) {
+                reject(new Error('Map container too small'));
+                return;
+            }
+
+            if (hasGoogleMapDom(div)) {
+                resolve();
+                return;
+            }
+
+            let settled = false;
+            const finish = (ok) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                clearTimeout(timer);
+                if (ok || hasGoogleMapDom(div)) {
+                    resolve();
+                } else {
+                    reject(new Error('Map tiles did not render'));
+                }
+            };
+
+            const timer = setTimeout(() => finish(hasGoogleMapDom(div)), MAP_READY_TIMEOUT_MS);
+
+            google.maps.event.addListenerOnce(map, 'tilesloaded', () => finish(true));
+            google.maps.event.addListenerOnce(map, 'idle', () => {
+                setTimeout(() => finish(true), 250);
+            });
+            google.maps.event.trigger(map, 'resize');
+        });
+    }
+
+    async function startMapDataServices() {
+        try {
+            await loadRecentAlerts();
+            setupRealtime();
+            await pollLive();
+        } catch (err) {
+            console.warn('[device-map] data services failed', err);
         }
     }
 
-    window.initDeviceMap = function () {
-        showLoading('Loading Google Maps...');
+    function onMapTilesReady() {
+        mapReady = true;
+        hideLoading();
+        resizeMap();
+        if (!mapDataStarted) {
+            mapDataStarted = true;
+            startMapDataServices();
+        }
+        window.dispatchEvent(new CustomEvent('device-map-ready'));
+    }
+
+    function bindMapWatchers() {
+        if (mapResizeObserver || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+
+        const area = document.getElementById('mapArea');
+        if (!area) {
+            return;
+        }
+
+        let resizeTimer;
+        mapResizeObserver = new ResizeObserver(() => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                resizeMap();
+                if (map && !mapReady) {
+                    verifyMapRendered().then(onMapTilesReady).catch(() => {});
+                }
+            }, 150);
+        });
+        mapResizeObserver.observe(area);
+
+        window.addEventListener('map-sidebar-toggled', () => {
+            setTimeout(resizeMap, 400);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible' || !map) {
+                return;
+            }
+            resizeMap();
+            const div = document.getElementById('map');
+            if (mapReady && div && !hasGoogleMapDom(div)) {
+                mapReady = false;
+                bootDeviceMap();
+            }
+        });
+
+        if (mapHealthTimer) {
+            clearInterval(mapHealthTimer);
+        }
+        mapHealthTimer = setInterval(() => {
+            if (!map || mapBootRunning) {
+                return;
+            }
+            const div = document.getElementById('map');
+            if (mapReady && div && !hasGoogleMapDom(div)) {
+                console.warn('[device-map] render health check failed — reloading map');
+                mapReady = false;
+                map = null;
+                bootDeviceMap();
+            }
+        }, MAP_HEALTH_INTERVAL_MS);
+    }
+
+    function createMapInstance() {
         const initial = normalizePoint(cfg.initialPoint);
         const center = initial
             ? { lat: initial.lat, lng: initial.lng }
@@ -893,12 +1127,16 @@ ${pts}
         trafficLayer = new google.maps.TrafficLayer();
         customInfoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
 
-        bindControls();
-        initNavAlerts();
+        if (!mapControlsBound) {
+            bindControls();
+            initNavAlerts();
+            initMapHudToggle();
+            updatePlaybackFab();
+            initDateFilter();
+            mapControlsBound = true;
+        }
+
         hydrateAlertsFromConfig();
-        initMapHudToggle();
-        updatePlaybackFab();
-        initDateFilter();
         loadGeofences();
         loadHistory();
 
@@ -906,16 +1144,65 @@ ${pts}
             applyLivePoint(initial);
             lastRealtimePoint = { lat: initial.lat, lng: initial.lng };
         }
+    }
 
-        (async () => {
-            await loadRecentAlerts();
-            setupRealtime();
-            await pollLive();
-            hideLoading();
+    async function bootDeviceMap() {
+        if (mapBootRunning) {
+            return;
+        }
+        if (mapReady && map && hasGoogleMapDom(document.getElementById('map'))) {
             resizeMap();
-            window.dispatchEvent(new CustomEvent('device-map-ready'));
-        })();
-    };
+            return;
+        }
+
+        mapBootRunning = true;
+        mapBootAttempts += 1;
+
+        const attemptLabel = mapBootAttempts > 1
+            ? mi('loadingMapRetry', 'Reloading map…').replace(':attempt', String(mapBootAttempts))
+            : mi('loadingMap', 'Loading map…');
+        showLoading(attemptLabel);
+
+        try {
+            await waitForMapContainerSize();
+            await loadGoogleMapsApi();
+
+            if (!map) {
+                createMapInstance();
+            } else {
+                google.maps.event.trigger(map, 'resize');
+            }
+
+            bindMapWatchers();
+            await verifyMapRendered();
+            onMapTilesReady();
+            mapBootAttempts = 0;
+        } catch (err) {
+            console.warn('[device-map] boot failed', mapBootAttempts, err);
+            map = null;
+            mapReady = false;
+
+            if (mapBootAttempts < MAP_BOOT_MAX) {
+                await sleep(Math.min(1500 * mapBootAttempts, 6000));
+                mapBootRunning = false;
+                return bootDeviceMap();
+            }
+
+            showLoading(mi('loadingMapFailed', 'Map failed to load. Retrying…'));
+            mapBootAttempts = 0;
+            await sleep(8000);
+            mapBootRunning = false;
+            return bootDeviceMap();
+        } finally {
+            mapBootRunning = false;
+        }
+    }
+
+    function resizeMap() {
+        if (map && google?.maps?.event) {
+            setTimeout(() => google.maps.event.trigger(map, 'resize'), 350);
+        }
+    }
 
     async function loadRecentAlerts() {
         if (!alertsUrl) {
@@ -1645,6 +1932,23 @@ ${pts}
         }
     }
 
+    window.initDeviceMap = function () {
+        bootDeviceMap();
+    };
+
     window.initMap = window.initDeviceMap;
     window.deviceMapResize = resizeMap;
+
+    function scheduleMapBoot() {
+        if (!document.getElementById('map')) {
+            return;
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => bootDeviceMap(), { once: true });
+        } else {
+            bootDeviceMap();
+        }
+    }
+
+    scheduleMapBoot();
 })();

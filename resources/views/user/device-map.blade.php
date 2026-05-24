@@ -1300,6 +1300,9 @@
             alertsUrl: @json($mapApiRoutes['alerts'] ?? ''),
             i18n: {
                 dash: @json(__('app.map.dash')),
+                loadingMap: @json(__('app.map.loading_map')),
+                loadingMapRetry: @json(__('app.map.loading_map_retry')),
+                loadingMapFailed: @json(__('app.map.loading_map_failed')),
                 kmh: @json(__('app.map.kmh_unit')),
                 km: @json(__('app.map.km_unit')),
                 ignitionOn: @json(__('app.map.ignition_on')),
@@ -1396,7 +1399,6 @@
     </script>
     @endif
     <script src="{{ protected_js('map-session-guard.js') }}"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.maps_key', env('GOOGLE_MAPS_API_KEY')) }}&libraries=drawing,geometry,visualization,places&callback=initMap" async defer></script>
     <script src="{{ protected_js('device-map-tracker.js') }}"></script>
     <script src="{{ protected_js('map-tour.js') }}"></script>
 @endpush

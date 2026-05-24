@@ -49,6 +49,14 @@ return [
 
     'protocol' => env('TRACCAR_PROTOCOL', 'laravel'),
 
+    /*
+    | Poll tc_positions and broadcast DeviceLocationUpdated for map realtime (Pusher/Echo).
+    | Requires `php artisan schedule:work` or cron + schedule:run.
+    */
+    'broadcast_positions' => env('TRACCAR_BROADCAST_POSITIONS', true),
+
+    'broadcast_positions_limit' => (int) env('TRACCAR_BROADCAST_POSITIONS_LIMIT', 200),
+
     'sync_users' => env('TRACCAR_SYNC_USERS', true),
 
     /*

@@ -13,6 +13,7 @@ use App\Events\DeviceLocationUpdated;
 use App\Services\DeviceAccessService;
 use App\Services\Traccar\TraccarEntityProvisioner;
 use App\Services\VehicleEventService;
+use App\Support\Tracking\DeviceLocationPayload;
 use App\Support\Tracking\TrackerPayloadNormalizer;
 use App\Support\Traccar\TraccarMode;
 use App\Support\Traccar\TraccarSchema;
@@ -105,38 +106,10 @@ class DeviceDataController extends Controller
 
         // Live GPS is persisted in tc_positions (no legacy devices.meta column on tc_devices).
 
-        event(new DeviceLocationUpdated($device->id, [
-
-            'lat' => (float) $lat,
-
-            'lng' => (float) $lng,
-
-            'speed' => (float) $speed,
-
-            'heading' => (float) $heading,
-
-            'battery' => $battery,
-
-            'ignition' => $ignition,
-
-            'acc' => $acc,
-
-            'gsm_signal' => $gsmSignal,
-
-            'gps_signal' => $gpsSignal,
-
-            'satellites' => $satellites,
-
-            'odometer' => $odometer,
-
-            'power_cut' => $powerCut,
-
-            'panic' => $panic,
-
-            'recorded_at' => $recordedAt->toDateTimeString(),
-
-            'online' => true,
-        ]));
+        event(new DeviceLocationUpdated(
+            $device->id,
+            DeviceLocationPayload::fromDeviceLocation($loc)
+        ));
 
         $traccarPositionId = $loc->getAttribute('traccar_position_id') ?? (
             TraccarMode::writesTraccar() && ! TraccarMode::writesLegacy() ? $loc->id : null

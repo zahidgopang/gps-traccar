@@ -94,6 +94,7 @@ class MapController extends Controller
             'panic' => (bool) $location->panic,
             'recorded_at' => $location->recorded_at?->toIso8601String(),
             'timestamp' => $location->recorded_at?->toDateTimeString(),
+            'position_id' => (int) ($location->id ?? 0),
         ];
     }
 
