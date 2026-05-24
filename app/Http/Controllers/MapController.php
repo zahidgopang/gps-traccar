@@ -102,7 +102,26 @@ class MapController extends Controller
     {
         $device = $this->findMapDevice($token);
 
+        $result = $this->fetchDeviceHistoryPoints($device, $request);
+
+        $response = response()->json($result['points']);
+
+        if ($result['used_fallback'] && $result['fallback_reason']) {
+            $response->header('X-History-Fallback', $result['fallback_reason']);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Default (no dates) → last 24 hours from now. If empty, load last known activity.
+     *
+     * @return array{points: array<int, array>, used_fallback: bool, fallback_reason: ?string}
+     */
+    private function fetchDeviceHistoryPoints(Device $device, Request $request): array
+    {
         $range = $this->resolveHistoryRange($request);
+        $explicitRange = trim((string) ($request->query('from', $request->input('from', '')))) !== '';
 
         $locations = $this->positions->historyForDevice(
             $device,
@@ -111,9 +130,80 @@ class MapController extends Controller
             'asc'
         );
 
-        return response()->json(
-            $locations->map(fn ($loc) => $this->formatLocation($loc))->filter()->values()
-        );
+        $points = $this->formatLocationsCollection($locations);
+
+        if (! $explicitRange && $points === []) {
+            $fallback = $this->fallbackHistoryWhenDefaultRangeEmpty($device);
+
+            if ($fallback !== null) {
+                return $fallback;
+            }
+        }
+
+        return [
+            'points' => $points,
+            'used_fallback' => false,
+            'fallback_reason' => null,
+        ];
+    }
+
+    /**
+     * @return array{points: array<int, array>, used_fallback: bool, fallback_reason: string}|null
+     */
+    private function fallbackHistoryWhenDefaultRangeEmpty(Device $device): ?array
+    {
+        $latest = $this->positions->latestForDevice($device);
+
+        if ($latest?->recorded_at) {
+            $end = $latest->recorded_at->copy();
+            $from = $end->copy()->subHours(24);
+
+            $locations = $this->positions->historyForDevice($device, $from, $end, 'asc');
+
+            if ($locations->isNotEmpty()) {
+                return $this->historyPointsResult($locations, 'last_known_activity');
+            }
+
+            $from = $end->copy()->startOfDay();
+            $to = $end->copy()->endOfDay();
+            $locations = $this->positions->historyForDevice($device, $from, $to, 'asc');
+
+            if ($locations->isNotEmpty()) {
+                return $this->historyPointsResult($locations, 'last_activity_day');
+            }
+        }
+
+        $locations = $this->positions->historyForDevice($device, now()->subDays(30), null, 'asc');
+
+        if ($locations->isEmpty()) {
+            return null;
+        }
+
+        return $this->historyPointsResult($locations, '30_days');
+    }
+
+    /**
+     * @return array{points: array<int, array>, used_fallback: bool, fallback_reason: string}
+     */
+    private function historyPointsResult(Collection $locations, string $reason): array
+    {
+        return [
+            'points' => $this->formatLocationsCollection($locations),
+            'used_fallback' => true,
+            'fallback_reason' => $reason,
+        ];
+    }
+
+    /**
+     * @return array<int, array>
+     */
+    private function formatLocationsCollection(Collection $locations): array
+    {
+        return $locations
+            ->map(fn ($loc) => $this->formatLocation($loc))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     public function liveJson(string $token)

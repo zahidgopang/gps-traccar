@@ -399,6 +399,4 @@
             closeVideoModal();
         }
     });
-
-    window.addEventListener('load', loadYouTubeAPI);
 </script>

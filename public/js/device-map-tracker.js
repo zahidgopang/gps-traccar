@@ -1617,6 +1617,7 @@ ${pts}
             const json = await parseJsonResponse(response);
             if (handleMapAccessDenied(response, json)) return;
             if (!response.ok) throw new Error('HTTP ' + response.status);
+            const historyFallback = response.headers.get('X-History-Fallback') || '';
             const data = normalizeResponse(json).map(normalizePoint).filter(Boolean);
 
             polylines.forEach((p) => p.setMap(null));
@@ -1626,7 +1627,7 @@ ${pts}
 
             if (!data.length) {
                 showNotification(
-                    useLast24Hours ? 'No GPS data in the last 24 hours' : 'No history for selected period',
+                    useLast24Hours ? mi('noGps24h', 'No GPS data in the last 24 hours') : 'No history for selected period',
                     'info'
                 );
                 return;
@@ -1667,12 +1668,23 @@ ${pts}
             updatePlaybackFab();
             setPlaybackPanelOpen(false);
             updateRouteSummary(data);
-            showNotification(
-                useLast24Hours
-                    ? `Loaded ${data.length} GPS points (last 24 hours)`
-                    : `Loaded ${data.length} GPS points`,
-                'success'
-            );
+            if (historyFallback) {
+                const fallbackKeys = {
+                    last_known_activity: 'historyFallbackLastKnownActivity',
+                    last_activity_day: 'historyFallbackLastActivityDay',
+                    '30_days': 'historyFallback30Days',
+                };
+                const i18nKey = fallbackKeys[historyFallback] || 'historyFallbackLastKnownActivity';
+                const fallbackMsg = mi(i18nKey, `Loaded ${data.length} GPS points from last known activity`);
+                showNotification(fallbackMsg.replace(':count', String(data.length)), 'info');
+            } else {
+                showNotification(
+                    useLast24Hours
+                        ? `Loaded ${data.length} GPS points (last 24 hours)`
+                        : `Loaded ${data.length} GPS points`,
+                    'success'
+                );
+            }
         } catch (err) {
             showNotification('Failed to load history: ' + err.message, 'error');
         } finally {
