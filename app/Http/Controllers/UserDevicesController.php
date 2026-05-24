@@ -7,6 +7,7 @@ use App\Services\DeviceSubscriptionService;
 use App\Services\Traccar\TraccarTrackingGate;
 use App\Services\Tracking\DevicePositionLoader;
 use App\Services\UserDashboardService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -59,6 +60,57 @@ class UserDevicesController extends Controller
                 'dashboardService' => $dashboard,
             ]);
         }
+    }
+
+    /**
+     * Live telemetry for devices table (polled from the browser).
+     */
+    public function liveJson(Request $request, UserDashboardService $dashboard): JsonResponse
+    {
+        $ids = collect(explode(',', (string) $request->query('ids', '')))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->take(50);
+
+        if ($ids->isEmpty()) {
+            return response()->json([
+                'devices' => [],
+                'stats' => null,
+            ]);
+        }
+
+        $user = Auth::user();
+        $devices = $user
+            ->trackerDevicesQuery()
+            ->whereIn('id', $ids)
+            ->get()
+            ->sortBy(fn (Device $d) => $ids->search($d->id))
+            ->values();
+
+        $devices = app(TraccarTrackingGate::class)->filterTrackable($user, $devices, requireSubscription: false);
+
+        app(DevicePositionLoader::class)->attachLatestToMany($devices);
+        $alertDeviceIds = $dashboard->alertDeviceIds($devices);
+
+        $devicesPayload = $devices->map(function (Device $device) use ($dashboard, $alertDeviceIds) {
+            $liveStatus = $dashboard->resolveDeviceStatus($device, $alertDeviceIds);
+            $latest = $device->latestLocation;
+
+            return [
+                'id' => $device->id,
+                'live_status' => $liveStatus,
+                'speed' => $latest ? round((float) ($latest->speed ?? 0), 0) : null,
+                'recorded_at' => $latest?->recorded_at?->toIso8601String(),
+                'recorded_at_human' => $latest?->recorded_at?->diffForHumans() ?? __('app.user.devices.no_data_yet'),
+            ];
+        })->values();
+
+        return response()->json([
+            'devices' => $devicesPayload,
+            'stats' => $dashboard->getDevicePageStats($devices),
+        ]);
     }
 
     /**

@@ -6,11 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -63,10 +58,10 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        .leaflet-container {
-            width: 100% !important;
-            height: 100% !important;
-            font-family: inherit !important;
+        #map {
+            width: 100%;
+            height: 100%;
+            font-family: inherit;
         }
 
         /* Premium Pulse Animation */
@@ -101,18 +96,6 @@
             }
         }
 
-        /* Trail Line Animation */
-        .trail-line {
-            stroke-dasharray: 10, 10;
-            animation: dash 1s linear infinite;
-        }
-
-        @keyframes dash {
-            to {
-                stroke-dashoffset: 20;
-            }
-        }
-
         /* Glass Morphism */
         .glass-card {
             background: rgba(255, 255, 255, 0.1);
@@ -143,13 +126,6 @@
 
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: rgba(14, 165, 233, 0.7);
-        }
-
-        /* Map Controls */
-        .leaflet-control {
-            border-radius: 12px !important;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
         }
 
         /* Gradient Border */
@@ -189,14 +165,6 @@
             100% { left: 100%; }
         }
 
-        /* Dark Mode Map Tiles */
-        .dark .leaflet-tile {
-            filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
-        }
-
-        .dark .leaflet-container {
-            background: #1e293b !important;
-        }
     </style>
 </head>
 
@@ -450,45 +418,87 @@
     </div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-
 <script>
+    const GOOGLE_MAPS_KEY = @json(config('services.google.maps_key', env('GOOGLE_MAPS_API_KEY')));
+
     let map;
     let marker;
     let polyline;
+    let routeLine;
+    let trailPath = [];
+    let poiMarkers = [];
     let points = [];
     let currentIndex = 0;
     let demoInterval;
     let isPlaying = true;
     let speedValues = [55, 60, 50, 65, 45, 70, 55, 60, 58, 62];
 
-    // Define realistic route through Karachi
+    const darkMapStyles = [
+        { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#1e293b' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+    ];
+
+    function toLatLng(point) {
+        return { lat: point[0], lng: point[1] };
+    }
+
+    function loadGoogleMaps() {
+        return new Promise((resolve, reject) => {
+            if (window.google?.maps?.Map) {
+                resolve();
+                return;
+            }
+            if (!GOOGLE_MAPS_KEY) {
+                reject(new Error('Missing Google Maps API key'));
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_KEY)}&loading=async`;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Google Maps failed to load'));
+            document.head.appendChild(script);
+        });
+    }
+
+    function circleIcon(fillColor, scale) {
+        return {
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+            scale,
+        };
+    }
+
     function generateKarachiRoute() {
         return [
-            [24.8607, 67.0011], // Starting point - I.I. Chundrigar Road
+            [24.8607, 67.0011],
             [24.8612, 67.0018],
             [24.8619, 67.0026],
             [24.8626, 67.0034],
             [24.8633, 67.0042],
-            [24.8640, 67.0050], // Near Pakistan Stock Exchange
+            [24.8640, 67.0050],
             [24.8647, 67.0058],
             [24.8654, 67.0066],
             [24.8661, 67.0074],
             [24.8668, 67.0082],
-            [24.8675, 67.0090], // Near Mazar-e-Quaid
+            [24.8675, 67.0090],
             [24.8682, 67.0098],
             [24.8689, 67.0106],
             [24.8696, 67.0114],
             [24.8703, 67.0122],
-            [24.8710, 67.0130], // Clifton area
+            [24.8710, 67.0130],
             [24.8717, 67.0138],
             [24.8724, 67.0146],
             [24.8731, 67.0154],
             [24.8738, 67.0162],
             [24.8745, 67.0170],
-            [24.8752, 67.0178], // Sea View
+            [24.8752, 67.0178],
             [24.8759, 67.0186],
             [24.8766, 67.0194],
             [24.8773, 67.0202],
@@ -496,96 +506,69 @@
             [24.8787, 67.0218],
             [24.8794, 67.0226],
             [24.8801, 67.0234],
-            [24.8808, 67.0242]  // End point - Dolmen Mall
+            [24.8808, 67.0242],
         ];
     }
 
-    function initMap() {
-        map = L.map('map', {
-            zoomControl: false,
-            preferCanvas: true,
-            fadeAnimation: true,
-            zoomAnimation: true,
-            attributionControl: false
-        }).setView([24.8607, 67.0011], 14);
-
-        // Premium Dark/Light Tiles
+    function applyMapTheme() {
+        if (!map) return;
         const isDark = document.documentElement.classList.contains('dark');
-        const tileUrl = isDark ?
-            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' :
-            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        map.setOptions({ styles: isDark ? darkMapStyles : [] });
+    }
 
-        L.tileLayer(tileUrl, {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
-        // Add custom zoom controls
-        L.control.zoom({
-            position: 'topright',
-            zoomInTitle: 'Zoom in',
-            zoomOutTitle: 'Zoom out'
-        }).addTo(map);
-
-        // Generate route points
+    function initMap() {
         points = generateKarachiRoute();
+        const isDark = document.documentElement.classList.contains('dark');
 
-        // Create custom marker with premium styling
-        marker = L.marker(points[0], {
-            icon: L.divIcon({
-                html: `<div class="premium-pulse">
-                                <i class="fas fa-car"></i>
-                           </div>`,
-                className: '',
-                iconSize: [48, 48],
-                iconAnchor: [24, 24]
-            }),
-            zIndexOffset: 1000
-        }).addTo(map);
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: toLatLng(points[0]),
+            zoom: 14,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+            styles: isDark ? darkMapStyles : [],
+        });
 
-        // Create animated polyline
-        polyline = L.polyline([], {
-            color: '#0ea5e9',
-            weight: 4,
-            opacity: 0.8,
-            lineCap: 'round',
-            lineJoin: 'round',
-            dashArray: '10, 10',
-            className: 'trail-line'
-        }).addTo(map);
+        marker = new google.maps.Marker({
+            position: toLatLng(points[0]),
+            map,
+            title: 'Vehicle',
+            icon: circleIcon('#0ea5e9', 12),
+            zIndex: 1000,
+        });
 
-        // Add route path with gradient
-        L.polyline(points, {
-            color: '#3b82f6',
-            weight: 2,
-            opacity: 0.3,
-            dashArray: '5, 5'
-        }).addTo(map);
+        polyline = new google.maps.Polyline({
+            path: [],
+            geodesic: true,
+            strokeColor: '#0ea5e9',
+            strokeOpacity: 0.8,
+            strokeWeight: 4,
+            map,
+        });
 
-        // Add start and end markers
-        L.marker(points[0], {
-            icon: L.divIcon({
-                html: `<div class="w-10 h-10 rounded-full bg-gradient-to-r from-emerald-500 to-green-500 flex items-center justify-center text-white shadow-lg">
-                                <i class="fas fa-play"></i>
-                           </div>`,
-                className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            })
-        }).addTo(map).bindPopup('Starting Point<br><small>10:24 AM</small>');
+        routeLine = new google.maps.Polyline({
+            path: points.map(toLatLng),
+            geodesic: true,
+            strokeColor: '#3b82f6',
+            strokeOpacity: 0.3,
+            strokeWeight: 2,
+            map,
+        });
 
-        L.marker(points[points.length - 1], {
-            icon: L.divIcon({
-                html: `<div class="w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center text-white shadow-lg">
-                                <i class="fas fa-flag-checkered"></i>
-                           </div>`,
-                className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            })
-        }).addTo(map).bindPopup('Destination<br><small>Estimated: 11:45 AM</small>');
+        new google.maps.Marker({
+            position: toLatLng(points[0]),
+            map,
+            title: 'Starting Point',
+            icon: circleIcon('#10b981', 10),
+        });
 
-        // Start demo
+        new google.maps.Marker({
+            position: toLatLng(points[points.length - 1]),
+            map,
+            title: 'Destination',
+            icon: circleIcon('#ef4444', 10),
+        });
+
         startDemo();
     }
 
@@ -598,28 +581,22 @@
             if (!isPlaying) return;
 
             const currentPoint = points[currentIndex];
-            marker.setLatLng(currentPoint);
-            polyline.addLatLng(currentPoint);
+            const latLng = toLatLng(currentPoint);
+            marker.setPosition(latLng);
+            trailPath.push(latLng);
+            polyline.setPath(trailPath);
+            map.panTo(latLng);
 
-            // Smooth panning
-            map.panTo(currentPoint, {
-                animate: true,
-                duration: 1,
-                easeLinearity: 0.25
-            });
-
-            // Update timeline
             const progress = ((currentIndex + 1) / points.length) * 100;
             document.getElementById('timelineProgress').style.width = `${progress}%`;
 
-            // Update speed
             updateSpeedDisplay();
 
             currentIndex = (currentIndex + 1) % points.length;
 
-            // Loop back to start
             if (currentIndex === 0) {
-                polyline.setLatLngs([]);
+                trailPath = [];
+                polyline.setPath([]);
             }
         }, 1500);
     }
@@ -665,9 +642,11 @@
     function resetMap() {
         clearInterval(demoInterval);
         currentIndex = 0;
-        marker.setLatLng(points[0]);
-        polyline.setLatLngs([]);
-        map.setView(points[0], 14);
+        trailPath = [];
+        polyline.setPath([]);
+        marker.setPosition(toLatLng(points[0]));
+        map.setCenter(toLatLng(points[0]));
+        map.setZoom(14);
         document.getElementById('timelineProgress').style.width = '0%';
         startDemo();
     }
@@ -721,43 +700,45 @@
             icon.className = 'fas fa-sun text-lg';
         }
 
-        // Refresh map tiles for theme
-        if (map) {
-            map.remove();
-            setTimeout(initMap, 100);
+        applyMapTheme();
+    });
+
+    window.addEventListener('load', async () => {
+        try {
+            await loadGoogleMaps();
+            initMap();
+            updateLastUpdate();
+            setTimeout(addPointsOfInterest, 2000);
+        } catch (err) {
+            console.error('Demo map failed to load', err);
         }
     });
 
-    // Initialize everything when page loads
-    window.addEventListener('load', () => {
-        initMap();
-        updateLastUpdate();
-
-        // Add some random POIs
-        setTimeout(() => {
-            addPointsOfInterest();
-        }, 2000);
-    });
-
     function addPointsOfInterest() {
+        if (!map) return;
+
+        poiMarkers.forEach((m) => m.setMap(null));
+        poiMarkers = [];
+
         const pois = [
-            { lat: 24.8640, lng: 67.0050, title: 'Pakistan Stock Exchange', icon: 'fas fa-building' },
-            { lat: 24.8675, lng: 67.0090, title: 'Mazar-e-Quaid', icon: 'fas fa-landmark' },
-            { lat: 24.8752, lng: 67.0178, title: 'Sea View Beach', icon: 'fas fa-umbrella-beach' },
-            { lat: 24.8808, lng: 67.0242, title: 'Dolmen Mall', icon: 'fas fa-shopping-cart' }
+            { lat: 24.8640, lng: 67.0050, title: 'Pakistan Stock Exchange' },
+            { lat: 24.8675, lng: 67.0090, title: 'Mazar-e-Quaid' },
+            { lat: 24.8752, lng: 67.0178, title: 'Sea View Beach' },
+            { lat: 24.8808, lng: 67.0242, title: 'Dolmen Mall' },
         ];
 
-        pois.forEach(poi => {
-            L.marker([poi.lat, poi.lng], {
-                icon: L.divIcon({
-                    html: `<div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg">
-                                    <i class="${poi.icon} text-sm"></i>
-                               </div>`,
-                    className: '',
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
-                })
-            }).addTo(map).bindPopup(`<b>${poi.title}</b><br><small>Point of Interest</small>`);
+        pois.forEach((poi) => {
+            const m = new google.maps.Marker({
+                position: { lat: poi.lat, lng: poi.lng },
+                map,
+                title: poi.title,
+                icon: circleIcon('#a855f7', 8),
+            });
+            const info = new google.maps.InfoWindow({
+                content: `<b>${poi.title}</b><br><small>Point of Interest</small>`,
+            });
+            m.addListener('click', () => info.open({ anchor: m, map }));
+            poiMarkers.push(m);
         });
     }
 </script>

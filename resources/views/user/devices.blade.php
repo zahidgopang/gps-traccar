@@ -2,6 +2,13 @@
 
 @section('title', __('app.user.devices.title') . ' - ' . __('app.brand'))
 
+@push('styles')
+    <style>
+        tr.device-row.row-updated { transition: background-color 0.4s ease; background-color: rgba(37, 99, 235, 0.06); }
+        .stat-pulse { transition: transform 0.25s ease; transform: scale(1.06); }
+    </style>
+@endpush
+
 @section('content')
 
     <div class="container dashboard-container">
@@ -13,7 +20,7 @@
                 {{ __('app.user.devices.title') }}
             </h4>
             <p class="text-muted mb-0">{{ __('app.user.devices.subtitle') }}</p>
-        </motion>
+        </div>
 
         <!-- Stats Overview -->
         <div class="row mb-4">
@@ -184,20 +191,20 @@
                             <td>
                                 <span class="badge bg-light text-dark border">{{ $d->deviceTypeLabel() }}</span>
                             </td>
-                            <td>
+                            <td data-field="live-status">
                                 <div class="d-flex align-items-center">
                                     <div class="status-indicator me-2 {{ $liveStatus['dot'] }}"></div>
                                     <span class="badge {{ $liveStatus['class'] }}">{{ $liveStatus['label'] }}</span>
                                 </div>
                             </td>
-                            <td>
+                            <td data-field="speed">
                                 @if($latest)
                                     {{ number_format((float) ($latest->speed ?? 0), 0) }} {{ __('app.map.kmh_unit') }}
                                 @else
                                     <span class="text-muted">{{ __('app.map.dash') }}</span>
                                 @endif
                             </td>
-                            <td>
+                            <td data-field="last-update">
                                 <small class="text-muted d-block">
                                     {{ $latest?->recorded_at?->diffForHumans() ?? __('app.user.devices.no_data_yet') }}
                                 </small>
@@ -302,6 +309,16 @@
 @endsection
 
 @push('scripts')
+    <script>
+        window.USER_DEVICES_LIVE = {
+            pollUrl: @json(route('user.devices.live-json')),
+            pollMs: 5000,
+            dash: @json(__('app.map.dash')),
+            noData: @json(__('app.user.devices.no_data_yet')),
+            kmh: @json(__('app.map.kmh_unit')),
+        };
+    </script>
+    <script src="{{ protected_js('user-devices-live.js') }}"></script>
     <script>
 document.addEventListener('DOMContentLoaded', function() {
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
