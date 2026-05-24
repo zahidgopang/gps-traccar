@@ -162,6 +162,9 @@ Route::middleware(['auth', 'can:admin'])
         Route::get('locations', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'index'])
             ->name('locations.index');
 
+        Route::get('locations/live-json', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'liveJson'])
+            ->name('locations.live-json');
+
         Route::get('locations/device/{device}/launch-map', [MapAccessController::class, 'launchAdminMap'])
             ->name('locations.launch-map');
 

@@ -6,6 +6,8 @@
     <style>
         .device-type-icon { width: 36px; text-align: center; }
         .live-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        tr.row-updated { transition: background-color 0.4s ease; background-color: rgba(25, 118, 210, 0.06); }
+        .stat-pulse { transition: transform 0.25s ease; transform: scale(1.06); }
     </style>
 @endpush
 
@@ -21,25 +23,25 @@
         <div class="row g-2 mb-3">
             <div class="col-md-3 col-6">
                 <div class="border rounded p-2 text-center">
-                    <div class="fw-bold">{{ $stats['totalDevices'] ?? 0 }}</div>
+                    <div class="fw-bold" data-stat="totalDevices">{{ $stats['totalDevices'] ?? 0 }}</div>
                     <small class="text-muted">{{ __('app.admin.locations.total_devices') }}</small>
                 </div>
             </div>
             <div class="col-md-3 col-6">
                 <div class="border rounded p-2 text-center">
-                    <div class="fw-bold text-success">{{ $stats['onlineNow'] ?? 0 }}</div>
+                    <div class="fw-bold text-success" data-stat="onlineNow">{{ $stats['onlineNow'] ?? 0 }}</div>
                     <small class="text-muted">{{ __('app.admin.locations.online_now') }}</small>
                 </div>
             </div>
             <div class="col-md-3 col-6">
                 <div class="border rounded p-2 text-center">
-                    <div class="fw-bold text-primary">{{ $stats['running'] ?? 0 }}</div>
+                    <div class="fw-bold text-primary" data-stat="running">{{ $stats['running'] ?? 0 }}</div>
                     <small class="text-muted">{{ __('app.admin.locations.moving') }}</small>
                 </div>
             </div>
             <div class="col-md-3 col-6">
                 <div class="border rounded p-2 text-center">
-                    <div class="fw-bold text-secondary">{{ $stats['offlineNow'] ?? 0 }}</div>
+                    <div class="fw-bold text-secondary" data-stat="offlineNow">{{ $stats['offlineNow'] ?? 0 }}</div>
                     <small class="text-muted">{{ __('app.admin.locations.offline') }}</small>
                 </div>
             </div>
@@ -85,7 +87,7 @@
                         $latest = $d->latestLocation;
                         $subStatus = $subscriptionService->statusLabel($d);
                     @endphp
-                    <tr>
+                    <tr data-device-id="{{ $d->id }}">
                         <td>
                             <strong>{{ $d->name ?? 'Unnamed' }}</strong>
                             <small class="d-block text-muted"><x-admin.ltr tag="code">{{ $d->imei }}</x-admin.ltr></small>
@@ -99,26 +101,26 @@
                                 <span class="text-muted">{{ __('app.admin.locations.unassigned') }}</span>
                             @endif
                         </td>
-                        <td>
+                        <td data-field="live-status">
                             <span class="live-dot {{ $liveStatus['dot'] }} me-1"></span>
                             <span class="badge {{ $liveStatus['class'] }}">{{ $liveStatus['label'] }}</span>
                         </td>
-                        <td>
+                        <td data-field="last-position">
                             @if($latest)
                                 <x-admin.ltr>{{ number_format((float) $latest->lat, 5) }}, {{ number_format((float) $latest->lng, 5) }}</x-admin.ltr>
                             @else
                                 <span class="text-muted">—</span>
                             @endif
                         </td>
-                        <td>
+                        <td data-field="speed">
                             @if($latest)
-                                <x-admin.ltr>{{ number_format((float) ($latest->speed ?? 0), 0) }} km/h</x-admin.ltr>
+                                <x-admin.ltr>{{ number_format((float) ($latest->speed ?? 0), 0) }} {{ __('app.admin.locations.kmh') }}</x-admin.ltr>
                             @else
                                 —
                             @endif
                         </td>
-                        <td>
-                            <small><x-admin.ltr>{{ $latest?->recorded_at?->diffForHumans() ?? 'No data' }}</x-admin.ltr></small>
+                        <td data-field="last-update">
+                            <small><x-admin.ltr>{{ $latest?->recorded_at?->diffForHumans() ?? __('app.common.no_data') }}</x-admin.ltr></small>
                         </td>
                         <td>
                             <span class="badge {{ $subStatus['class'] }}">{{ $subStatus['label'] }}</span>
@@ -148,3 +150,16 @@
         <div class="mt-3">{{ $devices->links() }}</div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        window.ADMIN_LOCATIONS_LIVE = {
+            pollUrl: @json(route('admin.locations.live-json')),
+            pollMs: 5000,
+            dash: @json(__('app.map.dash')),
+            noData: @json(__('app.common.no_data')),
+            kmh: @json(__('app.admin.locations.kmh')),
+        };
+    </script>
+    <script src="{{ protected_js('admin-locations-live.js') }}"></script>
+@endpush
