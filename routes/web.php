@@ -112,8 +112,6 @@ Route::middleware(['auth', 'user.active', 'tracker.access'])->group(function () 
     Route::prefix('user/devices')->name('user.devices.')->group(function () {
         Route::get('/', [UserDevicesController::class, 'index'])->name('index');
         Route::get('/live-json', [UserDevicesController::class, 'liveJson'])->name('live-json');
-        Route::put('/{device}', [UserDevicesController::class, 'update'])->name('update');
-        Route::get('/{device}/edit', [UserDevicesController::class, 'getDevice'])->name('edit');
     });
 
     /*

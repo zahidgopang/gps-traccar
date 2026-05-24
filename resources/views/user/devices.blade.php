@@ -226,9 +226,6 @@
                                             <i class="fas fa-lock me-1"></i> {{ __('app.user.devices.map_locked') }}
                                         </button>
                                     @endif
-                                    <button class="btn btn-outline-primary btn-sm edit-device-btn" data-device-id="{{ $d->id }}">
-                                        <i class="fas fa-edit me-1"></i> {{ __('app.common.edit') }}
-                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -252,60 +249,6 @@
 
     </div>
 
-
-    <!-- Edit Device Modal -->
-    <div class="modal fade" id="editDeviceModal" tabindex="-1" aria-labelledby="editDeviceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editDeviceModalLabel">
-                        <i class="fas fa-edit me-2"></i> {{ __('app.user.devices.edit_modal_title') }}
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('app.forms.close') }}"></button>
-                </div>
-                <form id="editDeviceForm">
-                    @csrf
-                    @method('PUT')
-                    <input type="hidden" id="editDeviceId" name="device_id">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">{{ __('app.user.devices.imei_label') }}</label>
-                            <input type="text" class="form-control admin-ltr" dir="ltr" id="editDeviceIMEI" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDeviceName" class="form-label">{{ __('app.user.devices.name_label') }} *</label>
-                            <input type="text" class="form-control" id="editDeviceName" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDeviceType" class="form-label">{{ __('app.user.devices.type_label') }} *</label>
-                            <select class="form-select" id="editDeviceType" name="device_type" required data-placeholder="{{ __('app.user.devices.type_placeholder') }}">
-                                <option value="car">{{ __('app.forms.device_type_car') }}</option>
-                                <option value="truck">{{ __('app.forms.device_type_truck') }}</option>
-                                <option value="bike">{{ __('app.forms.device_type_bike') }}</option>
-                                <option value="personal">{{ __('app.forms.device_type_personal') }}</option>
-                                <option value="other">{{ __('app.forms.device_type_other') }}</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDeviceModel" class="form-label">{{ __('app.user.devices.model_label') }}</label>
-                            <input type="text" class="form-control" id="editDeviceModel" name="model">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDeviceDescription" class="form-label">{{ __('app.user.devices.description_label') }}</label>
-                            <textarea class="form-control" id="editDeviceDescription" name="description" rows="2"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-premium" data-bs-dismiss="modal">{{ __('app.common.cancel') }}</button>
-                        <button type="submit" class="btn btn-premium" id="updateDevice">
-                            <i class="fas fa-save me-2"></i> {{ __('app.user.devices.update_device') }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
 @endsection
 
 @push('scripts')
@@ -320,136 +263,18 @@
     </script>
     <script src="{{ protected_js('user-devices-live.js') }}"></script>
     <script>
-document.addEventListener('DOMContentLoaded', function() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-            const baseUrl = '{{ url("/") }}';
-
+        document.addEventListener('DOMContentLoaded', function () {
             const deviceSearch = document.getElementById('deviceSearch');
-            if (deviceSearch) {
-                deviceSearch.addEventListener('input', function() {
-                    const query = this.value.trim().toLowerCase();
-                    document.querySelectorAll('.device-row').forEach(row => {
-                        const haystack = row.getAttribute('data-search') || '';
-                        row.style.display = !query || haystack.includes(query) ? '' : 'none';
-                    });
-                });
+            if (!deviceSearch) {
+                return;
             }
-
-            // Simple toast function
-            function showToast(message, type = 'success') {
-                // Create toast element
-                const toast = document.createElement('div');
-                toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
-                toast.setAttribute('role', 'alert');
-                toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-
-                // Add to container
-                let container = document.querySelector('.toast-container');
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                    document.body.appendChild(container);
-                }
-                container.appendChild(toast);
-
-                // Show toast
-                const bsToast = new bootstrap.Toast(toast);
-                bsToast.show();
-
-                // Remove after hide
-                toast.addEventListener('hidden.bs.toast', function() {
-                    this.remove();
+            deviceSearch.addEventListener('input', function () {
+                const query = this.value.trim().toLowerCase();
+                document.querySelectorAll('.device-row').forEach((row) => {
+                    const haystack = row.getAttribute('data-search') || '';
+                    row.style.display = !query || haystack.includes(query) ? '' : 'none';
                 });
-            }
-
-            // Edit Device
-            document.addEventListener('click', function(e) {
-                if (e.target.closest('.edit-device-btn')) {
-                    e.preventDefault();
-                    const deviceId = e.target.closest('.edit-device-btn').getAttribute('data-device-id');
-                    loadDeviceForEdit(deviceId);
-                }
             });
-
-            // Load device for editing
-            function loadDeviceForEdit(deviceId) {
-                fetch(`${baseUrl}/user/devices/${deviceId}/edit`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const device = data.device;
-                            document.getElementById('editDeviceId').value = device.id;
-                            document.getElementById('editDeviceIMEI').value = device.imei;
-                            document.getElementById('editDeviceName').value = device.name;
-                            document.getElementById('editDeviceType').value = device.device_type;
-                            document.getElementById('editDeviceModel').value = device.model || '';
-                            document.getElementById('editDeviceDescription').value = device.description || '';
-
-                            new bootstrap.Modal(document.getElementById('editDeviceModal')).show();
-                        } else {
-                            showToast(data.message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        showToast('Failed to load device data', 'error');
-                        console.error('Error:', error);
-                    });
-            }
-
-            // Edit Device Form
-            const editDeviceForm = document.getElementById('editDeviceForm');
-            if (editDeviceForm) {
-                editDeviceForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-
-                    const updateBtn = document.getElementById('updateDevice');
-                    const originalText = updateBtn.innerHTML;
-                    updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> ' + @json(__('app.user.devices.updating'));
-                    updateBtn.disabled = true;
-
-                    const deviceId = document.getElementById('editDeviceId').value;
-                    const formData = new FormData(this);
-
-                    fetch(`${baseUrl}/user/devices/${deviceId}`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
-                            'X-HTTP-Method-Override': 'PUT'
-                        },
-                        body: formData
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                showToast(data.message);
-                                bootstrap.Modal.getInstance(document.getElementById('editDeviceModal')).hide();
-                                location.reload(); // Reload page to show updated device
-                            } else {
-                                showToast(data.message || 'Error updating device', 'error');
-                            }
-                        })
-                        .catch(error => {
-                            showToast('An error occurred. Please try again.', 'error');
-                            console.error('Error:', error);
-                        })
-                        .finally(() => {
-                            updateBtn.innerHTML = originalText;
-                            updateBtn.disabled = false;
-                        });
-                });
-            }
         });
     </script>
 @endpush
