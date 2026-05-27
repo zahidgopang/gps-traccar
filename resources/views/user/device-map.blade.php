@@ -1270,7 +1270,9 @@
         window.DEVICE_MAP_CONFIG = {
             deviceId: {{ $device->id }},
             mapToken: @json($mapToken ?? ''),
-            deviceName: @json($device->name),
+            deviceName: @json($device->mapMarkerTitle()),
+            mapDisplayTitle: @json($device->mapDisplayTitle()),
+            deviceTypeLabel: @json($device->deviceTypeLabel()),
             isAdminMap: @json($isAdminMap ?? false),
             apiRoutes: @json($mapApiRoutes ?? []),
             baseUrl: @json(url('/')),

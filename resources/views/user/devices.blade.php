@@ -163,25 +163,23 @@
                             $lockTitle = $canTrack ? '' : ($accessCheck['title'] . ' — ' . $accessCheck['message']);
                         @endphp
                         <tr class="device-row" data-device-id="{{ $d->id }}" data-imei="{{ $d->imei }}"
-                            data-search="{{ strtolower($d->name . ' ' . $d->imei . ' ' . $d->model) }}">
+                            data-search="{{ strtolower(($d->vehicle_name ?? '') . ' ' . $d->name . ' ' . $d->imei . ' ' . ($d->vehicle_model ?? '')) }}">
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="device-icon me-3">
-                                        @if($d->device_type == 'car')
-                                            <i class="fas fa-car fa-lg" style="color: var(--primary-blue);"></i>
-                                        @elseif($d->device_type == 'truck')
-                                            <i class="fas fa-truck fa-lg" style="color: var(--primary-blue);"></i>
-                                        @elseif($d->device_type == 'bike')
-                                            <i class="fas fa-motorcycle fa-lg" style="color: var(--primary-blue);"></i>
-                                        @elseif($d->device_type == 'personal')
-                                            <i class="fas fa-user fa-lg" style="color: var(--primary-blue);"></i>
-                                        @else
-                                            <i class="fas fa-satellite fa-lg" style="color: var(--primary-blue);"></i>
-                                        @endif
+                                        <i class="fas {{ $d->deviceTypeIconClass() }} fa-lg" style="color: var(--primary-blue);"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1">{{ $d->name ?? __('app.user.devices.unnamed_device') }}</h6>
-                                        <small class="text-muted">{{ $d->model ?? __('app.user.devices.gps_tracker') }}</small>
+                                        <h6 class="mb-1">{{ $d->mapDisplayTitle() }}</h6>
+                                        <small class="text-muted">
+                                            {{ $d->deviceTypeLabel() }}
+                                            @if($d->vehicle_model)
+                                                · {{ $d->vehicle_model }}
+                                            @endif
+                                            @if($d->vehicle_number)
+                                                · <x-admin.ltr>{{ $d->vehicle_number }}</x-admin.ltr>
+                                            @endif
+                                        </small>
                                     </div>
                                 </div>
                             </td>

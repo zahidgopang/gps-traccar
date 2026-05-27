@@ -3,11 +3,20 @@
 @section('page-title','Add User')
 
 @section('content')
-    <div class="card p-3">
-        <form method="POST" action="{{ route('admin.users.store') }}">
-            @include('admin.users._form',['user'=>null])
-            <button class="btn btn-primary">{{ __('app.common.save') }}</button>
-            <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary">{{ __('app.common.cancel') }}</a>
-        </form>
-    </div>
+    @php $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'); @endphp
+    <x-admin.form-shell
+        :action="route($panel . '.users.store')"
+        :cancel-url="route($panel . '.users.index')"
+    >
+        @include('admin.users._form', ['user' => null, 'panel' => $panel])
+
+        <x-slot:footer>
+            <a href="{{ route($panel . '.users.index') }}" class="btn btn-light btn-sm">
+                <i class="fas fa-times me-1" aria-hidden="true"></i>{{ __('app.common.cancel') }}
+            </a>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-check me-1" aria-hidden="true"></i>{{ __('app.common.save') }}
+            </button>
+        </x-slot:footer>
+    </x-admin.form-shell>
 @endsection

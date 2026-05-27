@@ -18,16 +18,28 @@
 @endpush
 
 @section('content')
+    @php $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'); @endphp
     <div class="card p-3">
 
         <div class="d-flex justify-content-between mb-3">
             <h5>{{ __('app.admin.users.title') }}</h5>
-            <a href="{{ route('admin.users.create') }}" class="btn btn-primary btn-sm">{{ __('app.forms.add_user') }}</a>
+            <a href="{{ route($panel . '.users.create') }}" class="btn btn-primary btn-sm">{{ __('app.forms.add_user') }}</a>
         </div>
 
-        <form class="d-flex mb-3" method="GET">
-            <input name="q" value="{{ request('q') }}" class="form-control me-2" placeholder="{{ __('app.forms.search_name_email') }}">
-            <button class="btn btn-outline-secondary btn-sm">{{ __('app.common.search') }}</button>
+        <form class="admin-filter-bar d-flex flex-wrap gap-2 align-items-end mb-3" method="GET">
+            <div class="flex-grow-1" style="min-width: 12rem; max-width: 24rem;">
+                <label class="form-label small mb-1" for="users-filter-q">{{ __('app.common.search') }}</label>
+                <input name="q" id="users-filter-q" value="{{ request('q') }}" class="form-control form-control-sm"
+                       placeholder="{{ __('app.forms.search_name_email') }}">
+            </div>
+            <div class="admin-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">{{ __('app.common.search') }}</button>
+                @if(request()->filled('q'))
+                    <a href="{{ route($panel . '.users.index') }}" class="btn btn-outline-secondary btn-sm" title="{{ __('app.common.clear') }}">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </a>
+                @endif
+            </div>
         </form>
 
         <!-- Skeleton -->
@@ -65,18 +77,20 @@
                         <td>
                             @include('partials.account-status-toggle', [
                                 'user' => $u,
-                                'toggleUrl' => route('admin.users.toggle-status', $u),
+                                'toggleUrl' => route($panel . '.users.toggle-status', $u),
                                 'toggleDisabled' => $u->id === auth()->id() || $u->email === 'admin@demo.test',
                             ])
                         </td>
                         <td><x-admin.ltr>{{ $u->created_at?->diffForHumans() ?? '—' }}</x-admin.ltr></td>
                         <td>
-                            <a href="{{ route('admin.users.edit',$u) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
+                            <a href="{{ route($panel . '.users.edit', $u) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
 
-                            <form method="POST" action="{{ route('admin.users.destroy',$u) }}" class="d-inline delete-form">
+                            @if($panel === 'admin')
+                            <form method="POST" action="{{ route('admin.users.destroy', $u) }}" class="d-inline delete-form">
                                 @csrf @method('DELETE')
                                 <button type="button" class="btn btn-sm btn-danger btn-delete">{{ __('app.common.delete') }}</button>
                             </form>
+                            @endif
                         </td>
                     </tr>
                 @endforeach
@@ -92,7 +106,6 @@
 @endsection
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ protected_js('device-status-toggle.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function(){
@@ -117,9 +130,6 @@
                 });
             });
 
-            @if(session('success'))
-            Swal.fire({toast:true,position:@json(($htmlDir ?? 'ltr') === 'rtl' ? 'top-start' : 'top-end'),icon:'success',title:"{{ session('success') }}",showConfirmButton:false,timer:2000});
-            @endif
         });
     </script>
 @endpush

@@ -97,6 +97,7 @@ return [
         'role' => 'الدور',
         'status' => 'الحالة',
         'imei' => 'رقم IMEI',
+        'vehicle_number' => 'رقم المركبة / اللوحة',
         'device_type' => 'نوع الجهاز',
         'user_id' => 'المستخدم',
         'device_id' => 'الجهاز',

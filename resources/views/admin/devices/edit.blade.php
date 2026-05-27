@@ -3,14 +3,46 @@
 @section('page-title','Edit Device')
 
 @section('content')
-    <div class="card p-3">
-        <form action="{{ route('admin.devices.update', $device) }}" method="POST">
-            @method('PUT')
-            @include('admin.devices._form', ['device' => $device])
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary" type="submit">Update</button>
-                <a href="{{ route('admin.devices.index') }}" class="btn btn-outline-secondary">{{ __('app.common.cancel') }}</a>
-            </div>
-        </form>
-    </div>
+    @php $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'); @endphp
+    <x-admin.form-shell
+        :action="route($panel . '.devices.update', $device)"
+        method="PUT"
+        :cancel-url="route($panel . '.devices.index')"
+    >
+        @include('admin.devices._form', [
+            'device' => $device,
+            'panel' => $panel,
+            'users' => $users,
+            'clients' => $clients ?? collect(),
+            'usersByClient' => $usersByClient ?? [],
+            'formClientId' => $formClientId ?? null,
+            'allowedDeviceTypes' => $allowedDeviceTypes ?? [],
+            'clientStockBalance' => $clientStockBalance ?? null,
+        ])
+
+        <x-slot:footer>
+            <a href="{{ route($panel . '.devices.index') }}" class="btn btn-light btn-sm">
+                <i class="fas fa-times me-1" aria-hidden="true"></i>{{ __('app.common.cancel') }}
+            </a>
+            <button type="submit" class="btn btn-primary btn-sm" id="device-submit-btn"
+                @if(($formClientId ?? null) && empty($allowedDeviceTypes ?? [])) disabled @endif>
+                <i class="fas fa-check me-1" aria-hidden="true"></i>{{ __('app.common.update') }}
+            </button>
+        </x-slot:footer>
+    </x-admin.form-shell>
 @endsection
+
+@push('scripts')
+    @include('admin.devices._users-script', [
+        'panel' => $panel,
+        'clients' => $clients ?? collect(),
+        'usersByClient' => $usersByClient ?? [],
+        'selectedUserId' => old('user_id', $device->user_id ?? ''),
+    ])
+    @include('admin.devices._client-stock-script', [
+        'panel' => $panel,
+        'formClientId' => $formClientId ?? null,
+        'allowedDeviceTypes' => $allowedDeviceTypes ?? [],
+        'deviceType' => old('device_type', $device->device_type ?? ''),
+    ])
+@endpush

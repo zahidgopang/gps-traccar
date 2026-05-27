@@ -36,6 +36,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="{{ asset('css/form-enhancements.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/admin-list-filters.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/admin-forms.css') }}">
     @include('partials.locale-styles')
     @if(($htmlDir ?? 'ltr') === 'rtl')
         @include('partials.rtl-head')
@@ -626,6 +628,51 @@
         }
 
         /* =============================
+           Pagination (Bootstrap 5)
+        ============================= */
+        .admin-pagination .pagination {
+            margin-bottom: 0;
+            flex-wrap: wrap;
+        }
+
+        .admin-pagination .page-link {
+            color: var(--admin-primary);
+            border-color: var(--admin-border);
+            background: var(--admin-card);
+        }
+
+        .admin-pagination .page-item.active .page-link {
+            background: var(--admin-primary);
+            border-color: var(--admin-primary);
+            color: #fff;
+        }
+
+        .admin-pagination .page-item.disabled .page-link {
+            color: var(--admin-text-light);
+            background: var(--admin-bg);
+        }
+
+        /* SweetAlert2 modals above Select2 */
+        .swal2-container {
+            z-index: 10050 !important;
+        }
+
+        /* Hide Select2 while Bootstrap flash toast is visible */
+        body.admin-flash-visible .select2-container,
+        body.admin-flash-visible .select2-dropdown {
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+
+        #adminToastContainer .toast {
+            min-width: min(320px, calc(100vw - 2rem));
+        }
+
+        #adminToastContainer .toast-body {
+            flex: 1;
+        }
+
+        /* =============================
            Footer
         ============================= */
         .footer-premium {
@@ -840,35 +887,20 @@
             window.adminInitDataTablesRtl();
         }
 
-        // Success messages
-        @if(session('success'))
-        Swal.fire({
-            toast: true,
-            position: @json(($htmlDir ?? 'ltr') === 'rtl' ? 'top-start' : 'top-end'),
-            icon: 'success',
-            title: '{{ session('success') }}',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-            background: 'var(--admin-card)',
-            color: 'var(--admin-text)',
-            iconColor: 'var(--admin-success)'
-        });
-        @endif
-
-        @if(session('error'))
-        Swal.fire({
-            toast: true,
-            position: @json(($htmlDir ?? 'ltr') === 'rtl' ? 'top-start' : 'top-end'),
-            icon: 'error',
-            title: '{{ session('error') }}',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-            background: 'var(--admin-card)',
-            color: 'var(--admin-text)',
-            iconColor: 'var(--admin-danger)'
-        });
+        // Flash toasts — after Select2 init; Bootstrap toast (not Swal)
+        @if(session('success') || session('error'))
+        window.setTimeout(function () {
+            @if(session('success'))
+            if (typeof window.adminFlashToast === 'function') {
+                window.adminFlashToast('success', @json(session('success')));
+            }
+            @endif
+            @if(session('error'))
+            if (typeof window.adminFlashToast === 'function') {
+                window.adminFlashToast('error', @json(session('error')));
+            }
+            @endif
+        }, 50);
         @endif
     });
 </script>

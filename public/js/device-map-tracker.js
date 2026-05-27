@@ -858,7 +858,7 @@ ${pts}
             currentPositionMarker = new google.maps.Marker({
                 position,
                 map,
-                title: cfg.deviceName || 'Vehicle',
+                title: cfg.deviceName || cfg.mapDisplayTitle || 'Vehicle',
                 icon,
                 zIndex: 999,
             });
@@ -866,6 +866,7 @@ ${pts}
         } else {
             currentPositionMarker.setPosition(position);
             currentPositionMarker.setIcon(icon);
+            currentPositionMarker.setTitle(cfg.deviceName || cfg.mapDisplayTitle || 'Vehicle');
         }
 
         if (followVehicle) map.panTo(position);

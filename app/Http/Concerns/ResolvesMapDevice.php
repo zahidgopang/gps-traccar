@@ -26,17 +26,19 @@ trait ResolvesMapDevice
         $token = ['token' => $mapToken];
 
         if ($this->isAdminMapRequest()) {
+            $panel = request()->routeIs('client.*') ? 'client' : 'admin';
+
             return [
-                'live' => route('admin.device.live.json', $token),
-                'history' => route('admin.device.history.json', $token),
-                'summary' => route('admin.device.summary.json', $token),
-                'alerts' => route('admin.device.alerts.json', $token),
-                'reverseGeocode' => route('admin.device.reverse.geocode', $token),
-                'geofences' => route('admin.device.geofences.json', $token),
-                'geofencesSave' => route('admin.device.geofences.save', $token),
-                'geofenceDestroy' => url('/admin/geofence'),
-                'geofenceUpdate' => url('/admin/geofence'),
-                'accessDeniedRedirect' => route('admin.locations.index'),
+                'live' => route($panel . '.device.live.json', $token),
+                'history' => route($panel . '.device.history.json', $token),
+                'summary' => route($panel . '.device.summary.json', $token),
+                'alerts' => route($panel . '.device.alerts.json', $token),
+                'reverseGeocode' => route($panel . '.device.reverse.geocode', $token),
+                'geofences' => route($panel . '.device.geofences.json', $token),
+                'geofencesSave' => route($panel . '.device.geofences.save', $token),
+                'geofenceDestroy' => url('/' . $panel . '/geofence'),
+                'geofenceUpdate' => url('/' . $panel . '/geofence'),
+                'accessDeniedRedirect' => route($panel . '.locations.index'),
             ];
         }
 

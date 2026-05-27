@@ -21,7 +21,7 @@ class EnsureMapAccess
             abort(404);
         }
 
-        if ($request->routeIs('user.device.map') || $request->routeIs('admin.device.map')) {
+        if ($request->routeIs('user.device.map', 'admin.device.map', 'client.device.map')) {
             $this->mapAccess->activateMapPage($token, $request->user());
         } else {
             $this->mapAccess->assertMapApiAccess($token, $request->user());

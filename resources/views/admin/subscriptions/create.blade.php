@@ -3,13 +3,43 @@
 @section('page-title','Add Subscription')
 
 @section('content')
-    <div class="card p-3">
-        <form action="{{ route('admin.subscriptions.store') }}" method="POST">
-            @include('admin.subscriptions._form', ['subscription' => null])
-            <div class="d-flex gap-2 mt-2">
-                <button class="btn btn-primary">{{ __('app.common.save') }}</button>
-                <a href="{{ route('admin.subscriptions.index') }}" class="btn btn-outline-secondary">{{ __('app.common.cancel') }}</a>
-            </div>
-        </form>
-    </div>
+    @php $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'); @endphp
+    <x-admin.form-shell
+        :action="route($panel . '.subscriptions.store')"
+        :cancel-url="route($panel . '.subscriptions.index')"
+        id="subscription-form"
+        data-subscription-dates
+        data-subscription-create="1"
+        data-subscription-billing="1"
+    >
+        @include('admin.subscriptions._form', [
+            'subscription' => null,
+            'clients' => $clients ?? collect(),
+            'devicesByClient' => $devicesByClient ?? [],
+            'selectedClient' => $selectedClient ?? null,
+            'plans' => $plans ?? collect(),
+            'panel' => $panel,
+        ])
+
+        <x-slot:footer>
+            <a href="{{ route($panel . '.subscriptions.index') }}" class="btn btn-light btn-sm">
+                <i class="fas fa-times me-1" aria-hidden="true"></i>{{ __('app.common.cancel') }}
+            </a>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-check me-1" aria-hidden="true"></i>{{ __('app.common.save') }}
+            </button>
+        </x-slot:footer>
+    </x-admin.form-shell>
 @endsection
+
+@push('scripts')
+    <script src="{{ protected_js('subscription-dates.js') }}"></script>
+    @include('admin.subscriptions._devices-script', [
+        'panel' => $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'),
+        'clients' => $clients ?? collect(),
+        'devicesByClient' => $devicesByClient ?? [],
+        'selectedDeviceId' => $selectedDeviceId ?? null,
+    ])
+    <script src="{{ protected_js('subscription-payment-modal.js') }}"></script>
+    @include('admin.subscriptions._billing-script', ['panel' => $panel])
+@endpush

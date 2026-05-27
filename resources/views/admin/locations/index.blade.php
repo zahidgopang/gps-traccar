@@ -47,21 +47,30 @@
             </div>
         </div>
 
-        <form method="GET" class="row g-2 mb-3">
+        <form method="GET" class="admin-filter-bar row g-2 mb-3 align-items-end">
             <div class="col-md-5">
-                <input name="q" value="{{ request('q') }}" class="form-control form-control-sm"
-                       placeholder="Search IMEI, device name, owner…">
+                <label class="form-label small mb-1" for="locations-filter-q">{{ __('app.common.search') }}</label>
+                <input name="q" id="locations-filter-q" value="{{ request('q') }}" class="form-control form-control-sm admin-ltr" dir="ltr"
+                       placeholder="{{ __('app.admin.locations.search_placeholder') }}">
             </div>
             <div class="col-md-3">
-                <select name="status" class="form-select form-select-sm" data-search="false">
+                <label class="form-label small mb-1" for="locations-filter-status">{{ __('app.common.status') }}</label>
+                <select name="status" id="locations-filter-status" class="form-select form-select-sm" data-search="false"
+                        data-placeholder="{{ __('app.admin.locations.all_statuses') }}">
                     <option value="">{{ __('app.admin.locations.all_statuses') }}</option>
                     <option value="active" @selected(request('status') === 'active')>{{ __('app.common.active') }}</option>
                     <option value="inactive" @selected(request('status') === 'inactive')>{{ __('app.common.inactive') }}</option>
                     <option value="blocked" @selected(request('status') === 'blocked')>{{ __('app.common.blocked') }}</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <button class="btn btn-primary btn-sm w-100">{{ __('app.common.filter') }}</button>
+            <div class="col-md-4 d-flex gap-1 admin-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">{{ __('app.common.filter') }}</button>
+                @if(request()->filled('q') || request()->filled('status'))
+                    <a href="{{ route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') }}"
+                       class="btn btn-outline-secondary btn-sm" title="{{ __('app.common.clear') }}">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </a>
+                @endif
             </div>
         </form>
 
@@ -89,10 +98,18 @@
                     @endphp
                     <tr data-device-id="{{ $d->id }}">
                         <td>
-                            <strong>{{ $d->name ?? 'Unnamed' }}</strong>
+                            <strong>{{ $d->mapDisplayTitle() }}</strong>
                             <small class="d-block text-muted"><x-admin.ltr tag="code">{{ $d->imei }}</x-admin.ltr></small>
+                            @if($d->vehicle_number)
+                                <small class="d-block text-muted"><x-admin.ltr>{{ $d->vehicle_number }}</x-admin.ltr></small>
+                            @endif
                         </td>
-                        <td>{{ $d->deviceTypeLabel() }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ $d->deviceTypeLabel() }}</span>
+                            @if($d->vehicle_type)
+                                <small class="d-block text-muted mt-1">{{ $d->vehicleTypeLabel() }}</small>
+                            @endif
+                        </td>
                         <td>
                             @if($d->user)
                                 <span>{{ $d->user->name }}</span>
@@ -131,7 +148,7 @@
                                title="Open live map (admin full access)">
                                 <i class="fas fa-map-marked-alt me-1"></i> Map
                             </a>
-                            <a href="{{ route('admin.devices.edit', $d) }}"
+                            <a href="{{ route(($panel ?? 'admin') . '.devices.edit', $d) }}"
                                class="btn btn-sm btn-outline-secondary"
                                title="Edit device">
                                 <i class="fas fa-edit"></i>
@@ -154,7 +171,7 @@
 @push('scripts')
     <script>
         window.ADMIN_LOCATIONS_LIVE = {
-            pollUrl: @json(route('admin.locations.live-json')),
+            pollUrl: @json(route(($panel ?? 'admin') . '.locations.live-json')),
             pollMs: 5000,
             dash: @json(__('app.map.dash')),
             noData: @json(__('app.common.no_data')),

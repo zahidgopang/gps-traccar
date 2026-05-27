@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\DeviceController as AdminDeviceController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\DeviceStockController;
+use App\Http\Controllers\Admin\DeviceStockSaleController;
+use App\Http\Controllers\Admin\ClientStockBalanceController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\MapController;
@@ -42,13 +45,7 @@ Route::middleware(['auth', 'user.active', 'tracker.access'])->group(function () 
     */
 
     Route::get('/dashboard', function () {
-        // If admin → redirect to admin panel
-        if (auth()->user()->role === 'admin') {
-            return redirect()->route('admin.dashboard');
-        }
-
-        // If normal user → redirect to user dashboard
-        return redirect()->route('user.dashboard');
+        return redirect()->route(app(\App\Services\Authorization\RbacService::class)->panelRouteFor(auth()->user()));
     })->name('dashboard');
 
     /*
@@ -135,13 +132,22 @@ Route::middleware(['auth', 'user.active', 'tracker.access'])->group(function () 
 | ADMIN PANEL ROUTES
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'can:admin'])
+Route::middleware(['auth', 'panel:admin', 'can:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
 
         Route::get('/', [DashboardController::class, 'index'])
             ->name('dashboard');
+
+        Route::resource('clients', \App\Http\Controllers\Admin\ClientController::class)
+            ->except(['show', 'destroy']);
+        Route::get('clients/{client}/users', [\App\Http\Controllers\Admin\ClientController::class, 'users'])
+            ->name('clients.users');
+        Route::get('clients/{client}/stock-balance', [ClientStockBalanceController::class, 'show'])
+            ->name('clients.stock-balance');
+        Route::get('clients/{client}/devices', [\App\Http\Controllers\Admin\ClientController::class, 'devices'])
+            ->name('clients.devices');
 
         Route::patch('users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])
             ->name('users.toggle-status');
@@ -150,22 +156,48 @@ Route::middleware(['auth', 'can:admin'])
             ->name('subscriptions.renew');
         Route::get('subscriptions/{subscription}/histories', [AdminSubscriptionController::class, 'histories'])
             ->name('subscriptions.histories');
+        Route::post('subscriptions/{subscription}/client-invoice/pay', [AdminSubscriptionController::class, 'markClientInvoicePaid'])
+            ->name('subscriptions.client-invoice.pay');
+        Route::post('subscriptions/{subscription}/client-invoice/cancel', [AdminSubscriptionController::class, 'cancelClientInvoice'])
+            ->name('subscriptions.client-invoice.cancel');
+        Route::get('subscription-plans/{subscriptionPlan}/pricing', [AdminSubscriptionController::class, 'planPricing'])
+            ->name('subscription-plans.pricing');
+        Route::get('subscriptions/device-pricing', [AdminSubscriptionController::class, 'devicePricing'])
+            ->name('subscriptions.device-pricing');
         Route::resource('subscriptions', AdminSubscriptionController::class);
+
+        Route::resource('subscription-plans', \App\Http\Controllers\Admin\SubscriptionPlanController::class)
+            ->except(['show', 'destroy']);
+        Route::get('billing-invoices', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'index'])
+            ->name('billing-invoices.index');
+        Route::get('billing-invoices/{billingInvoice}', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'show'])
+            ->name('billing-invoices.show');
+        Route::post('billing-invoices/{billingInvoice}/payments', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'storePayment'])
+            ->name('billing-invoices.payments.store');
+        Route::get('reports/profit-loss', [\App\Http\Controllers\Admin\ProfitLossReportController::class, 'index'])
+            ->name('reports.profit-loss');
         Route::patch('devices/{device}/toggle-status', [AdminDeviceController::class, 'toggleStatus'])
             ->name('devices.toggle-status');
         Route::resource('devices', AdminDeviceController::class);
+        Route::get('device-stock/repairs', [DeviceStockController::class, 'repairs'])
+            ->name('device-stock.repairs');
+        Route::resource('device-stock', DeviceStockController::class);
+        Route::resource('device-stock-sales', DeviceStockSaleController::class)
+            ->only(['index', 'create', 'store', 'show']);
 
         Route::get('activity-log', [ActivityLogController::class, 'index'])
             ->name('activity-log.index');
 
-        Route::get('locations', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'index'])
-            ->name('locations.index');
+        Route::middleware('maps.tracking')->group(function () {
+            Route::get('locations', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'index'])
+                ->name('locations.index');
 
-        Route::get('locations/live-json', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'liveJson'])
-            ->name('locations.live-json');
+            Route::get('locations/live-json', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'liveJson'])
+                ->name('locations.live-json');
 
-        Route::get('locations/device/{device}/launch-map', [MapAccessController::class, 'launchAdminMap'])
-            ->name('locations.launch-map');
+            Route::get('locations/device/{device}/launch-map', [MapAccessController::class, 'launchAdminMap'])
+                ->name('locations.launch-map');
+        });
 
         Route::middleware('map.access')->group(function () {
         Route::get('device/{token}/map', [MapController::class, 'map'])
@@ -194,6 +226,100 @@ Route::middleware(['auth', 'can:admin'])
             ->name('device.geofences.save');
         Route::delete('geofence/{id}', [GeofenceController::class, 'destroy'])->name('geofence.destroy');
         Route::post('geofence/{id}/update', [GeofenceController::class, 'update'])->name('geofence.update');
+        });
+    });
+
+/*
+|--------------------------------------------------------------------------
+| CLIENT PANEL (fleet / company managers)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'panel:client', 'can:client-panel'])
+    ->prefix('client')
+    ->name('client.')
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\Client\DashboardController::class, 'index'])
+            ->name('dashboard');
+
+        Route::get('purchases', [\App\Http\Controllers\Client\PurchaseHistoryController::class, 'index'])
+            ->name('purchases.index');
+        Route::get('purchases/{sale}', [\App\Http\Controllers\Client\PurchaseHistoryController::class, 'show'])
+            ->name('purchases.show');
+
+        Route::patch('users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])
+            ->name('users.toggle-status');
+        Route::resource('users', AdminUserController::class)->except(['destroy', 'show']);
+
+        Route::patch('devices/{device}/toggle-status', [AdminDeviceController::class, 'toggleStatus'])
+            ->name('devices.toggle-status');
+        Route::resource('devices', AdminDeviceController::class)->except(['destroy']);
+        Route::get('stock-balance', [ClientStockBalanceController::class, 'show'])
+            ->name('stock-balance');
+
+        Route::post('subscriptions/{subscription}/renew', [AdminSubscriptionController::class, 'renew'])
+            ->name('subscriptions.renew');
+        Route::get('subscriptions/{subscription}/histories', [AdminSubscriptionController::class, 'histories'])
+            ->name('subscriptions.histories');
+        Route::post('subscriptions/{subscription}/client-invoice/pay', [AdminSubscriptionController::class, 'markClientInvoicePaid'])
+            ->name('subscriptions.client-invoice.pay');
+        Route::post('subscriptions/{subscription}/client-invoice/cancel', [AdminSubscriptionController::class, 'cancelClientInvoice'])
+            ->name('subscriptions.client-invoice.cancel');
+        Route::get('subscription-plans/{subscriptionPlan}/pricing', [AdminSubscriptionController::class, 'planPricing'])
+            ->name('subscription-plans.pricing');
+        Route::get('subscriptions/device-pricing', [AdminSubscriptionController::class, 'devicePricing'])
+            ->name('subscriptions.device-pricing');
+        Route::resource('subscriptions', AdminSubscriptionController::class)->except(['destroy']);
+
+        Route::get('billing-invoices', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'index'])
+            ->name('billing-invoices.index');
+        Route::get('billing-invoices/{billingInvoice}', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'show'])
+            ->name('billing-invoices.show');
+        Route::post('billing-invoices/{billingInvoice}/payments', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'storePayment'])
+            ->name('billing-invoices.payments.store');
+        Route::get('reports/profit-loss', [\App\Http\Controllers\Admin\ProfitLossReportController::class, 'index'])
+            ->name('reports.profit-loss');
+
+        Route::get('activity-log', [ActivityLogController::class, 'index'])
+            ->name('activity-log.index');
+
+        Route::middleware('maps.tracking')->group(function () {
+            Route::get('locations', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'index'])
+                ->name('locations.index');
+
+            Route::get('locations/live-json', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'liveJson'])
+                ->name('locations.live-json');
+
+            Route::get('locations/device/{device}/launch-map', [MapAccessController::class, 'launchAdminMap'])
+                ->name('locations.launch-map');
+        });
+
+        Route::middleware('map.access')->group(function () {
+            Route::get('device/{token}/map', [MapController::class, 'map'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.map');
+            Route::get('device/{token}/history-json', [MapController::class, 'historyJson'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.history.json');
+            Route::get('device/{token}/live-json', [MapController::class, 'liveJson'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.live.json');
+            Route::get('device/{token}/summary-json', [MapController::class, 'summaryJson'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.summary.json');
+            Route::get('device/{token}/alerts-json', [MapController::class, 'alertsJson'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.alerts.json');
+            Route::get('device/{token}/reverse-geocode', [MapController::class, 'reverseGeocode'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.reverse.geocode');
+            Route::get('device/{token}/geofences-json', [GeofenceController::class, 'indexJson'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.geofences.json');
+            Route::post('device/{token}/geofences-save', [GeofenceController::class, 'store'])
+                ->where('token', '[A-Za-z0-9_-]+')
+                ->name('device.geofences.save');
+            Route::delete('geofence/{id}', [GeofenceController::class, 'destroy'])->name('geofence.destroy');
+            Route::post('geofence/{id}/update', [GeofenceController::class, 'update'])->name('geofence.update');
         });
     });
 
@@ -248,7 +374,7 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/careers', [PageController::class, 'careers'])->name('careers');
 Route::get('/press', [PageController::class, 'press'])->name('press');
 Route::get('/blog', [PageController::class, 'blog'])->name('blog');
-Route::view('/pricing', 'pricing')->name('pricing');
+Route::get('/pricing', \App\Http\Controllers\PublicPricingController::class)->name('pricing');
 
 // Support pages
 Route::get('/help', [PageController::class, 'help'])->name('help');

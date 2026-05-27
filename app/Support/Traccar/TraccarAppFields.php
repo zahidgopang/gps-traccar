@@ -9,6 +9,10 @@ final class TraccarAppFields
 {
     public const KEY_ROLE = 'laravel_role';
 
+    public const KEY_PERMISSIONS = 'laravel_permissions';
+
+    public const KEY_CREATED_BY = 'laravel_created_by';
+
     public const KEY_STATUS = 'laravel_status';
 
     public const KEY_PREFERENCES = 'laravel_preferences';
@@ -28,6 +32,14 @@ final class TraccarAppFields
     public const KEY_UPDATED_AT = 'laravel_updated_at';
 
     public const KEY_DEVICE_TYPE = 'device_type';
+
+    public const KEY_VEHICLE_NAME = 'vehicle_name';
+
+    public const KEY_VEHICLE_NUMBER = 'vehicle_number';
+
+    public const KEY_VEHICLE_MODEL = 'vehicle_model';
+
+    public const KEY_VEHICLE_TYPE = 'vehicle_type';
 
     public const KEY_DEVICE_STATUS = 'laravel_device_status';
 

@@ -19,7 +19,12 @@ class SubscriptionRenewalService
     {
         $this->subscriptions->expireIfNeeded($subscription);
 
-        return $subscription->refresh();
+        // Preserve any eager-loaded relations (e.g. invoices) for list screens.
+        $relations = array_keys($subscription->getRelations());
+
+        return $relations !== []
+            ? $subscription->fresh($relations)
+            : $subscription->refresh();
     }
 
     public function canRenew(Subscription $subscription): bool

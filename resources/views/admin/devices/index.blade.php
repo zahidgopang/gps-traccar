@@ -31,18 +31,30 @@
 @endpush
 
 @section('content')
+    @php $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'); @endphp
     <div class="card p-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">{{ __('app.admin.devices.title') }}</h5>
             <div>
-                <a href="{{ route('admin.devices.create') }}" class="btn btn-sm btn-primary">{{ __('app.admin.devices.add') }}</a>
+                <a href="{{ route($panel . '.devices.create') }}" class="btn btn-sm btn-primary">{{ __('app.admin.devices.add') }}</a>
             </div>
         </div>
 
         <div class="mb-3">
-            <form method="GET" class="d-flex gap-2">
-                <input name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="{{ __('app.admin.devices.search_placeholder') }}">
-                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('app.common.search') }}</button>
+            <form method="GET" class="admin-filter-bar d-flex flex-wrap gap-2 align-items-end">
+                <div class="flex-grow-1" style="min-width: 12rem; max-width: 24rem;">
+                    <label class="form-label small mb-1" for="devices-filter-q">{{ __('app.common.search') }}</label>
+                    <input name="q" id="devices-filter-q" value="{{ request('q') }}" class="form-control form-control-sm admin-ltr" dir="ltr"
+                           placeholder="{{ __('app.admin.devices.search_placeholder') }}">
+                </div>
+                <div class="admin-filter-actions">
+                    <button class="btn btn-sm btn-primary" type="submit">{{ __('app.common.search') }}</button>
+                    @if(request()->filled('q'))
+                        <a href="{{ route($panel . '.devices.index') }}" class="btn btn-sm btn-outline-secondary" title="{{ __('app.common.clear') }}">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </a>
+                    @endif
+                </div>
             </form>
         </div>
 
@@ -67,8 +79,9 @@
                 <thead>
                 <tr>
                     <th>{{ __('app.admin.devices.imei') }}</th>
-                    <th>{{ __('app.admin.devices.name') }}</th>
+                    <th>{{ __('app.forms.vehicle_name') }}</th>
                     <th>{{ __('app.admin.devices.type') }}</th>
+                    <th>{{ __('app.forms.vehicle_type') }}</th>
                     <th>{{ __('app.admin.devices.user') }}</th>
                     <th>{{ __('app.common.status') }}</th>
                     <th>{{ __('app.admin.devices.last_known') }}</th>
@@ -79,23 +92,34 @@
                 @foreach($devices as $d)
                     <tr>
                         <td><x-admin.ltr tag="code">{{ $d->imei }}</x-admin.ltr></td>
-                        <td>{{ $d->name }}</td>
-                        <td>{{ $d->deviceTypeLabel() }}</td>
+                        <td>
+                            <strong>{{ $d->mapDisplayTitle() }}</strong>
+                            @if($d->vehicle_number)
+                                <small class="d-block text-muted"><x-admin.ltr>{{ $d->vehicle_number }}</x-admin.ltr></small>
+                            @endif
+                            @if($d->vehicle_model)
+                                <small class="d-block text-muted">{{ $d->vehicle_model }}</small>
+                            @endif
+                        </td>
+                        <td><span class="badge bg-light text-dark border">{{ $d->deviceTypeLabel() }}</span></td>
+                        <td>{{ $d->vehicleTypeLabel() }}</td>
                         <td>{{ $d->user?->name ?? '-' }}</td>
                         <td>
                             @include('partials.device-status-toggle', [
                                 'device' => $d,
-                                'toggleUrl' => route('admin.devices.toggle-status', $d),
+                                'toggleUrl' => route($panel . '.devices.toggle-status', $d),
                             ])
                         </td>
                         <td><x-admin.ltr>{{ optional($d->latestLocation?->recorded_at)->diffForHumans() ?? '-' }}</x-admin.ltr></td>
                         <td>
-                            <a href="{{ route('admin.devices.edit', $d) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
+                            <a href="{{ route($panel . '.devices.edit', $d) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
 
+                            @if($panel === 'admin')
                             <form action="{{ route('admin.devices.destroy', $d) }}" method="POST" class="d-inline delete-form">
                                 @csrf @method('DELETE')
                                 <button type="button" class="btn btn-sm btn-danger btn-delete">{{ __('app.common.delete') }}</button>
                             </form>
+                            @endif
                         </td>
                     </tr>
                 @endforeach
@@ -123,17 +147,6 @@
             if (real) real.style.display = '';
 
             // SweetAlert2 delete confirm
-            function toastSuccess(msg){
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: msg,
-                    showConfirmButton: false,
-                    timer: 2000
-                });
-            }
-
             document.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', function(e){
                     const form = this.closest('form');
@@ -152,10 +165,6 @@
                 });
             });
 
-            // show toast on success flash
-            @if(session('success'))
-            toastSuccess(@json(session('success')));
-            @endif
         });
     </script>
 @endpush

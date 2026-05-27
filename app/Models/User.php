@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\AppRole;
 use App\Models\Concerns\ScopesTraccarUserRole;
 use App\Models\Concerns\UsesTcTable;
+use App\Services\Authorization\RbacService;
 use App\Notifications\SendVerificationWithWelcome;
 use App\Support\Traccar\TraccarAppFields;
 use App\Support\Traccar\TraccarAttributes;
@@ -80,21 +82,32 @@ class User extends Authenticatable
 
     public function getRoleAttribute(): string
     {
-        if ((int) ($this->attributes['administrator'] ?? 0) === 1) {
-            return 'admin';
+        $stored = TraccarAppFields::get(
+            $this->getTraccarAttributesJson(),
+            TraccarAppFields::KEY_ROLE
+        );
+
+        if (is_string($stored) && $stored !== '') {
+            if ($stored === 'admin' && (int) ($this->attributes['administrator'] ?? 0) === 1) {
+                return AppRole::SuperAdmin->value;
+            }
+
+            return $stored;
         }
 
-        return (string) TraccarAppFields::get(
-            $this->getTraccarAttributesJson(),
-            TraccarAppFields::KEY_ROLE,
-            'user'
-        );
+        if ((int) ($this->attributes['administrator'] ?? 0) === 1) {
+            return (string) config('rbac.legacy_administrator_role', AppRole::SuperAdmin->value);
+        }
+
+        return AppRole::EndUser->value;
     }
 
     public function setRoleAttribute(string $value): void
     {
-        $this->attributes['administrator'] = $value === 'admin' ? 1 : 0;
-        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_ROLE => $value]);
+        $role = AppRole::tryFrom($value) ?? AppRole::EndUser;
+
+        $this->attributes['administrator'] = $role === AppRole::SuperAdmin ? 1 : 0;
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_ROLE => $role->value]);
     }
 
     public function getStatusAttribute(): string
@@ -335,7 +348,29 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return app(RbacService::class)->isVendorAdmin($this)
+            || app(RbacService::class)->isSuperAdmin($this);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return app(RbacService::class)->isSuperAdmin($this);
+    }
+
+    public function appRole(): AppRole
+    {
+        return app(RbacService::class)->roleOf($this);
+    }
+
+    public function clientMemberships()
+    {
+        return $this->hasMany(ClientMember::class, 'user_id');
+    }
+
+    public function clients()
+    {
+        return $this->belongsToMany(Client::class, 'client_members', 'user_id', 'client_id')
+            ->withTimestamps();
     }
 
     public function getActivitylogOptions(): LogOptions

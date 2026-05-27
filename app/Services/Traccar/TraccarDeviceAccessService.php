@@ -20,7 +20,19 @@ class TraccarDeviceAccessService
         private TraccarIdMap $idMap,
         private TraccarSyncService $sync,
         private TraccarUserAccessService $trackerUsers,
+        private ?\App\Services\Authorization\RbacService $rbac = null,
+        private ?\App\Services\Authorization\TenantScopeService $tenantScope = null,
     ) {}
+
+    private function rbac(): \App\Services\Authorization\RbacService
+    {
+        return $this->rbac ??= app(\App\Services\Authorization\RbacService::class);
+    }
+
+    private function tenantScope(): \App\Services\Authorization\TenantScopeService
+    {
+        return $this->tenantScope ??= app(\App\Services\Authorization\TenantScopeService::class);
+    }
 
     public function usesTraccarDeviceList(): bool
     {
@@ -54,7 +66,7 @@ class TraccarDeviceAccessService
         $userCol = TraccarSchema::resolveColumn($userDeviceTable, 'userid') ?? 'userid';
         $deviceCol = TraccarSchema::resolveColumn($userDeviceTable, 'deviceid') ?? 'deviceid';
 
-        return DB::table($userDeviceTable)
+        $ids = DB::table($userDeviceTable)
             ->where($userCol, $traccarUserId)
             ->pluck($deviceCol)
             ->map(fn ($id) => (int) $id)
@@ -62,6 +74,18 @@ class TraccarDeviceAccessService
             ->filter(fn (int $id) => DB::table($devicesTable)->where('id', $id)->exists())
             ->values()
             ->all();
+
+        if ($this->rbac()->canAccessPanel($user)) {
+            $scoped = $this->tenantScope()->visibleDeviceIdsForPanel($user);
+
+            if ($scoped === null) {
+                return $ids;
+            }
+
+            return array_values(array_intersect($ids, $scoped));
+        }
+
+        return $this->tenantScope()->filterPivotDevicesForUser($user, $ids);
     }
 
     public function queryForUser(User $user): Builder
@@ -82,13 +106,23 @@ class TraccarDeviceAccessService
     /**
      * Admin / fleet views: only Laravel devices that still exist in tc_devices.
      */
-    public function queryInTracker(): Builder
+    public function queryInTracker(?User $actor = null): Builder
     {
-        return Device::query();
+        $query = Device::query();
+
+        if ($actor) {
+            $this->tenantScope()->scopeDevices($query, $actor);
+        }
+
+        return $query;
     }
 
     public function userCanAccessDevice(User $user, Device $device): bool
     {
+        if ($this->rbac()->canAccessPanel($user)) {
+            return $this->tenantScope()->canViewDeviceOnMap($user, $device);
+        }
+
         if (! $this->usesTraccarDeviceList()) {
             return (int) $device->user_id === (int) $user->id;
         }

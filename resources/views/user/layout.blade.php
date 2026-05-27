@@ -23,6 +23,7 @@
     @include('partials.head-core')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ asset('css/form-enhancements.css') }}">
 
     <style>
         :root {
@@ -647,11 +648,15 @@
                 <i class="fas fa-sliders-h"></i>
             </button>
             <div class="map-nav-content">
-                <a href="{{ ($isAdminMap ?? false) ? route('admin.locations.index') : route('user.dashboard') }}" class="map-nav-logo" title="{{ ($isAdminMap ?? false) ? __('app.admin.locations.title') : __('app.common.dashboard') }}">
+                <a href="{{ ($isAdminMap ?? false) ? route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') : route('user.dashboard') }}" class="map-nav-logo" title="{{ ($isAdminMap ?? false) ? __('app.admin.locations.title') : __('app.common.dashboard') }}">
                     <img src="{{ asset('images/logo.png') }}" alt="GPS Tracker Pro">
                 </a>
                 <div class="map-nav-device-row">
-                    <h1 class="map-nav-title">{{ $device->name }}</h1>
+                    <h1 class="map-nav-title">{{ $device->mapDisplayTitle() }}</h1>
+                    @if($device->mapNavSubtitle())
+                        <span class="map-nav-sep d-none d-md-inline" aria-hidden="true">&middot;</span>
+                        <small class="text-muted map-nav-subtitle d-block d-md-inline" style="font-size:0.75rem;">{{ $device->mapNavSubtitle() }}</small>
+                    @endif
                     @if($isAdminMap ?? false)
                         <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;vertical-align:middle;">{{ __('app.common.admin') }}</span>
                     @endif
@@ -737,6 +742,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{ protected_js('form-enhancements.js') }}"></script>
 <script src="https://js.pusher.com/8.2/pusher.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/laravel-echo/1.15.0/echo.iife.js"></script>
 

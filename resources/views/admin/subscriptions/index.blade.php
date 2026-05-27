@@ -28,41 +28,31 @@
             line-height: 1.1rem;
         }
 
-        #renewSubscriptionModal .renew-date-wrap {
-            position: relative;
-        }
-
-        #renewSubscriptionModal .renew-date-wrap .form-control {
-            padding-inline-end: 2.5rem;
-            cursor: pointer;
-        }
-
-        #renewSubscriptionModal .renew-date-wrap .date-picker-icon {
-            position: absolute;
-            top: 50%;
-            inset-inline-end: 0.75rem;
-            transform: translateY(-50%);
-            color: #64748b;
-            pointer-events: none;
-        }
-
-        #renewSubscriptionModal .flatpickr-input[readonly] {
-            background-color: #fff !important;
-            cursor: pointer;
-        }
     </style>
 @endpush
 
 @section('content')
+    @php $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin'); @endphp
     <div class="card p-3">
         <div class="d-flex justify-content-between mb-3">
             <h5>{{ __('app.admin.subscriptions.title') }}</h5>
-            <a href="{{ route('admin.subscriptions.create') }}" class="btn btn-primary btn-sm">{{ __('app.forms.add_subscription') }}</a>
+            <a href="{{ route($panel . '.subscriptions.create') }}" class="btn btn-primary btn-sm">{{ __('app.forms.add_subscription') }}</a>
         </div>
 
-        <form class="d-flex mb-3" method="GET">
-            <input name="q" value="{{ request('q') }}" class="form-control me-2" placeholder="{{ __('app.forms.search_plan_device_user') }}">
-            <button class="btn btn-outline-secondary btn-sm">{{ __('app.common.search') }}</button>
+        <form class="admin-filter-bar d-flex flex-wrap gap-2 align-items-end mb-3" method="GET">
+            <div class="flex-grow-1" style="min-width: 12rem; max-width: 24rem;">
+                <label class="form-label small mb-1" for="subscriptions-filter-q">{{ __('app.common.search') }}</label>
+                <input name="q" id="subscriptions-filter-q" value="{{ request('q') }}" class="form-control form-control-sm"
+                       placeholder="{{ __('app.forms.search_plan_device_user') }}">
+            </div>
+            <div class="admin-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">{{ __('app.common.search') }}</button>
+                @if(request()->filled('q'))
+                    <a href="{{ route($panel . '.subscriptions.index') }}" class="btn btn-outline-secondary btn-sm" title="{{ __('app.common.clear') }}">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </a>
+                @endif
+            </div>
         </form>
 
         <div id="skeleton-area">
@@ -87,6 +77,7 @@
                     <th>{{ __('app.forms.starts') }}</th>
                     <th>{{ __('app.forms.ends') }}</th>
                     <th>{{ __('app.common.status') }}</th>
+                    <th>{{ __('app.billing.invoices') }}</th>
                     <th class="text-end">{{ __('app.common.actions') }}</th>
                 </tr>
                 </thead>
@@ -114,15 +105,54 @@
                                 <span class="badge-status badge-cancelled">{{ __('app.forms.cancelled') }}</span>
                             @endif
                         </td>
+                        <td class="small">
+                            @if($s->clientInvoice)
+                                <a href="{{ route($panel . '.billing-invoices.show', $s->clientInvoice) }}"
+                                   class="d-block text-nowrap invoice-modal-link"
+                                   title="{{ __('app.billing.end_user_invoice_summary') }}">
+                                    <i class="fas fa-user text-primary me-1"></i>{{ $s->clientInvoice->invoice_no }}
+                                </a>
+                            @endif
+                            @if($s->platformInvoice)
+                                <a href="{{ route($panel . '.billing-invoices.show', $s->platformInvoice) }}"
+                                   class="d-block text-nowrap text-muted invoice-modal-link"
+                                   title="{{ __('app.billing.platform_invoice_summary') }}">
+                                    <i class="fas fa-building me-1"></i>{{ $s->platformInvoice->invoice_no }}
+                                </a>
+                            @endif
+                            @if(!$s->clientInvoice && !$s->platformInvoice)
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td class="text-end">
                             <div class="d-inline-flex align-items-center gap-1 flex-wrap justify-content-end">
+                                @php
+                                    $clientInvoice = $s->clientInvoice;
+                                    $clientInvoicePaid = $clientInvoice && $clientInvoice->status === \App\Enums\BillingInvoiceStatus::Paid->value;
+                                    $clientInvoiceCancelled = $clientInvoice && $clientInvoice->status === \App\Enums\BillingInvoiceStatus::Cancelled->value;
+                                @endphp
+
+                                @if($clientInvoice && !$clientInvoicePaid && !$clientInvoiceCancelled && (Gate::allows('permission', 'billing.manage') || ($panel === 'client' && Gate::allows('permission', 'subscriptions.manage'))))
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-success btn-client-invoice-paid"
+                                            data-pay-url="{{ route($panel . '.subscriptions.client-invoice.pay', $s) }}">
+                                        Paid
+                                    </button>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger btn-client-invoice-cancel"
+                                            data-cancel-url="{{ route($panel . '.subscriptions.client-invoice.cancel', $s) }}">
+                                        Cancel
+                                    </button>
+                                @endif
+
                                 @if($canRenew)
                                     <button type="button"
                                             class="btn btn-sm btn-success btn-renew-sub"
                                             data-id="{{ $s->id }}"
                                             data-plan="{{ $s->plan }}"
                                             data-device="{{ $s->device?->name ?? 'Device' }}"
-                                            data-renew-url="{{ route('admin.subscriptions.renew', $s) }}">
+                                            data-renew-url="{{ route($panel . '.subscriptions.renew', $s) }}">
                                         <i class="fas fa-redo me-1"></i> {{ __('app.forms.renew') }}
                                     </button>
                                 @endif
@@ -131,19 +161,21 @@
                                         class="btn btn-sm btn-outline-secondary btn-history-sub position-relative"
                                         title="{{ __('app.forms.subscription_history') }}"
                                         data-id="{{ $s->id }}"
-                                        data-history-url="{{ route('admin.subscriptions.histories', $s) }}">
+                                        data-history-url="{{ route($panel . '.subscriptions.histories', $s) }}">
                                     <i class="fas fa-history"></i>
                                     @if($s->histories_count > 0)
                                         <span class="badge rounded-pill bg-primary history-count">{{ $s->histories_count }}</span>
                                     @endif
                                 </button>
 
-                                <a href="{{ route('admin.subscriptions.edit', $s) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
+                                <a href="{{ route($panel . '.subscriptions.edit', $s) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
 
+                                @if($panel === 'admin')
                                 <form action="{{ route('admin.subscriptions.destroy', $s) }}" method="POST" class="d-inline delete-form">
                                     @csrf @method('DELETE')
                                     <button type="button" class="btn btn-sm btn-danger btn-delete">{{ __('app.common.delete') }}</button>
                                 </form>
+                                @endif
                             </div>
                         </td>
                     </tr>
@@ -174,19 +206,24 @@
                         </p>
                         <div class="mb-3">
                             <label class="form-label" for="renewStartsAt">{{ __('app.forms.start_date') }} <span class="text-danger">*</span></label>
-                            <div class="renew-date-wrap">
-                                <input type="text" name="starts_at" id="renewStartsAt" class="form-control js-renew-date" required
-                                       data-allow-future="true" autocomplete="off" placeholder="{{ __('app.forms.select_start_date') }}">
-                                <i class="fas fa-calendar-alt date-picker-icon" aria-hidden="true"></i>
-                            </div>
+                            <x-admin.date-input
+                                name="starts_at"
+                                id="renewStartsAt"
+                                :required="true"
+                                :allow-future="true"
+                                input-class="form-control"
+                            />
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="renewEndsAt">{{ __('app.forms.end_date') }} <span class="text-danger">*</span></label>
-                            <div class="renew-date-wrap">
-                                <input type="text" name="ends_at" id="renewEndsAt" class="form-control js-renew-date" required
-                                       data-allow-future="true" autocomplete="off" placeholder="{{ __('app.forms.select_end_date') }}">
-                                <i class="fas fa-calendar-alt date-picker-icon" aria-hidden="true"></i>
-                            </div>
+                            <x-admin.date-input
+                                name="ends_at"
+                                id="renewEndsAt"
+                                :required="true"
+                                :allow-future="true"
+                                min-date-from="#renewStartsAt"
+                                input-class="form-control"
+                            />
                         </div>
                         <div id="renewFormError" class="alert alert-danger d-none small mb-0"></div>
                     </div>
@@ -236,10 +273,32 @@
             </div>
         </div>
     </div>
+
+    {{-- Invoice modal --}}
+    <div class="modal fade" id="billingInvoiceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-file-invoice-dollar me-2"></i>{{ __('app.billing.invoices') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="invoiceModalLoading" class="text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin me-2"></i> Loading invoice…
+                    </div>
+                    <div id="invoiceModalContent" class="d-none"></div>
+                    <div id="invoiceModalError" class="alert alert-danger d-none small mb-0"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @include('admin.subscriptions._payment-modal')
 @endsection
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ protected_js('subscription-payment-modal.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('skeleton-area').style.display = 'none';
@@ -273,63 +332,40 @@
 
             function getRenewDateValue(id) {
                 const el = document.getElementById(id);
-                if (!el) return '';
-                if (el._flatpickr) {
-                    return el._flatpickr.input.value;
+                if (window.FormEnhancements && typeof window.FormEnhancements.getDateValue === 'function') {
+                    return window.FormEnhancements.getDateValue(el);
                 }
-                return el.value.trim();
-            }
-
-            function destroyRenewPickers() {
-                renewModalEl?.querySelectorAll('.js-renew-date').forEach(function (el) {
-                    if (el._flatpickr) {
-                        el._flatpickr.destroy();
-                    }
-                });
+                return (el?.value || '').trim();
             }
 
             function initRenewDatePickers() {
-                if (!renewModalEl || typeof flatpickr === 'undefined') {
+                if (!renewModalEl || !window.FormEnhancements) {
                     return;
                 }
-                destroyRenewPickers();
 
-                const pickerConfig = {
-                    dateFormat: 'Y-m-d',
-                    altInput: true,
-                    altFormat: 'M j, Y',
-                    allowInput: true,
-                    disableMobile: true,
-                    clickOpens: true,
-                    appendTo: document.body,
-                };
+                window.FormEnhancements.destroyDatePickers(renewModalEl);
+                window.FormEnhancements.initDatePickers(renewModalEl);
 
                 const startEl = document.getElementById('renewStartsAt');
                 const endEl = document.getElementById('renewEndsAt');
-                if (!startEl || !endEl) {
-                    return;
+
+                if (renewDefaultDates && startEl && endEl) {
+                    window.FormEnhancements.setDateValue(
+                        startEl,
+                        window.FormEnhancements.formatYmd(renewDefaultDates.start)
+                    );
+                    window.FormEnhancements.setDateValue(
+                        endEl,
+                        window.FormEnhancements.formatYmd(renewDefaultDates.end)
+                    );
                 }
-
-                flatpickr(startEl, {
-                    ...pickerConfig,
-                    defaultDate: renewDefaultDates?.start || 'today',
-                    onChange: function (selectedDates) {
-                        if (endEl._flatpickr && selectedDates[0]) {
-                            endEl._flatpickr.set('minDate', selectedDates[0]);
-                        }
-                    },
-                });
-
-                flatpickr(endEl, {
-                    ...pickerConfig,
-                    defaultDate: renewDefaultDates?.end || null,
-                    minDate: renewDefaultDates?.start || 'today',
-                });
             }
 
             renewModalEl?.addEventListener('shown.bs.modal', initRenewDatePickers);
 
-            renewModalEl?.addEventListener('hidden.bs.modal', destroyRenewPickers);
+            renewModalEl?.addEventListener('hidden.bs.modal', function () {
+                window.FormEnhancements?.destroyDatePickers(renewModalEl);
+            });
 
             document.body.addEventListener('show.bs.modal', function () {
                 document.getElementById('sidebarOverlay')?.classList.remove('show');
@@ -428,6 +464,50 @@
                 });
             });
 
+            const invoiceModalEl = document.getElementById('billingInvoiceModal');
+            const invoiceModal = invoiceModalEl ? new bootstrap.Modal(invoiceModalEl) : null;
+            const invoiceLoadingEl = document.getElementById('invoiceModalLoading');
+            const invoiceContentEl = document.getElementById('invoiceModalContent');
+            const invoiceErrorEl = document.getElementById('invoiceModalError');
+
+            async function openInvoiceModal(url) {
+                if (!invoiceModal) return;
+
+                invoiceErrorEl.classList.add('d-none');
+                invoiceContentEl.classList.add('d-none');
+                invoiceLoadingEl.classList.remove('d-none');
+                invoiceContentEl.innerHTML = '';
+
+                invoiceModal.show();
+
+                const modalUrl = url + (url.includes('?') ? '&' : '?') + 'modal=1';
+                try {
+                    const res = await fetch(modalUrl, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    const html = await res.text();
+                    if (!res.ok) {
+                        throw new Error('Failed to load invoice.');
+                    }
+
+                    invoiceContentEl.innerHTML = html;
+                    invoiceLoadingEl.classList.add('d-none');
+                    invoiceContentEl.classList.remove('d-none');
+                } catch (err) {
+                    invoiceLoadingEl.classList.add('d-none');
+                    invoiceErrorEl.textContent = err.message || 'Failed to load invoice.';
+                    invoiceErrorEl.classList.remove('d-none');
+                }
+            }
+
+            document.querySelectorAll('a.invoice-modal-link').forEach((a) => {
+                a.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    openInvoiceModal(this.getAttribute('href'));
+                });
+            });
+
             document.querySelectorAll('.btn-delete').forEach((btn) => {
                 btn.addEventListener('click', function () {
                     const form = this.closest('form');
@@ -443,9 +523,49 @@
                 });
             });
 
-            @if(session('success'))
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @json(session('success')), showConfirmButton: false, timer: 2000 });
-            @endif
+            async function postJson(url) {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(data.message || 'Request failed.');
+                }
+                return data;
+            }
+
+            if (window.SubscriptionPaymentModal?.initListing) {
+                window.SubscriptionPaymentModal.initListing(csrf);
+            }
+
+            document.querySelectorAll('.btn-client-invoice-cancel').forEach((btn) => {
+                btn.addEventListener('click', async function () {
+                    const url = this.dataset.cancelUrl;
+                    const r = await Swal.fire({
+                        title: 'Cancel invoice?',
+                        text: 'This will cancel the end-user invoice.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Cancel invoice',
+                    });
+                    if (!r.isConfirmed) return;
+
+                    try {
+                        await postJson(url);
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Invoice cancelled.', showConfirmButton: false, timer: 1500 })
+                            .then(() => location.reload());
+                    } catch (err) {
+                        Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+                    }
+                });
+            });
+
         });
     </script>
 @endpush

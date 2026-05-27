@@ -3,7 +3,7 @@
     <!-- Sidebar Header -->
     <!-- Sidebar Header -->
     <div class="sidebar-header">
-        <a href="{{ ($isAdminMap ?? false) ? route('admin.locations.index') : route('user.devices.index') }}" class="sidebar-back-link" data-map-tour="sidebar-back">
+        <a href="{{ ($isAdminMap ?? false) ? route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') : route('user.devices.index') }}" class="sidebar-back-link" data-map-tour="sidebar-back">
             <i class="fas fa-arrow-left" aria-hidden="true"></i>
             <span>{{ ($isAdminMap ?? false) ? __('app.map.back_location_history') : __('app.map.back_devices') }}</span>
         </a>

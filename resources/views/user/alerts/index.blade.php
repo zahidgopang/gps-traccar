@@ -67,11 +67,11 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label fw-semibold small">From</label>
-                    <input type="text" name="from" class="form-control js-date-picker" value="{{ request('from') }}" placeholder="From date" autocomplete="off">
+                    <x-admin.date-input name="from" id="alerts-from" :value="request('from')" input-class="form-control" />
                 </div>
                 <div class="col-md-2">
                     <label class="form-label fw-semibold small">To</label>
-                    <input type="text" name="to" class="form-control js-date-picker" value="{{ request('to') }}" placeholder="To date" autocomplete="off">
+                    <x-admin.date-input name="to" id="alerts-to" :value="request('to')" input-class="form-control" />
                 </div>
                 <div class="col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-premium flex-grow-1">

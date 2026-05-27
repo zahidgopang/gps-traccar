@@ -18,7 +18,7 @@ class EnsureTrackerAccess
     {
         $user = $request->user();
 
-        if (! $user || $user->isAdmin() || ! TraccarMode::readsTraccar()) {
+        if (! $user || app(\App\Services\Authorization\RbacService::class)->canAccessPanel($user) || ! TraccarMode::readsTraccar()) {
             return $next($request);
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\ClientDevice;
 use App\Models\Concerns\HasTraccarUserAssignment;
 use App\Models\Concerns\UsesTcTable;
 use App\Services\Traccar\TraccarDeviceAccessService;
@@ -21,11 +22,57 @@ class Device extends Model
 
     public $timestamps = false;
 
+    /** Common GPS hardware / tracker unit types (not vehicle body type). */
     public const DEVICE_TYPES = [
+        'gps_tracker' => 'GPS Tracker',
+        'obd' => 'OBD-II Tracker',
+        'hardwired' => 'Hardwired GPS',
+        'portable' => 'Portable GPS',
+        'asset' => 'Asset Tracker',
+        'personal' => 'Personal GPS',
+        'motorcycle' => 'Motorcycle GPS',
+        'dashcam' => 'Dashcam GPS',
+        'telematics' => 'Telematics Unit',
+        'satellite' => 'Satellite Tracker',
+        'other' => 'Other',
+    ];
+
+    /** @var array<string, string> Legacy vehicle-style categories → new device types */
+    public const LEGACY_DEVICE_TYPE_MAP = [
+        'car' => 'gps_tracker',
+        'truck' => 'telematics',
+        'bike' => 'motorcycle',
+        'personal' => 'personal',
+    ];
+
+    /**
+     * Normalize stored category / legacy values to a DEVICE_TYPES key.
+     */
+    public static function canonicalDeviceType(?string $type): ?string
+    {
+        if ($type === null || $type === '') {
+            return null;
+        }
+
+        $type = strtolower(trim($type));
+
+        if (isset(self::LEGACY_DEVICE_TYPE_MAP[$type])) {
+            return self::LEGACY_DEVICE_TYPE_MAP[$type];
+        }
+
+        return $type;
+    }
+
+    /** Vehicle using the tracker (separate from GPS hardware device type). */
+    public const VEHICLE_TYPES = [
         'car' => 'Car',
+        'suv' => 'SUV',
         'truck' => 'Truck',
-        'bike' => 'Motorcycle',
-        'personal' => 'Personal Tracker',
+        'van' => 'Van',
+        'bus' => 'Bus',
+        'pickup' => 'Pickup',
+        'motorcycle' => 'Motorcycle',
+        'trailer' => 'Trailer',
         'other' => 'Other',
     ];
 
@@ -119,6 +166,8 @@ class Device extends Model
                 return;
             }
 
+            ClientDevice::query()->where('device_id', $device->id)->delete();
+
             app(\App\Services\Traccar\TraccarUserDeviceLinker::class)->removeForDevice((int) $device->id);
 
             $deviceGeofence = config('traccar.tables.device_geofence', 'tc_device_geofence');
@@ -140,15 +189,138 @@ class Device extends Model
         return $this->hasOne(Subscription::class, 'device_id');
     }
 
+    public function getVehicleNameAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_VEHICLE_NAME);
+    }
+
+    public function setVehicleNameAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_VEHICLE_NAME => $value ?: null]);
+    }
+
+    public function getVehicleNumberAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_VEHICLE_NUMBER);
+    }
+
+    public function setVehicleNumberAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_VEHICLE_NUMBER => $value ?: null]);
+    }
+
+    public function getVehicleModelAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_VEHICLE_MODEL);
+    }
+
+    public function setVehicleModelAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_VEHICLE_MODEL => $value ?: null]);
+    }
+
+    public function getVehicleTypeAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_VEHICLE_TYPE);
+    }
+
+    public function setVehicleTypeAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_VEHICLE_TYPE => $value ?: null]);
+    }
+
     public function deviceTypeLabel(): string
     {
-        if (! $this->device_type) {
+        $type = $this->device_type;
+
+        if ($type && isset(self::LEGACY_DEVICE_TYPE_MAP[$type])) {
+            $mapped = self::LEGACY_DEVICE_TYPE_MAP[$type];
+
+            return $this->typeLabelFor($mapped, self::DEVICE_TYPES, 'device_type');
+        }
+
+        return $this->typeLabelFor($type, self::DEVICE_TYPES, 'device_type');
+    }
+
+    public function deviceTypeIconClass(): string
+    {
+        $type = $this->device_type;
+        if ($type && isset(self::LEGACY_DEVICE_TYPE_MAP[$type])) {
+            $type = self::LEGACY_DEVICE_TYPE_MAP[$type];
+        }
+
+        return match ($type) {
+            'obd' => 'fa-plug',
+            'hardwired' => 'fa-bolt',
+            'portable' => 'fa-suitcase-rolling',
+            'asset' => 'fa-box',
+            'personal' => 'fa-user',
+            'motorcycle' => 'fa-motorcycle',
+            'dashcam' => 'fa-video',
+            'telematics' => 'fa-microchip',
+            'satellite' => 'fa-satellite',
+            'gps_tracker' => 'fa-satellite-dish',
+            default => 'fa-location-crosshairs',
+        };
+    }
+
+    public function vehicleTypeLabel(): string
+    {
+        return $this->typeLabelFor($this->vehicle_type, self::VEHICLE_TYPES, 'vehicle_type');
+    }
+
+    /**
+     * Primary title on the live map (vehicle name preferred).
+     */
+    public function mapDisplayTitle(): string
+    {
+        $title = trim((string) ($this->vehicle_name ?: $this->name ?: $this->imei));
+
+        return $title !== '' ? $title : '—';
+    }
+
+    /**
+     * Marker tooltip: vehicle name + device type.
+     */
+    public function mapMarkerTitle(): string
+    {
+        $name = trim((string) ($this->vehicle_name ?: $this->name));
+        $deviceType = $this->device_type ? $this->deviceTypeLabel() : '';
+
+        if ($name !== '' && $deviceType !== '' && $deviceType !== '—') {
+            return $name . ' · ' . $deviceType;
+        }
+
+        return $name !== '' ? $name : ($deviceType !== '' && $deviceType !== '—' ? $deviceType : 'Vehicle');
+    }
+
+    /**
+     * Secondary line under map title (plate, vehicle type, device type).
+     */
+    public function mapNavSubtitle(): string
+    {
+        $parts = array_filter([
+            $this->vehicle_number ? trim($this->vehicle_number) : null,
+            $this->vehicle_model ? trim($this->vehicle_model) : null,
+            $this->vehicle_type ? $this->vehicleTypeLabel() : null,
+            $this->device_type ? $this->deviceTypeLabel() : null,
+        ], fn ($v) => $v !== null && $v !== '' && $v !== '—');
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * @param  array<string, string>  $types
+     */
+    private function typeLabelFor(?string $value, array $types, string $translationPrefix): string
+    {
+        if (! $value) {
             return '—';
         }
 
-        $key = 'app.forms.device_type_' . $this->device_type;
+        $key = 'app.forms.' . $translationPrefix . '_' . $value;
 
-        return __($key) !== $key ? __($key) : (self::DEVICE_TYPES[$this->device_type] ?? ucfirst($this->device_type));
+        return __($key) !== $key ? __($key) : ($types[$value] ?? ucfirst($value));
     }
 
     public function isAccountActive(): bool
@@ -169,7 +341,67 @@ class Device extends Model
 
     public function scopeInTracker(Builder $query): Builder
     {
-        return app(TraccarDeviceAccessService::class)->queryInTracker();
+        $actor = auth()->user();
+
+        return app(TraccarDeviceAccessService::class)->queryInTracker(
+            $actor instanceof \App\Models\User ? $actor : null
+        );
+    }
+
+    public static function normalizeImei(?string $imei): ?string
+    {
+        if ($imei === null) {
+            return null;
+        }
+
+        $value = trim($imei);
+
+        return $value === '' ? null : $value;
+    }
+
+    public static function normalizeVehicleNumber(?string $number): ?string
+    {
+        if ($number === null) {
+            return null;
+        }
+
+        $value = trim($number);
+
+        return $value === '' ? null : $value;
+    }
+
+    public static function isImeiTaken(string $imei, ?int $exceptDeviceId = null): bool
+    {
+        $normalized = static::normalizeImei($imei);
+
+        if ($normalized === null) {
+            return false;
+        }
+
+        $query = static::query()->whereImei($normalized);
+
+        if ($exceptDeviceId !== null) {
+            $query->where($query->getModel()->getQualifiedKeyName(), '!=', $exceptDeviceId);
+        }
+
+        return $query->exists();
+    }
+
+    public static function isVehicleNumberTaken(string $vehicleNumber, ?int $exceptDeviceId = null): bool
+    {
+        $normalized = static::normalizeVehicleNumber($vehicleNumber);
+
+        if ($normalized === null) {
+            return false;
+        }
+
+        $query = static::query()->whereVehicleNumber($normalized);
+
+        if ($exceptDeviceId !== null) {
+            $query->where($query->getModel()->getQualifiedKeyName(), '!=', $exceptDeviceId);
+        }
+
+        return $query->exists();
     }
 
     /** Match Traccar IMEI column (`uniqueid` on tc_devices). */
@@ -178,6 +410,22 @@ class Device extends Model
         $column = TraccarSchema::resolveColumn($query->getModel()->getTable(), 'uniqueid') ?? 'uniqueid';
 
         return $query->where($column, $imei);
+    }
+
+    /** Case-insensitive match on vehicle plate stored in Traccar attributes JSON. */
+    public function scopeWhereVehicleNumber(Builder $query, string $vehicleNumber): Builder
+    {
+        $normalized = mb_strtolower(trim($vehicleNumber));
+        $attrsCol = $query->getModel()->qualifyColumn('attributes');
+        $path = '$.' . TraccarAppFields::KEY_VEHICLE_NUMBER;
+
+        return $query->whereRaw(
+            'LOWER(TRIM(JSON_UNQUOTE(JSON_EXTRACT(' . $attrsCol . ', ?)))) = ?',
+            [$path, $normalized]
+        )->whereRaw(
+            'NULLIF(TRIM(JSON_UNQUOTE(JSON_EXTRACT(' . $attrsCol . ', ?))), \'\') IS NOT NULL',
+            [$path]
+        );
     }
 
     public function scopeWhereImeiLike(Builder $query, string $pattern): Builder
@@ -201,10 +449,12 @@ class Device extends Model
         return 'device:'.implode(',', static::listSelectColumns());
     }
 
-    public function launchMapRoute(bool $admin = false): string
+    public function launchMapRoute(bool $fleet = false, ?string $panel = null): string
     {
-        if ($admin) {
-            return route('admin.locations.launch-map', $this);
+        if ($fleet) {
+            $panel ??= request()->routeIs('client.*') ? 'client' : 'admin';
+
+            return route($panel . '.locations.launch-map', $this);
         }
 
         return route('user.devices.launch-map', $this);

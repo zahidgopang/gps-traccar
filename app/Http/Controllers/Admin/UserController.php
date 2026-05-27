@@ -2,19 +2,32 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AppRole;
+use App\Http\Controllers\Concerns\InteractsWithTenantAuthorization;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AdminAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
 class UserController extends Controller
 {
+    use InteractsWithTenantAuthorization;
+
     public function __construct(
         private AdminAuditService $audit,
     ) {}
 
     public function index(Request $request)
     {
-        $q = User::query();
+        $this->authorizePermission('users.view');
+
+        $q = $this->tenantScope()->scopeUsers(User::query(), $request->user());
+
+        if ($this->isClientPanel()) {
+            $q->where($q->qualifyColumn('id'), '!=', $request->user()->id);
+            $this->scopeEndUsersOnly($q);
+        }
 
         if ($search = $request->query('q')) {
             $q->where(function ($w) use ($search) {
@@ -25,28 +38,55 @@ class UserController extends Controller
 
         $users = $q->orderByDesc('id')->paginate(15)->withQueryString();
 
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', [
+            'users' => $users,
+            'panel' => $this->panelPrefix(),
+        ]);
     }
 
     public function create()
     {
-        return view('admin.users.create');
+        $this->authorizePermission('users.manage');
+
+        $assignableRoles = $this->rbac()->assignableRoles(auth()->user());
+        $clients = $this->isClientPanel()
+            ? collect()
+            : $this->tenantScope()->scopeClients(\App\Models\Client::query(), auth()->user())->orderBy('name')->get();
+
+        return view('admin.users.create', [
+            'assignableRoles' => $assignableRoles,
+            'clients' => $clients,
+            'panel' => $this->panelPrefix(),
+        ]);
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $this->authorizePermission('users.manage');
+
+        $assignable = $this->rbac()->assignableRoles($request->user());
+
+        $rules = [
             'name' => 'required|string|max:120',
             'email' => 'required|email|unique:tc_users,email',
             'password' => 'required|min:6',
-            'role' => 'required|in:admin,user',
+            'role' => ['required', Rule::in($assignable)],
             'status' => 'required|in:active,inactive',
-            'country_code' => 'nullable|string|max:6',
+            'country_code' => 'nullable|string|max:8',
             'phone' => 'nullable|string|max:20',
-        ]);
+        ];
+
+        $data = $request->validate($rules);
+        $data = $this->applyClientPanelUserDefaults($request, $data);
+
+        if (! $this->isClientPanel() && $this->userFormRequiresClientPicker($data['role'])) {
+            $request->validate(['client_id' => 'required|integer|exists:clients,id']);
+        }
+
+        $clientId = $this->resolveClientIdForUser($request, new User($data), $data['role']);
 
         $plainPassword = $request->input('password');
-        unset($data['password']);
+        unset($data['password'], $data['client_id']);
         $data['country_code'] = $data['country_code'] ?? '';
         $data['phone'] = $data['phone'] ?? '';
 
@@ -55,30 +95,62 @@ class UserController extends Controller
         $user->setTraccarPlainPasswordForNextSave($plainPassword);
         $user->save();
 
+        $this->syncUserTenantLinks($request, $user, $clientId);
+        $this->syncUserMapTrackingPermission($request, $user, $user->role);
+        $this->syncClientCompanyForClientRoleUser($request, $user, $user->role, $clientId);
+
         $this->audit->logCreated($user, "user {$user->email}", [
             'role' => $user->role,
             'status' => $user->status,
+            'client_id' => $clientId,
         ]);
 
-        return redirect()->route('admin.users.index')->with('success', 'User created successfully.');
+        return redirect()->to($this->panelRoute('users.index'))->with('success', 'User created successfully.');
     }
 
     public function edit(User $user)
     {
-        return view('admin.users.edit', compact('user'));
+        $this->authorizePermission('users.manage');
+        $this->authorizeManageUser($user);
+
+        $assignableRoles = $this->rbac()->assignableRoles(auth()->user());
+        $clients = $this->isClientPanel()
+            ? collect()
+            : $this->tenantScope()->scopeClients(\App\Models\Client::query(), auth()->user())->orderBy('name')->get();
+
+        return view('admin.users.edit', [
+            'user' => $user,
+            'assignableRoles' => $assignableRoles,
+            'clients' => $clients,
+            'panel' => $this->panelPrefix(),
+        ]);
     }
 
     public function update(Request $request, User $user)
     {
-        $data = $request->validate([
+        $this->authorizePermission('users.manage');
+        $this->authorizeManageUser($user);
+
+        $assignable = $this->rbac()->assignableRoles($request->user());
+
+        $rules = [
             'name' => 'required|string|max:120',
             'email' => 'required|email|unique:tc_users,email,' . $user->id,
             'password' => 'nullable|min:6',
-            'role' => 'required|in:admin,user',
+            'role' => ['required', Rule::in($assignable)],
             'status' => 'required|in:active,inactive',
-            'country_code' => 'nullable|string|max:6',
+            'country_code' => 'nullable|string|max:8',
             'phone' => 'nullable|string|max:20',
-        ]);
+        ];
+
+        $data = $request->validate($rules);
+        $data = $this->applyClientPanelUserDefaults($request, $data, $user);
+
+        if (! $this->isClientPanel() && $this->userFormRequiresClientPicker($data['role'])) {
+            $request->validate(['client_id' => 'required|integer|exists:clients,id']);
+        }
+
+        $clientId = $this->resolveClientIdForUser($request, $user, $data['role']);
 
         $data['country_code'] = $data['country_code'] ?? '';
         $data['phone'] = $data['phone'] ?? '';
@@ -88,34 +160,50 @@ class UserController extends Controller
             $user->password = $request->input('password');
         }
 
+        unset($data['client_id']);
         $user->fill($data);
         $user->save();
+
+        $this->syncUserTenantLinks($request, $user, $clientId);
+        $this->syncUserMapTrackingPermission($request, $user, $user->role);
+        $this->syncClientCompanyForClientRoleUser($request, $user, $user->role, $clientId);
 
         $this->audit->logUpdated($user, "user {$user->email}", [
             'role' => $user->role,
             'status' => $user->status,
+            'client_id' => $clientId,
         ]);
 
-        return redirect()->route('admin.users.index')->with('success', 'User updated successfully.');
+        return redirect()->to($this->panelRoute('users.index'))->with('success', 'User updated successfully.');
     }
 
     public function destroy(User $user)
     {
+        $this->authorizePermission('users.manage');
+        $this->authorizeManageUser($user);
+
         if ($user->email === 'admin@demo.test') {
             return back()->with('error', 'Default admin cannot be deleted.');
         }
 
         $email = $user->email;
+        $clientId = $this->tenantScope()->primaryClientIdForUser($user);
 
         $user->delete();
 
-        $this->audit->log('deleted', "Deleted user {$email}");
+        $this->audit->log('deleted', "Deleted user {$email}", null, array_filter([
+            'email' => $email,
+            'client_id' => $clientId,
+        ]));
 
-        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully.');
+        return redirect()->to($this->panelRoute('users.index'))->with('success', 'User deleted successfully.');
     }
 
     public function toggleStatus(Request $request, User $user)
     {
+        $this->authorizePermission('users.manage');
+        $this->authorizeManageUser($user);
+
         if ($user->id === $request->user()->id) {
             return response()->json([
                 'success' => false,
@@ -140,6 +228,7 @@ class UserController extends Controller
 
         $this->audit->logUpdated($user, "user {$user->email} status", [
             'status' => $user->status,
+            'client_id' => $this->tenantScope()->primaryClientIdForUser($user),
         ]);
 
         return response()->json([
@@ -149,4 +238,53 @@ class UserController extends Controller
             'message' => "User account is now {$label}.",
         ]);
     }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applyClientPanelUserDefaults(Request $request, array $data, ?User $existing = null): array
+    {
+        if (! $this->isClientPanel()) {
+            return $data;
+        }
+
+        $data['role'] = AppRole::EndUser->value;
+
+        if ($existing && $existing->id === $request->user()->id) {
+            abort(403, 'You cannot edit your own account from this screen.');
+        }
+
+        return $data;
+    }
+
+    private function syncUserMapTrackingPermission(Request $request, User $user, string $role): void
+    {
+        if (! $this->rbac()->roleSupportsMapTrackingToggle($role)) {
+            $this->rbac()->setPermissionOverride($user, 'maps.view', null);
+
+            return;
+        }
+
+        $this->rbac()->syncMapsViewPermission($user, $request->boolean('can_track_maps'));
+    }
+
+    private function syncClientCompanyForClientRoleUser(Request $request, User $user, string $role, int $clientId): void
+    {
+        if ($role !== AppRole::Client->value || $this->isClientPanel()) {
+            return;
+        }
+
+        $client = \App\Models\Client::query()->find($clientId);
+
+        if (! $client) {
+            return;
+        }
+
+        $client->update([
+            'name' => $request->input('name'),
+            'can_track_maps' => $request->boolean('can_track_maps'),
+        ]);
+    }
+
 }

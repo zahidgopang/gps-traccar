@@ -17,7 +17,7 @@ class EnsureActiveUser
     {
         $user = $request->user();
 
-        if (! $user || $user->isAdmin()) {
+        if (! $user || app(\App\Services\Authorization\RbacService::class)->canAccessPanel($user)) {
             return $next($request);
         }
 

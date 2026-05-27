@@ -1,8 +1,12 @@
+@php
+    $navPanel = request()->routeIs('client.*') ? 'client' : 'admin';
+    $canTrackMaps = app(\App\Services\Authorization\TenantScopeService::class)->actorMayTrackMaps(auth()->user());
+@endphp
 <!-- Premium Admin Sidebar - Working Version -->
 <aside class="admin-sidebar is-open" id="adminSidebar" aria-label="{{ __('app.forms.toggle_sidebar') }}">
     <!-- Sidebar Header -->
     <div class="sidebar-header">
-        <a href="{{ route('admin.dashboard') }}" class="sidebar-brand">
+        <a href="{{ route($navPanel . '.dashboard') }}" class="sidebar-brand">
             <img src="{{ asset('images/logo.png') }}" alt="GPS Tracker Pro">
             <span>{{ __('app.brand') }}</span>
         </a>
@@ -13,8 +17,8 @@
         <!-- Dashboard -->
         <div class="nav-group">
             <div class="nav-group-title">{{ __('app.admin.nav.main') }}</div>
-            <a href="{{ route('admin.dashboard') }}"
-               class="nav-link-premium {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+            <a href="{{ route($navPanel . '.dashboard') }}"
+               class="nav-link-premium {{ request()->routeIs($navPanel . '.dashboard') ? 'active' : '' }}">
                 <i class="fas fa-tachometer-alt"></i>
                 <span>{{ __('app.common.dashboard') }}</span>
             </a>
@@ -22,13 +26,13 @@
 
         @php
             $adminFlowStep = 0;
-            if (request()->routeIs('admin.users.*')) {
+            if (request()->routeIs($navPanel . '.users.*')) {
                 $adminFlowStep = 1;
-            } elseif (request()->routeIs('admin.devices.*')) {
+            } elseif (request()->routeIs($navPanel . '.devices.*')) {
                 $adminFlowStep = 2;
-            } elseif (request()->routeIs('admin.subscriptions.*')) {
+            } elseif (request()->routeIs($navPanel . '.subscriptions.*')) {
                 $adminFlowStep = 3;
-            } elseif (request()->routeIs('admin.locations.*', 'admin.device.map')) {
+            } elseif ($canTrackMaps && request()->routeIs($navPanel . '.locations.*', $navPanel . '.device.map')) {
                 $adminFlowStep = 4;
             }
         @endphp
@@ -40,9 +44,9 @@
                  role="list"
                  aria-label="{{ __('app.admin.nav.management') }}"
                  style="--flow-active-index: {{ $adminFlowStep }};">
-                <a href="{{ route('admin.users.index') }}"
+                <a href="{{ route($navPanel . '.users.index') }}"
                    role="listitem"
-                   class="nav-link-premium nav-flow-step {{ request()->routeIs('admin.users.*') ? 'active' : '' }} {{ $adminFlowStep > 1 ? 'is-done' : '' }}">
+                   class="nav-link-premium nav-flow-step {{ request()->routeIs($navPanel . '.users.*') ? 'active' : '' }} {{ $adminFlowStep > 1 ? 'is-done' : '' }}">
                     <span class="nav-flow-marker" aria-hidden="true"><span class="nav-flow-dot"></span></span>
                     <span class="nav-flow-body">
                         <i class="fas fa-users"></i>
@@ -50,20 +54,20 @@
                     </span>
                 </a>
 
-                <a href="{{ route('admin.devices.index') }}"
+                <a href="{{ route($navPanel . '.devices.index') }}"
                    role="listitem"
-                   class="nav-link-premium nav-flow-step {{ request()->routeIs('admin.devices.*') ? 'active' : '' }} {{ $adminFlowStep > 2 ? 'is-done' : '' }}">
+                   class="nav-link-premium nav-flow-step {{ request()->routeIs($navPanel . '.devices.*') ? 'active' : '' }} {{ $adminFlowStep > 2 ? 'is-done' : '' }}">
                     <span class="nav-flow-marker" aria-hidden="true"><span class="nav-flow-dot"></span></span>
                     <span class="nav-flow-body">
                         <i class="fas fa-satellite"></i>
-                        <span>{{ __('app.common.devices') }}</span>
+                        <span>{{ __('app.admin.nav.install_devices') }}</span>
                     </span>
                 </a>
 
-                @if(Route::has('admin.subscriptions.index'))
-                    <a href="{{ route('admin.subscriptions.index') }}"
+                @if(Route::has($navPanel . '.subscriptions.index'))
+                    <a href="{{ route($navPanel . '.subscriptions.index') }}"
                        role="listitem"
-                       class="nav-link-premium nav-flow-step {{ request()->routeIs('admin.subscriptions.*') ? 'active' : '' }} {{ $adminFlowStep > 3 ? 'is-done' : '' }}">
+                       class="nav-link-premium nav-flow-step {{ request()->routeIs($navPanel . '.subscriptions.*') ? 'active' : '' }} {{ $adminFlowStep > 3 ? 'is-done' : '' }}">
                         <span class="nav-flow-marker" aria-hidden="true"><span class="nav-flow-dot"></span></span>
                         <span class="nav-flow-body">
                             <i class="fas fa-credit-card"></i>
@@ -84,36 +88,86 @@
                     </a>
                 @endif
 
-                <a href="{{ route('admin.locations.index') }}"
+                @if($canTrackMaps && Route::has($navPanel . '.locations.index'))
+                <a href="{{ route($navPanel . '.locations.index') }}"
                    role="listitem"
-                   class="nav-link-premium nav-flow-step {{ request()->routeIs('admin.locations.*') || request()->routeIs('admin.device.map') ? 'active' : '' }}">
+                   class="nav-link-premium nav-flow-step {{ request()->routeIs($navPanel . '.locations.*') || request()->routeIs($navPanel . '.device.map') ? 'active' : '' }}">
                     <span class="nav-flow-marker" aria-hidden="true"><span class="nav-flow-dot"></span></span>
                     <span class="nav-flow-body">
                         <i class="fas fa-map-marked-alt"></i>
                         <span>{{ __('app.admin.nav.track_devices') }}</span>
                     </span>
                 </a>
+                @endif
             </div>
+
+            @can('permission', 'stock.view')
+                @if($navPanel === 'admin' && Route::has('admin.device-stock.index'))
+                    <a href="{{ route('admin.device-stock.index') }}"
+                       class="nav-link-premium mt-1 {{ request()->routeIs('admin.device-stock.*') && !request()->routeIs('admin.device-stock.repairs') ? 'active' : '' }}">
+                        <i class="fas fa-boxes-stacked"></i>
+                        <span>{{ __('app.admin.nav.device_stock') }}</span>
+                    </a>
+                    @if(Route::has('admin.device-stock.repairs'))
+                        <a href="{{ route('admin.device-stock.repairs') }}"
+                           class="nav-link-premium {{ request()->routeIs('admin.device-stock.repairs') ? 'active' : '' }}">
+                            <i class="fas fa-screwdriver-wrench"></i>
+                            <span>{{ __('app.admin.nav.stock_repairs') }}</span>
+                        </a>
+                    @endif
+                @endif
+            @endcan
+
+            @can('permission', 'stock.manage')
+                @if($navPanel === 'admin' && Route::has('admin.device-stock-sales.index'))
+                    <a href="{{ route('admin.device-stock-sales.index') }}"
+                       class="nav-link-premium {{ request()->routeIs('admin.device-stock-sales.*') ? 'active' : '' }}">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>{{ __('app.admin.nav.stock_sales') }}</span>
+                    </a>
+                @endif
+            @endcan
+
+            @can('permission', 'billing.view')
+                @if(Route::has($navPanel . '.billing-invoices.index'))
+                    <a href="{{ route($navPanel . '.billing-invoices.index') }}"
+                       class="nav-link-premium {{ request()->routeIs($navPanel . '.billing-invoices.*') ? 'active' : '' }}">
+                        <i class="fas fa-receipt"></i>
+                        <span>{{ __('app.billing.invoices') }}</span>
+                    </a>
+                @endif
+                @if(Route::has($navPanel . '.reports.profit-loss'))
+                    <a href="{{ route($navPanel . '.reports.profit-loss') }}"
+                       class="nav-link-premium {{ request()->routeIs($navPanel . '.reports.profit-loss') ? 'active' : '' }}">
+                        <i class="fas fa-chart-line"></i>
+                        <span>{{ __('app.billing.profit_loss') }}</span>
+                    </a>
+                @endif
+            @endcan
+
+            @can('permission', 'billing.manage')
+                @if($navPanel === 'admin' && Route::has('admin.subscription-plans.index'))
+                    <a href="{{ route('admin.subscription-plans.index') }}"
+                       class="nav-link-premium {{ request()->routeIs('admin.subscription-plans.*') ? 'active' : '' }}">
+                        <i class="fas fa-layer-group"></i>
+                        <span>{{ __('app.billing.plans') }}</span>
+                    </a>
+                @endif
+            @endcan
         </div>
 
         <!-- System -->
         <div class="nav-group">
             <div class="nav-group-title">{{ __('app.admin.nav.system') }}</div>
-            @if(Route::has('admin.activity-log.index'))
-                <a href="{{ route('admin.activity-log.index') }}"
-                   class="nav-link-premium {{ request()->routeIs('admin.activity-log.*') ? 'active' : '' }}">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>{{ __('app.admin.nav.activity_log') }}</span>
-                </a>
-            @endif
-            <a href="#" class="nav-link-premium" onclick="showComingSoon('Settings')">
-                <i class="fas fa-cog"></i>
-                <span>{{ __('app.admin.nav.settings') }}</span>
-            </a>
-            <a href="#" class="nav-link-premium" onclick="showComingSoon('Reports')">
-                <i class="fas fa-chart-bar"></i>
-                <span>{{ __('app.admin.nav.reports') }}</span>
-            </a>
+            @can('permission', 'activity.view')
+                @if(Route::has($navPanel . '.activity-log.index'))
+                    <a href="{{ route($navPanel . '.activity-log.index') }}"
+                       class="nav-link-premium {{ request()->routeIs($navPanel . '.activity-log.*') ? 'active' : '' }}">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>{{ __('app.admin.nav.activity_log') }}</span>
+                    </a>
+                @endif
+            @endcan
         </div>
     </nav>
 

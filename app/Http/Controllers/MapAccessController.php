@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Device;
+use App\Services\Authorization\RbacService;
+use App\Services\Authorization\TenantScopeService;
 use App\Services\DeviceMapAccessService;
 use App\Services\Traccar\TraccarDeviceAccessService;
 use Illuminate\Http\Request;
@@ -10,7 +12,9 @@ use Illuminate\Http\Request;
 class MapAccessController extends Controller
 {
     public function __construct(
-        private DeviceMapAccessService $mapAccess
+        private DeviceMapAccessService $mapAccess,
+        private TenantScopeService $tenantScope,
+        private RbacService $rbac,
     ) {}
 
     public function launchUserMap(Request $request, Device $device)
@@ -38,13 +42,25 @@ class MapAccessController extends Controller
 
     public function launchAdminMap(Request $request, Device $device)
     {
+        if (! $this->tenantScope->actorMayTrackMaps($request->user())) {
+            abort(403, __('app.forms.map_tracking_disabled'));
+        }
+
         $traccarDevices = app(TraccarDeviceAccessService::class);
         if ($traccarDevices->usesTraccarDeviceList() && ! Device::inTracker()->whereKey($device->id)->exists()) {
             abort(404);
         }
 
+        if (! $traccarDevices->userCanAccessDevice($request->user(), $device)) {
+            abort(403);
+        }
+
         $token = $this->mapAccess->issueGrant($device, $request->user(), true);
 
-        return redirect()->route('admin.device.map', ['token' => $token]);
+        $mapRoute = $this->rbac->roleOf($request->user())->panel() === 'client'
+            ? 'client.device.map'
+            : 'admin.device.map';
+
+        return redirect()->route($mapRoute, ['token' => $token]);
     }
 }

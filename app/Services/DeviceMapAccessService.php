@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Device;
 use App\Models\User;
+use App\Services\Authorization\RbacService;
 use App\Services\Traccar\TraccarDeviceAccessService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -72,11 +73,8 @@ class DeviceMapAccessService
         $forAdmin = ! empty($grant['admin']);
 
         if ($forAdmin) {
-            if (! $user->isAdmin()) {
-                abort(403);
-            }
-
             $device = Device::with(['user', 'subscription'])->findOrFail($parsed['device_id']);
+            $this->assertFleetMapAccess($user, $device);
             $this->bindMapSession($token, $device, $user, true);
 
             return $device;
@@ -151,11 +149,10 @@ class DeviceMapAccessService
         $isAdminSession = ! empty($session['admin']);
 
         if ($isAdminSession) {
-            if (! $user->isAdmin()) {
-                abort(403);
-            }
+            $device = Device::with(['user', 'subscription'])->findOrFail($parsed['device_id']);
+            $this->assertFleetMapAccess($user, $device);
 
-            return Device::with(['user', 'subscription'])->findOrFail($parsed['device_id']);
+            return $device;
         }
 
         $device = $this->traccarDevices->queryForUser($user)
@@ -178,9 +175,30 @@ class DeviceMapAccessService
 
     public function isAdminMapRequest(?Request $request = null): bool
     {
+        return $this->isFleetMapRequest($request);
+    }
+
+    public function isFleetMapRequest(?Request $request = null): bool
+    {
         $request ??= request();
 
-        return $request->routeIs('admin.*');
+        return $request->routeIs(
+            'admin.device.*',
+            'admin.locations.*',
+            'client.device.*',
+            'client.locations.*',
+        );
+    }
+
+    private function assertFleetMapAccess(User $user, Device $device): void
+    {
+        if (! app(RbacService::class)->canAccessPanel($user)) {
+            abort(403);
+        }
+
+        if (! $this->traccarDevices->userCanAccessDevice($user, $device)) {
+            abort(403);
+        }
     }
 
     /**
@@ -269,11 +287,10 @@ class DeviceMapAccessService
     private function resolveMapDevice(int $deviceId, User $user, bool $forAdmin): Device
     {
         if ($forAdmin) {
-            if (! $user->isAdmin()) {
-                abort(403);
-            }
+            $device = Device::with(['user', 'subscription'])->findOrFail($deviceId);
+            $this->assertFleetMapAccess($user, $device);
 
-            return Device::with(['user', 'subscription'])->findOrFail($deviceId);
+            return $device;
         }
 
         return $this->traccarDevices->queryForUser($user)
@@ -284,6 +301,8 @@ class DeviceMapAccessService
     private function assertUserMayViewDevice(User $user, Device $device, bool $forAdmin): void
     {
         if ($forAdmin) {
+            $this->assertFleetMapAccess($user, $device);
+
             return;
         }
 

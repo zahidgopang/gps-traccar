@@ -2,60 +2,62 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\InteractsWithTenantAuthorization;
 use App\Http\Controllers\Controller;
-use App\Services\AdminAuditService;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
-use Spatie\Activitylog\Models\Activity;
 
 class ActivityLogController extends Controller
 {
+    use InteractsWithTenantAuthorization;
+
+    public function __construct(
+        private ActivityLogService $activityLog,
+    ) {}
+
     public function index(Request $request)
     {
-        $query = Activity::query()
-            ->with(['causer', 'subject'])
-            ->whereIn('log_name', [AdminAuditService::LOG_NAME, 'default'])
-            ->orderByDesc('id');
+        $this->authorizePermission('activity.view');
 
-        if ($request->filled('log_name')) {
-            $query->where('log_name', $request->log_name);
+        $actor = $request->user();
+        $filterClientId = $request->filled('client_id') ? (int) $request->client_id : null;
+
+        if ($filterClientId !== null) {
+            $this->authorizeVisibleClient($request, $filterClientId);
         }
 
-        if ($request->filled('event')) {
-            $query->where('event', $request->event);
-        }
-
-        if ($request->filled('causer_id')) {
-            $query->where('causer_id', $request->causer_id)
-                ->where('causer_type', 'App\Models\User');
-        }
-
-        if ($request->filled('q')) {
-            $q = $request->q;
-            $query->where(function ($w) use ($q) {
-                $w->where('description', 'like', "%{$q}%")
-                    ->orWhere('properties', 'like', "%{$q}%");
-            });
-        }
-
-        if ($request->filled('from')) {
-            $query->whereDate('created_at', '>=', $request->from);
-        }
-
-        if ($request->filled('to')) {
-            $query->whereDate('created_at', '<=', $request->to);
-        }
+        $query = $this->activityLog->baseQuery();
+        $this->activityLog->applyTenantScope($query, $actor, $filterClientId);
+        $this->activityLog->applyFilters($query, $request);
 
         $logs = $query->paginate(30)->withQueryString();
 
-        $admins = Activity::query()
-            ->where('log_name', AdminAuditService::LOG_NAME)
-            ->where('causer_type', 'App\Models\User')
-            ->distinct()
-            ->pluck('causer_id')
-            ->filter();
+        if ($logs->currentPage() > 1 && $logs->lastPage() > 0 && $logs->currentPage() > $logs->lastPage()) {
+            return redirect()->to($logs->url($logs->lastPage()));
+        }
 
-        $causers = \App\Models\User::whereIn('id', $admins)->orderBy('name')->get(['id', 'name', 'email']);
+        $causers = $this->activityLog->causersInScope($actor, $filterClientId);
+        $filterClients = $this->activityLog->filterClientsForActor($actor);
+        $clientScoped = $this->activityLog->isClientScopedView($actor);
+        $showClientColumn = ! $clientScoped && $filterClients->count() > 1;
+        $panel = $this->panelPrefix();
 
-        return view('admin.activity-log.index', compact('logs', 'causers'));
+        $clientCompany = null;
+        if ($clientScoped) {
+            $primaryId = $this->tenantScope()->primaryClientIdForUser($actor)
+                ?? ($filterClients->first()?->id);
+            $clientCompany = $filterClients->firstWhere('id', $primaryId)
+                ?? $filterClients->first();
+        }
+
+        return view('admin.activity-log.index', compact(
+            'logs',
+            'causers',
+            'filterClients',
+            'clientScoped',
+            'showClientColumn',
+            'panel',
+            'clientCompany',
+        ));
     }
 }

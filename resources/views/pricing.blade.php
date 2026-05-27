@@ -18,22 +18,15 @@
             <p class="text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto mb-12">
                 {{ __('frontend.pricing.subtitle') }}
             </p>
-
-            <!-- Billing Toggle -->
-            <div class="inline-flex items-center bg-slate-200 dark:bg-slate-800 rounded-xl p-1 mb-12">
-                <button class="px-6 py-2 rounded-lg font-semibold bg-white dark:bg-slate-900 shadow-sm">
-                    {{ __('frontend.pricing.monthly') }}
-                </button>
-                <button class="px-6 py-2 rounded-lg font-semibold text-slate-500 dark:text-slate-400">
-                    {{ __('frontend.pricing.yearly') }} <span class="text-emerald-500 ms-1">{{ __('frontend.pricing.yearly_save') }}</span>
-                </button>
-            </div>
         </div>
     </section>
 
     <!-- Pricing Cards -->
     <section class="pb-32 relative">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            @if(isset($plans) && $plans->isNotEmpty())
+                @include('partials.pricing-plans-dynamic', ['plans' => $plans])
+            @else
             <div class="grid md:grid-cols-3 gap-8 lg:gap-12">
                 <!-- Essential Plan -->
                 <div class="group relative">
@@ -95,7 +88,7 @@
                         <!-- CTA -->
                         <a href="{{ url('register') }}"
                            class="block w-full py-3 text-center rounded-xl bg-slate-800 dark:bg-slate-700 text-white font-semibold hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors">
-                            Get Started
+                            {{ __('frontend.pricing.get_started') }}
                         </a>
                     </div>
                 </div>
@@ -105,7 +98,7 @@
                     <!-- Popular Badge -->
                     <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
                         <div class="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-semibold rounded-full shadow-lg">
-                            MOST POPULAR
+                            {{ __('frontend.pricing.most_popular') }}
                         </div>
                     </div>
 
@@ -249,36 +242,37 @@
                         <!-- CTA -->
                         <a href="{{ url('contact') }}"
                            class="block w-full py-3 text-center rounded-xl border-2 border-purple-500 text-purple-600 dark:text-purple-400 font-semibold hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
-                            Contact Sales
+                            {{ __('frontend.pricing.contact_sales') }}
                         </a>
                     </div>
                 </div>
             </div>
+            @endif
 
             <!-- All Plans Include -->
             <div class="mt-20 p-8 rounded-2xl glass border border-slate-200 dark:border-slate-800">
-                <h3 class="text-2xl font-bold text-center mb-8">All plans include</h3>
+                <h3 class="text-2xl font-bold text-center mb-8">{{ __('frontend.pricing.all_plans_include') }}</h3>
                 <div class="grid md:grid-cols-3 gap-8">
                     <div class="text-center">
                         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500/10 to-blue-500/10 flex items-center justify-center mx-auto mb-4">
                             <i class="fa-solid fa-shield-check text-sky-500 text-xl"></i>
                         </div>
-                        <h4 class="font-semibold mb-2">Enterprise Security</h4>
-                        <p class="text-sm text-slate-600 dark:text-slate-400">AES-256 encryption, SOC 2 compliant</p>
+                        <h4 class="font-semibold mb-2">{{ __('frontend.pricing.enterprise_security') }}</h4>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">{{ __('frontend.pricing.enterprise_security_desc') }}</p>
                     </div>
                     <div class="text-center">
                         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center mx-auto mb-4">
                             <i class="fa-solid fa-mobile-screen text-emerald-500 text-xl"></i>
                         </div>
-                        <h4 class="font-semibold mb-2">Mobile Apps</h4>
-                        <p class="text-sm text-slate-600 dark:text-slate-400">iOS & Android apps included</p>
+                        <h4 class="font-semibold mb-2">{{ __('frontend.pricing.mobile_apps') }}</h4>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">{{ __('frontend.pricing.mobile_apps_desc') }}</p>
                     </div>
                     <div class="text-center">
                         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 flex items-center justify-center mx-auto mb-4">
                             <i class="fa-solid fa-sync text-amber-500 text-xl"></i>
                         </div>
-                        <h4 class="font-semibold mb-2">Regular Updates</h4>
-                        <p class="text-sm text-slate-600 dark:text-slate-400">New features & improvements</p>
+                        <h4 class="font-semibold mb-2">{{ __('frontend.pricing.regular_updates') }}</h4>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">{{ __('frontend.pricing.regular_updates_desc') }}</p>
                     </div>
                 </div>
             </div>
@@ -289,39 +283,12 @@
     <section class="pb-32 relative">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-6">Frequently Asked Questions</h2>
-                <p class="text-xl text-slate-600 dark:text-slate-300">Everything you need to know about TrackPro</p>
+                <h2 class="text-4xl font-bold mb-6">{{ __('frontend.pricing.faq_title') }}</h2>
+                <p class="text-xl text-slate-600 dark:text-slate-300">{{ __('frontend.pricing.faq_subtitle') }}</p>
             </div>
 
             <div class="space-y-6">
-                @php
-                    $faqs = [
-                        [
-                            'q' => 'Is there a free trial available?',
-                            'a' => 'Yes, we offer a 14-day free trial on our Professional plan with no credit card required. You get full access to all features during the trial period.'
-                        ],
-                        [
-                            'q' => 'What GPS devices are supported?',
-                            'a' => 'TrackPro supports all major GPS protocols including GT06, TK103, LTE Cat-1, and most IoT devices. We provide detailed setup guides for over 200 devices.'
-                        ],
-                        [
-                            'q' => 'Can I cancel my subscription anytime?',
-                            'a' => 'Absolutely. There are no long-term contracts. You can cancel anytime from your account settings, and we\'ll process any prorated refunds immediately.'
-                        ],
-                        [
-                            'q' => 'Is my data secure with TrackPro?',
-                            'a' => 'Yes. We use AES-256 encryption, maintain SOC 2 Type II compliance, and follow GDPR guidelines. Your data is never shared with third parties.'
-                        ],
-                        [
-                            'q' => 'How accurate is the GPS tracking?',
-                            'a' => 'With multi-constellation support (GPS, GLONASS, Galileo), we achieve 15cm accuracy in optimal conditions and sub-second update intervals.'
-                        ],
-                        [
-                            'q' => 'Do you offer on-premise deployment?',
-                            'a' => 'Yes, for Enterprise customers. We offer both cloud and on-premise deployment options with dedicated support and custom SLAs.'
-                        ],
-                    ];
-                @endphp
+                @php $faqs = __('frontend.pricing.faqs'); @endphp
 
                 @foreach($faqs as $faq)
                     <div class="group" x-data="{ open: false }">
@@ -345,11 +312,11 @@
 
             <!-- Still have questions -->
             <div class="mt-12 text-center">
-                <p class="text-slate-600 dark:text-slate-400 mb-6">Still have questions?</p>
+                <p class="text-slate-600 dark:text-slate-400 mb-6">{{ __('frontend.pricing.still_have_questions') }}</p>
                 <a href="{{ url('/contact') }}"
                    class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all">
                     <i class="fa-solid fa-envelope"></i>
-                    Contact Support
+                    {{ __('frontend.pricing.contact_support') }}
                 </a>
             </div>
         </div>
@@ -366,14 +333,14 @@
         </div>
 
         <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-4xl lg:text-5xl font-bold text-white mb-8">Ready to Transform Your Fleet Operations?</h2>
-            <p class="text-xl text-blue-100 mb-12">Join 10,000+ companies that trust TrackPro for mission-critical tracking.</p>
+            <h2 class="text-4xl lg:text-5xl font-bold text-white mb-8">{{ __('frontend.pricing.cta_title') }}</h2>
+            <p class="text-xl text-blue-100 mb-12">{{ __('frontend.pricing.cta_subtitle') }}</p>
 
             <div class="flex flex-col sm:flex-row gap-6 justify-center">
                 <a href="{{ url('register') }}"
                    class="group relative px-10 py-5 bg-white text-blue-700 rounded-2xl font-bold text-lg overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300">
                     <span class="relative z-10 flex items-center justify-center gap-3">
-                        Start Free 30-Day Trial
+                        {{ __('frontend.pricing.start_trial') }}
                         <svg class="w-5 h-5 transform group-hover:translate-x-2 transition-transform" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
                         </svg>
@@ -385,19 +352,22 @@
                    class="group px-10 py-5 bg-white/20 backdrop-blur-sm text-white rounded-2xl font-bold text-lg border-2 border-white/30 hover:bg-white/30 transition-all">
                     <span class="flex items-center justify-center gap-3">
                         <i class="fa-solid fa-calendar"></i>
-                        Schedule a Demo
+                        {{ __('frontend.pricing.schedule_demo') }}
                     </span>
                 </a>
             </div>
 
             <div class="mt-12 text-blue-100/70 text-sm">
-                <p>No credit card required • Free onboarding • 24/7 support included</p>
+                <p>{{ __('frontend.pricing.cta_footer') }}</p>
             </div>
         </div>
     </section>
 @endsection
 
 @push('scripts')
+    @if(isset($plans) && $plans->isNotEmpty())
+        <script src="{{ asset('js/pricing-billing-toggle.js') }}?v={{ filemtime(public_path('js/pricing-billing-toggle.js')) }}"></script>
+    @endif
     <script>
         // FAQ accordion functionality
         document.addEventListener('alpine:init', () => {

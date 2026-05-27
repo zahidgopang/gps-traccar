@@ -60,25 +60,8 @@
                 </div>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <a class="dropdown-item" href="#">
+                        <a class="dropdown-item" href="{{ route('profile.edit') }}">
                             <i class="fas fa-user-circle me-2"></i> {{ __('app.admin.nav.my_profile') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#">
-                            <i class="fas fa-cog me-2"></i> {{ __('app.admin.nav.settings') }}
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item" href="#">
-                            <i class="fas fa-question-circle me-2"></i> {{ __('app.admin.nav.help_support') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#" id="darkModeToggle">
-                            <i class="fas fa-moon me-2"></i> {{ __('app.admin.nav.dark_mode') }}
-                            <span class="badge bg-primary ms-2">{{ __('app.forms.beta') }}</span>
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
@@ -350,7 +333,7 @@
                 '/admin/devices': { title: 'Devices', icon: 'satellite' },
                 '/admin/users': { title: 'Users', icon: 'users' },
                 '/admin/subscriptions': { title: 'Subscriptions', icon: 'credit-card' },
-                '/admin/settings': { title: 'Settings', icon: 'cog' }
+                '/profile': { title: 'Profile', icon: 'user-circle' },
             };
 
             const route = Object.keys(titles).find(r => path.startsWith(r));

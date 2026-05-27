@@ -21,8 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'map.access' => \App\Http\Middleware\EnsureMapAccess::class,
+            'maps.tracking' => \App\Http\Middleware\EnsureMapTrackingAccess::class,
             'user.active' => \App\Http\Middleware\EnsureActiveUser::class,
             'tracker.access' => \App\Http\Middleware\EnsureTrackerAccess::class,
+            'permission' => \App\Http\Middleware\EnsurePermission::class,
+            'panel' => \App\Http\Middleware\EnsurePanelAccess::class,
         ]);
 
         $middleware->appendToGroup('web', [

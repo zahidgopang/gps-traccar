@@ -4,11 +4,7 @@
         $latest = $device->latestLocation;
         $battery = $latest?->battery_level;
         $batteryPercent = is_numeric($battery) ? min(100, max(0, (int) $battery)) : null;
-        $iconClass = match($device->device_type) {
-            'truck' => 'fa-truck',
-            'bike' => 'fa-motorcycle',
-            default => 'fa-car',
-        };
+        $iconClass = $device->deviceTypeIconClass();
         $canTrack = app(\App\Services\DeviceAccessService::class)->canUseMap(auth()->user(), $device);
         $iconColor = match($status['class']) {
             'bg-success' => 'text-success',
@@ -23,7 +19,7 @@
                 <div class="vehicle-icon me-2">
                     <i class="fas {{ $iconClass }} {{ $iconColor }}"></i>
                 </div>
-                <span>{{ $device->name }}</span>
+                <span>{{ $device->mapDisplayTitle() }}</span>
             </div>
         </td>
         <td>

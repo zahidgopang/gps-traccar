@@ -10,14 +10,26 @@ class Subscription extends Model
         'user_id',
         'device_id',
         'plan',
+        'subscription_plan_id',
+        'client_id',
         'starts_at',
         'ends_at',
         'status',
+        'company_price',
+        'selling_price',
+        'device_unit_cost',
+        'device_selling_price',
+        'platform_invoice_id',
+        'client_invoice_id',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'company_price' => 'decimal:2',
+        'selling_price' => 'decimal:2',
+        'device_unit_cost' => 'decimal:2',
+        'device_selling_price' => 'decimal:2',
     ];
 
     public function user()
@@ -33,6 +45,36 @@ class Subscription extends Model
     public function histories()
     {
         return $this->hasMany(SubscriptionHistory::class)->orderByDesc('archived_at');
+    }
+
+    public function subscriptionPlan()
+    {
+        return $this->belongsTo(SubscriptionPlan::class);
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function platformInvoice()
+    {
+        return $this->belongsTo(BillingInvoice::class, 'platform_invoice_id');
+    }
+
+    public function clientInvoice()
+    {
+        return $this->belongsTo(BillingInvoice::class, 'client_invoice_id');
+    }
+
+    public function subscriptionProfit(): float
+    {
+        return max(0, (float) $this->selling_price - (float) $this->company_price);
+    }
+
+    public function deviceProfit(): float
+    {
+        return max(0, (float) $this->device_selling_price - (float) $this->device_unit_cost);
     }
 
     public function isEffectivelyExpired(): bool
