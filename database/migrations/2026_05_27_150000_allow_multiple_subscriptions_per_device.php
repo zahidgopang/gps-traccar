@@ -9,14 +9,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if ($this->hasUniqueOnColumn('subscriptions', 'device_id')) {
+        $indexes = $this->deviceIdIndexes();
+
+        if ($indexes['unique']) {
             Schema::table('subscriptions', function (Blueprint $table) {
                 $table->dropUnique(['device_id']);
             });
         }
 
         // Non-unique index may already exist from 2026_05_17_100000 (device_id was added with ->index()).
-        if (! $this->hasNonUniqueIndexOnColumn('subscriptions', 'device_id')) {
+        if (! $indexes['non_unique']) {
             Schema::table('subscriptions', function (Blueprint $table) {
                 $table->index('device_id');
             });
@@ -25,57 +27,49 @@ return new class extends Migration
 
     public function down(): void
     {
-        if ($this->hasNonUniqueIndexOnColumn('subscriptions', 'device_id')
-            && ! $this->hasUniqueOnColumn('subscriptions', 'device_id')) {
+        $indexes = $this->deviceIdIndexes();
+
+        if ($indexes['non_unique'] && ! $indexes['unique']) {
             Schema::table('subscriptions', function (Blueprint $table) {
                 $table->dropIndex(['device_id']);
             });
         }
 
-        if (! $this->hasUniqueOnColumn('subscriptions', 'device_id')) {
+        if (! $indexes['unique']) {
             Schema::table('subscriptions', function (Blueprint $table) {
                 $table->unique('device_id');
             });
         }
     }
 
-    private function hasUniqueOnColumn(string $table, string $column): bool
-    {
-        return $this->indexQuery($table, $column, uniqueOnly: true) !== null;
-    }
-
-    private function hasNonUniqueIndexOnColumn(string $table, string $column): bool
-    {
-        return $this->indexQuery($table, $column, uniqueOnly: false) !== null;
-    }
-
     /**
-     * @return object{index_name: string}|null
+     * @return array{unique: bool, non_unique: bool}
      */
-    private function indexQuery(string $table, string $column, bool $uniqueOnly): ?object
+    private function deviceIdIndexes(): array
     {
-        $database = Schema::getConnection()->getDatabaseName();
+        $unique = false;
+        $nonUnique = false;
 
-        $rows = DB::select(
-            'SELECT index_name, non_unique
-             FROM information_schema.statistics
-             WHERE table_schema = ?
-               AND table_name = ?
-               AND column_name = ?
-             ORDER BY index_name',
-            [$database, $table, $column]
-        );
+        try {
+            $rows = DB::select('SHOW INDEX FROM `subscriptions`');
+        } catch (\Throwable) {
+            return ['unique' => false, 'non_unique' => false];
+        }
 
         foreach ($rows as $row) {
-            $isUnique = (int) $row->non_unique === 0;
-            if ($uniqueOnly && $isUnique) {
-                return $row;
+            $index = array_change_key_case((array) $row, CASE_LOWER);
+
+            if (($index['column_name'] ?? null) !== 'device_id') {
+                continue;
             }
-            if (! $uniqueOnly && ! $isUnique) {
-                return $row;
+
+            if ((int) ($index['non_unique'] ?? 1) === 0) {
+                $unique = true;
+            } else {
+                $nonUnique = true;
             }
         }
 
-        return null;
+        return ['unique' => $unique, 'non_unique' => $nonUnique];
     }
 };
