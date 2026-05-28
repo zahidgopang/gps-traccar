@@ -181,4 +181,104 @@ final class GeofenceWkt
 
         return $r * 2 * asin(sqrt($a));
     }
+
+    /**
+     * Parse Traccar area WKT into Laravel/mobile shape fields (lat/lng order).
+     *
+     * @return array{type: string, coords: ?array, center: ?array, radius: ?int}|null
+     */
+    public static function parseArea(?string $area): ?array
+    {
+        if (! is_string($area) || trim($area) === '') {
+            return null;
+        }
+
+        $area = trim($area);
+
+        if (preg_match('/CIRCLE\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*,\s*([-\d.]+)\s*\)/i', $area, $m)) {
+            return [
+                'type' => 'circle',
+                'coords' => null,
+                'center' => [(float) $m[1], (float) $m[2]],
+                'radius' => (int) round((float) $m[3]),
+            ];
+        }
+
+        if (preg_match('/POLYGON\s*\(\(([^)]+)\)\)/i', $area, $m)) {
+            $pairs = preg_split('/\s*,\s*/', trim($m[1]));
+            $coords = [];
+            foreach ($pairs as $pair) {
+                $parts = preg_split('/\s+/', trim($pair));
+                if (count($parts) >= 2) {
+                    $coords[] = [(float) $parts[0], (float) $parts[1]];
+                }
+            }
+
+            if (count($coords) >= 3) {
+                $first = $coords[0];
+                $last = $coords[count($coords) - 1];
+                if ($first[0] === $last[0] && $first[1] === $last[1]) {
+                    array_pop($coords);
+                }
+
+                return [
+                    'type' => 'polygon',
+                    'coords' => $coords,
+                    'center' => null,
+                    'radius' => null,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ensure API/mobile clients always receive drawable shape data.
+     *
+     * @param  array<int, array{0: float|int, 1: float|int}>|string|null  $coords
+     * @param  array{0: float|int, 1: float|int}|string|null  $center
+     * @return array{type: string, coords: ?array, center: ?array, radius: ?int}
+     */
+    public static function resolveShape(
+        string $type,
+        array|string|null $coords = null,
+        array|string|null $center = null,
+        ?int $radius = null,
+        ?string $area = null,
+    ): array {
+        $coordsArr = self::normalizePolygonCoords($coords);
+        $centerArr = self::normalizePointList($center);
+        $normalizedType = strtolower($type ?: 'polygon');
+
+        if ($normalizedType === 'circle' && is_array($centerArr) && $radius !== null) {
+            return [
+                'type' => 'circle',
+                'coords' => null,
+                'center' => $centerArr,
+                'radius' => (int) $radius,
+            ];
+        }
+
+        if ($normalizedType === 'polygon' && is_array($coordsArr) && count($coordsArr) >= 3) {
+            return [
+                'type' => 'polygon',
+                'coords' => $coordsArr,
+                'center' => null,
+                'radius' => null,
+            ];
+        }
+
+        $parsed = self::parseArea($area);
+        if ($parsed !== null) {
+            return $parsed;
+        }
+
+        return [
+            'type' => $normalizedType,
+            'coords' => $coordsArr,
+            'center' => $centerArr,
+            'radius' => $radius,
+        ];
+    }
 }

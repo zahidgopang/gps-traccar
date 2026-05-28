@@ -156,8 +156,10 @@ class MobileEntitlementService
         return [
             'plan' => $subscription->plan,
             'status' => $subscription->status,
-            'starts_at' => $subscription->starts_at?->toIso8601String(),
-            'ends_at' => $subscription->ends_at?->toIso8601String(),
+            'starts_at' => app_datetime_api($subscription->starts_at),
+            'ends_at' => app_datetime_api($subscription->ends_at),
+            'starts_at_display' => app_datetime_format($subscription->starts_at, 'date'),
+            'ends_at_display' => app_datetime_format($subscription->ends_at, 'date'),
             'active' => $this->subscriptions->isActive($device),
             'payment_status' => $invoice?->status ?? 'none',
             'balance_due' => $invoice ? (float) $invoice->balance_due : 0,

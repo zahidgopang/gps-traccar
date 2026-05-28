@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'firebase' => [
+        'enabled' => env('PUSH_NOTIFICATIONS_ENABLED', false),
+        'event_notifications_enabled' => env('PUSH_EVENT_NOTIFICATIONS_ENABLED', false),
+        'geofence_notifications_enabled' => env('PUSH_GEOFENCE_NOTIFICATIONS_ENABLED', true),
+        /** Relative to project root or absolute path — see storage/app/firebase/.gitignore */
+        'credentials' => env('FIREBASE_CREDENTIALS'),
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+    ],
+
 ];

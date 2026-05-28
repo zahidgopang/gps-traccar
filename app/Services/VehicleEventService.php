@@ -6,22 +6,16 @@ use App\Contracts\Geofences\GeofenceStoreInterface;
 use App\Contracts\Tracking\EventWriterInterface;
 use App\Models\Device;
 use App\Models\DeviceLocation;
-use App\Models\TraccarEntityMap;
 use App\Models\VehicleEvent;
-use App\Repositories\Tracking\TraccarEventMapper;
-use App\Services\Traccar\TraccarIdMap;
+use App\Services\Push\PushNotificationDispatcher;
 use App\Support\Traccar\GeofenceWkt;
-use App\Support\Traccar\TraccarSchema;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class VehicleEventService
 {
     public function __construct(
         private EventWriterInterface $events,
         private GeofenceStoreInterface $geofences,
-        private TraccarIdMap $idMap,
-        private TraccarEventMapper $eventMapper,
     ) {}
     public function processLocation(Device $device, DeviceLocation $location, ?DeviceLocation $previous = null): void
     {
@@ -86,7 +80,13 @@ class VehicleEventService
             default => ['Vehicle update', "{$device->name} motion state changed."],
         };
 
-        $this->record($device, $state, $title, $message, $speed, $lat, $lng, $at);
+        $event = $this->record($device, $state, $title, $message, $speed, $lat, $lng, $at);
+
+        app(PushNotificationDispatcher::class)->forVehicleEvent(
+            $device,
+            $event,
+            is_string($previousState) ? $previousState : null,
+        );
     }
 
     private function processGeofence(Device $device, float $lat, float $lng, Carbon $at): void
@@ -95,39 +95,82 @@ class VehicleEventService
         $previousId = cache()->get($cacheKey);
         $currentId = $this->insideGeofence($lat, $lng, $device->id);
 
-        if ($previousId !== null && $previousId !== $currentId
-            && ! $this->geofenceEventRecentlyRecorded($device, VehicleEvent::TYPE_GEOFENCE_EXIT, $previousId, $at)) {
-            $zone = $this->geofenceName($device, $previousId);
-            $this->record(
+        if ($previousId !== null && $previousId !== $currentId) {
+            $this->handleGeofenceTransition(
                 $device,
                 VehicleEvent::TYPE_GEOFENCE_EXIT,
-                'Left geofence',
-                sprintf('%s exited geofence "%s".', $device->name, $zone),
-                null,
+                $previousId,
+                $this->geofenceName($device, $previousId),
                 $lat,
                 $lng,
                 $at,
-                $previousId
             );
         }
 
-        if ($currentId !== null && $previousId !== $currentId
-            && ! $this->geofenceEventRecentlyRecorded($device, VehicleEvent::TYPE_GEOFENCE_ENTER, $currentId, $at)) {
-            $zone = $this->geofenceName($device, $currentId);
-            $this->record(
+        if ($currentId !== null && $previousId !== $currentId) {
+            $this->handleGeofenceTransition(
                 $device,
                 VehicleEvent::TYPE_GEOFENCE_ENTER,
-                'Entered geofence',
-                sprintf('%s entered geofence "%s".', $device->name, $zone),
-                null,
+                $currentId,
+                $this->geofenceName($device, $currentId),
                 $lat,
                 $lng,
                 $at,
-                $currentId
             );
         }
 
         cache()->put($cacheKey, $currentId, now()->addDays(7));
+    }
+
+    private function handleGeofenceTransition(
+        Device $device,
+        string $eventType,
+        int $geofenceId,
+        string $zoneName,
+        float $lat,
+        float $lng,
+        Carbon $at,
+    ): void {
+        $dedupeKey = "device.{$device->id}.geofence.{$eventType}.{$geofenceId}";
+        if (cache()->has($dedupeKey)) {
+            return;
+        }
+
+        cache()->put($dedupeKey, true, now()->addSeconds(90));
+
+        $isEnter = $eventType === VehicleEvent::TYPE_GEOFENCE_ENTER;
+        $recordTitle = $isEnter ? 'Entered geofence' : 'Left geofence';
+        $message = $isEnter
+            ? sprintf('%s entered geofence "%s".', $device->name, $zoneName)
+            : sprintf('%s exited geofence "%s".', $device->name, $zoneName);
+
+        $event = $this->record(
+            $device,
+            $eventType,
+            $recordTitle,
+            $message,
+            null,
+            $lat,
+            $lng,
+            $at,
+            $geofenceId,
+        );
+
+        $pushType = $isEnter
+            ? \App\Support\Push\PushNotificationType::GEOFENCE_ENTER
+            : \App\Support\Push\PushNotificationType::GEOFENCE_EXIT;
+
+        $pushTitle = $isEnter ? 'Geofence enter' : 'Geofence exit';
+
+        app(PushNotificationDispatcher::class)->forGeofence(
+            $device,
+            $pushType,
+            $pushTitle,
+            $message,
+            $geofenceId,
+            $at,
+            $event->id > 0 ? $event->id : null,
+        );
     }
 
     private function processSignals(
@@ -280,31 +323,6 @@ class VehicleEventService
         $match = $this->geofences->forDevice($device)->firstWhere('id', $geofenceId);
 
         return $match?->name ?? 'Zone';
-    }
-
-    private function geofenceEventRecentlyRecorded(
-        Device $device,
-        string $type,
-        int $geofenceId,
-        Carbon $at
-    ): bool {
-        if (! TraccarSchema::hasEvents()) {
-            return false;
-        }
-
-        $traccarDeviceId = $this->idMap->get(TraccarEntityMap::TYPE_DEVICE, $device->id);
-        if (! $traccarDeviceId) {
-            return false;
-        }
-
-        $traccarGeofenceId = $this->idMap->get(TraccarEntityMap::TYPE_GEOFENCE, $geofenceId) ?? $geofenceId;
-
-        return DB::table(config('traccar.tables.events', 'tc_events'))
-            ->where('deviceid', $traccarDeviceId)
-            ->where('type', $this->eventMapper->mapType($type))
-            ->where('geofenceid', $traccarGeofenceId)
-            ->where('eventtime', '>=', $at->copy()->subSeconds(90))
-            ->exists();
     }
 
 }

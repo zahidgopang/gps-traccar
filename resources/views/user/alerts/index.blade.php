@@ -100,8 +100,8 @@
                     @forelse($events as $event)
                         @php $severity = $event->severity(); @endphp
                         <tr>
-                            <td class="text-nowrap fw-semibold">{{ $event->occurred_at?->format('M d, Y') }}</td>
-                            <td class="text-nowrap font-monospace">{{ $event->occurred_at?->format('H:i:s') }}</td>
+                            <td class="text-nowrap fw-semibold">{{ app_datetime_format($event->occurred_at, 'date') }}</td>
+                            <td class="text-nowrap">{{ app_datetime_format($event->occurred_at, 'time') }}</td>
                             <td>
                                 <div class="fw-semibold">{{ $event->device?->name ?? '—' }}</div>
                                 <small class="text-muted d-block">{{ $event->device?->imei }}</small>

@@ -1,18 +1,23 @@
 <?php
 
-return [
-    'secret' => env('NOCAPTCHA_SECRET'),
-    'sitekey' => env('NOCAPTCHA_SITEKEY'),
+$secret = env('NOCAPTCHA_SECRET');
+$sitekey = env('NOCAPTCHA_SITEKEY');
 
-    // Optional: Default settings
+return [
+    'secret' => $secret,
+    'sitekey' => $sitekey,
+
+    'enabled' => filter_var(env('NOCAPTCHA_ENABLED', true), FILTER_VALIDATE_BOOLEAN)
+        && filled($secret)
+        && filled($sitekey),
+
     'options' => [
-        'timeout' => 30,
-        'score_threshold' => 0.5,
+        'timeout' => (int) env('NOCAPTCHA_TIMEOUT', 30),
+        'score_threshold' => (float) env('NOCAPTCHA_SCORE_THRESHOLD', 0.3),
     ],
 
-    // For JavaScript usage
     'v3' => [
-        'action' => 'register', // Default action name
-        'sitekey' => env('NOCAPTCHA_SITEKEY'),
+        'action' => env('NOCAPTCHA_ACTION', 'register'),
+        'sitekey' => $sitekey,
     ],
 ];

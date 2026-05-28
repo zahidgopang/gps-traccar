@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Concerns\RespondsWithMobileJson;
 use App\Models\VehicleEvent;
 use App\Services\Mobile\MobileDevicePresenter;
+use App\Services\Mobile\MobileMapStatusResolver;
 use App\Services\UserDashboardService;
 use Illuminate\Http\Request;
 
@@ -16,18 +17,19 @@ class DashboardController extends Controller
     public function __construct(
         private UserDashboardService $dashboard,
         private MobileDevicePresenter $presenter,
+        private MobileMapStatusResolver $mapStatus,
     ) {}
 
     public function summary(Request $request)
     {
         $user = $request->user();
         $stats = $this->dashboard->getStats($user);
-        $page = $this->dashboard->getDevicePageStats($stats['devices']);
-        $states = $stats['vehicleStates'];
+        $devices = $stats['devices'];
+        $fleet = $this->mapStatus->fleetCounts($devices);
 
         $geofenceAlerts = 0;
-        if ($stats['devices']->isNotEmpty()) {
-            $deviceIds = $stats['devices']->pluck('id');
+        if ($devices->isNotEmpty()) {
+            $deviceIds = $devices->pluck('id');
             $geofenceAlerts = app(\App\Contracts\Tracking\EventReaderInterface::class)->countForDevices(
                 $deviceIds,
                 now()->subDays(7),
@@ -35,12 +37,19 @@ class DashboardController extends Controller
             );
         }
 
+        $parkedTotal = $fleet['parked'] + $fleet['stopped'] + $fleet['idle'];
+
         return $this->mobileSuccess([
             'total_devices' => $stats['totalDevices'],
+            // Recent GPS ping (last 5 min) — "connected now"
             'online_devices' => $stats['onlineNow'],
-            'offline_devices' => $page['offlineNow'],
-            'moving_devices' => $states['running'] ?? 0,
-            'parked_devices' => $states['parked'] ?? 0,
+            // Map-style status (matches web device map HUD)
+            'offline_devices' => $fleet['offline'],
+            'moving_devices' => $fleet['running'],
+            'running_devices' => $fleet['running'],
+            'parked_devices' => $parkedTotal,
+            'idle_devices' => $fleet['idle'],
+            'with_gps_devices' => $fleet['with_gps'],
             'alerts_count' => $stats['activeAlerts'],
             'total_distance_km' => $stats['totalDistanceKm'],
             'geofence_alerts' => $geofenceAlerts,
@@ -54,13 +63,12 @@ class DashboardController extends Controller
         $deviceIds = $stats['devices']->pluck('id');
 
         $activities = $this->dashboard->getRecentActivities($deviceIds)
-            ->map(fn (array $item) => [
+            ->map(fn (array $item) => array_merge([
                 'type' => $item['type'],
                 'title' => $item['title'],
                 'description' => $item['description'],
-                'time' => $item['time']?->toIso8601String(),
                 'icon' => $item['icon'],
-            ])
+            ], \App\Support\DateTime\AppDateTime::apiFields($item['time'] ?? null)))
             ->values();
 
         return $this->mobileSuccess($activities);

@@ -613,9 +613,11 @@
         @include('partials.language-toggle')
         <!-- User Info -->
         <div class="nav-item d-flex align-items-center">
-            <div class="user-avatar">
-                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-            </div>
+            @include('partials.user-avatar', [
+                'user' => auth()->user(),
+                'size' => 36,
+                'class' => 'user-avatar',
+            ])
             <span class="nav-link d-none d-md-block" style="color: white;">{{ auth()->user()->name }}</span>
         </div>
 
@@ -708,6 +710,7 @@
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{{ protected_js('app-datetime.js') }}"></script>
 <script src="{{ protected_js('form-enhancements.js') }}"></script>
 <script src="{{ protected_js('map-session-guard.js') }}"></script>
 <script src="https://js.pusher.com/8.2/pusher.min.js"></script>

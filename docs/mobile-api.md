@@ -71,12 +71,28 @@ Middleware re-validates account, subscription, and payment on **every** request.
 
 ### Geofences
 
-| Method | Path |
-|--------|------|
-| GET | `/api/geofences` |
-| POST | `/api/geofences` | `device_id`, `name`, `type` (`circle`/`polygon`), geometry |
-| DELETE | `/api/geofences/{id}` |
-| POST | `/api/geofences/assign` | `geofence_id`, `device_id` |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/geofences` | Read-only list for mobile |
+
+### Push notifications (FCM)
+
+Register the device FCM token after login (Sanctum required):
+
+| Method | Path | Body |
+|--------|------|------|
+| POST | `/api/push-token` | `fcm_token` (required), `platform` (`android`/`ios`), `device_name` (optional) |
+| DELETE | `/api/push-token` | `fcm_token` (required) — call on logout |
+
+FCM payloads include `data.type` (e.g. `vehicle_moving`, `geofence_enter`, `device_offline`) plus `device_id`, `device_name`, `title`, `body`.
+
+| Method | Path | Body | Notes |
+|--------|------|------|-------|
+| POST | `/api/push-test` | optional `title`, `body`, `fcm_token` | Sends test push to authenticated user |
+
+Laravel sends pushes via Firebase HTTP v1 using a service account JSON file (see `.env`: `FIREBASE_CREDENTIALS`, `PUSH_NOTIFICATIONS_ENABLED`, `PUSH_EVENT_NOTIFICATIONS_ENABLED`).
+
+Test from CLI: `php artisan push:test {user_id}`
 
 ### Alerts
 

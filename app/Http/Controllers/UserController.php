@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Device;
 use App\Services\DeviceSubscriptionService;
+use App\Services\UserAvatarService;
 use App\Services\UserDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -41,13 +42,14 @@ class UserController extends Controller
         ));
     }
 
-    public function updateProfile(Request $req)
+    public function updateProfile(Request $req, UserAvatarService $avatars)
     {
         $req->validate([
             'name' => 'required|string|max:150',
             'email' => 'required|email|unique:tc_users,email,' . auth()->id(),
             'phone' => 'nullable|string|max:20',
             'country_code' => 'nullable|string|max:5',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
         ]);
 
         $user = auth()->user();
@@ -55,6 +57,13 @@ class UserController extends Controller
         $user->email = $req->email;
         $user->phone = $req->phone;
         $user->country_code = $req->country_code;
+
+        if ($req->boolean('remove_avatar')) {
+            $avatars->delete($user);
+        } elseif ($req->hasFile('avatar')) {
+            $user->avatar = $avatars->store($user, $req->file('avatar'));
+        }
+
         $user->save();
 
         return back()->with('success', 'Profile updated successfully!');

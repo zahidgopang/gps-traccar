@@ -40,3 +40,42 @@ if (! function_exists('client_hardening_enabled')) {
         return (bool) config('assets.client_hardening');
     }
 }
+
+if (! function_exists('app_datetime_format')) {
+    /**
+     * Format a timestamp for display (Pakistan time, 12-hour AM/PM).
+     *
+     * @param  \Carbon\CarbonInterface|\DateTimeInterface|string|null  $dt
+     */
+    function app_datetime_format(mixed $dt, string $style = 'display'): ?string
+    {
+        if ($dt === null || $dt === '') {
+            return null;
+        }
+
+        if (is_string($dt)) {
+            $dt = \App\Support\DateTime\AppDateTime::parse($dt);
+        } elseif (! $dt instanceof \Carbon\CarbonInterface) {
+            $dt = \Carbon\Carbon::parse($dt);
+        }
+
+        return \App\Support\DateTime\AppDateTime::format($dt, $style);
+    }
+}
+
+if (! function_exists('app_datetime_api')) {
+    function app_datetime_api(mixed $dt): ?string
+    {
+        if ($dt === null || $dt === '') {
+            return null;
+        }
+
+        if (is_string($dt)) {
+            $dt = \App\Support\DateTime\AppDateTime::parse($dt);
+        } elseif (! $dt instanceof \Carbon\CarbonInterface) {
+            $dt = \Carbon\Carbon::parse($dt);
+        }
+
+        return \App\Support\DateTime\AppDateTime::toApi($dt);
+    }
+}

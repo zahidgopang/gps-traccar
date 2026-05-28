@@ -4,13 +4,12 @@ namespace App\Services\Mobile;
 
 use App\Models\Device;
 use App\Services\DeviceSubscriptionService;
-use App\Services\UserDashboardService;
 
 class MobileDevicePresenter
 {
     public function __construct(
         private DeviceSubscriptionService $subscriptions,
-        private UserDashboardService $dashboard,
+        private MobileMapStatusResolver $mapStatus,
     ) {}
 
     /**
@@ -19,7 +18,7 @@ class MobileDevicePresenter
     public function listItem(Device $device, ?\Illuminate\Support\Collection $alertDeviceIds = null): array
     {
         $latest = $device->latestLocation;
-        $status = $this->dashboard->resolveDeviceStatus($device, $alertDeviceIds);
+        $map = $this->mapStatus->resolve($latest, $device);
         $sub = $this->subscriptions->statusLabel($device);
 
         return [
@@ -28,14 +27,19 @@ class MobileDevicePresenter
             'imei' => $device->imei,
             'device_type' => $device->device_type,
             'vehicle_type' => $device->vehicle_type ?? null,
-            'status' => $status['label'],
-            'status_key' => $this->statusKey($status['label']),
-            'live_status' => $status['label'],
+            'status' => $map['label'],
+            'status_key' => $map['key'],
+            'live_status' => $map['label'],
+            'is_online' => $this->mapStatus->isRecentlyOnline($latest),
             'speed' => $latest ? (float) ($latest->speed ?? 0) : null,
             'subscription_status' => $sub['label'],
             'subscription_active' => $sub['active'],
-            'last_update' => $latest?->recorded_at?->toIso8601String(),
+            'last_update' => app_datetime_api($latest?->recorded_at),
+            'last_update_display' => app_datetime_format($latest?->recorded_at),
             'battery' => $latest?->battery_level,
+            'gsm_signal' => $latest?->gsm_signal,
+            'lat' => $latest ? (float) $latest->lat : null,
+            'lng' => $latest ? (float) $latest->lng : null,
         ];
     }
 
@@ -62,7 +66,7 @@ class MobileDevicePresenter
             return null;
         }
 
-        $status = $this->dashboard->resolveDeviceStatus($device);
+        $map = $this->mapStatus->resolve($latest, $device);
 
         return [
             'lat' => (float) $latest->lat,
@@ -74,24 +78,11 @@ class MobileDevicePresenter
             'gsm_signal' => $latest->gsm_signal,
             'satellites' => $latest->satellites,
             'address' => null,
-            'last_update' => $latest->recorded_at?->toIso8601String(),
-            'status' => $status['label'],
-            'status_key' => $this->statusKey($status['label']),
+            'last_update' => app_datetime_api($latest->recorded_at),
+            'last_update_display' => app_datetime_format($latest->recorded_at),
+            'status' => $map['label'],
+            'status_key' => $map['key'],
+            'is_online' => $this->mapStatus->isRecentlyOnline($latest),
         ];
-    }
-
-    private function statusKey(string $label): string
-    {
-        $normalized = strtolower($label);
-
-        return match (true) {
-            str_contains($normalized, 'mov') => 'moving',
-            str_contains($normalized, 'park') => 'parked',
-            str_contains($normalized, 'idle') => 'idle',
-            str_contains($normalized, 'offline') => 'offline',
-            str_contains($normalized, 'alert') => 'alert',
-            str_contains($normalized, 'block') => 'blocked',
-            default => 'unknown',
-        };
     }
 }

@@ -31,7 +31,7 @@
         }
     </style>
     <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-        <a href="{{ route($panel . '.billing-invoices.index') }}" class="btn btn-sm btn-light">&larr; {{ __('app.billing.invoices') }}</a>
+        <a href="{{ route($panel . '.billing-invoices.index', ['type' => $listTab ?? $invoice->invoice_type]) }}" class="btn btn-sm btn-light">&larr; {{ __('app.billing.invoices') }}</a>
         @if($invoice->subscription_id)
             <a href="{{ route($panel . '.subscriptions.edit', $invoice->subscription_id) }}" class="btn btn-sm btn-outline-primary">
                 {{ __('app.billing.back_to_subscription') }}
@@ -41,6 +41,12 @@
             <i class="fas fa-print me-1"></i> Print
         </button>
     </div>
+
+    @include('admin.billing-invoices._paired-invoice', [
+        'invoice' => $invoice,
+        'pairedInvoice' => $pairedInvoice ?? null,
+        'panel' => $panel,
+    ])
 
     <div class="alert alert-light border mb-3">
         <strong>{{ $type->subscriptionSummaryLabel() }}</strong>

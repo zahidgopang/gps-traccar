@@ -161,12 +161,20 @@
 
             <!-- Google reCAPTCHA v3 -->
             <div class="mt-6">
-                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
-                <div id="recaptcha-error" class="premium-error mt-2"></div>
-                <p class="text-xs text-gray-500">This site is protected by reCAPTCHA and the Google
-                    <a href="https://policies.google.com/privacy" class="terms-link" target="_blank">Privacy Policy</a> and
-                    <a href="https://policies.google.com/terms" class="terms-link" target="_blank">Terms of Service</a> apply.
-                </p>
+                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response" value="">
+                <div id="g-recaptcha-response-error" class="premium-error mt-2 recaptcha-error">
+                    @error('g-recaptcha-response')
+                        <span class="show">{{ $message }}</span>
+                    @enderror
+                </div>
+                @if($recaptchaEnabled ?? false)
+                    <p class="text-xs text-gray-500">This site is protected by reCAPTCHA and the Google
+                        <a href="https://policies.google.com/privacy" class="terms-link" target="_blank">Privacy Policy</a> and
+                        <a href="https://policies.google.com/terms" class="terms-link" target="_blank">Terms of Service</a> apply.
+                    </p>
+                @else
+                    <p class="text-xs text-amber-600 dark:text-amber-400">Security check (reCAPTCHA) is not configured on this server. Registration works in dev mode only.</p>
+                @endif
             </div>
 
             <!-- Submit Button -->
@@ -929,8 +937,12 @@
         }
     </style>
 
-    <script src="https://www.google.com/recaptcha/api.js?render={{ config('captcha.sitekey') }}"></script>
+    @if($recaptchaEnabled ?? false)
+        <script src="https://www.google.com/recaptcha/api.js?render={{ $recaptchaSiteKey }}"></script>
+    @endif
     <script>
+        const RECAPTCHA_ENABLED = @json($recaptchaEnabled ?? false);
+        const RECAPTCHA_SITE_KEY = @json($recaptchaSiteKey ?? '');
 
         // Toast notification system
         class Toast {
@@ -1345,7 +1357,8 @@
 
         // Function to display error for a specific field (keep as is)
         function displayError(field, message) {
-            const errorElement = document.getElementById(`${field}-error`);
+            const errorElement = document.getElementById(`${field}-error`)
+                || (field === 'g-recaptcha-response' ? document.getElementById('g-recaptcha-response-error') : null);
             const inputElement = document.getElementById(field) || document.querySelector(`[name="${field}"]`);
 
             if (errorElement) {
@@ -1390,8 +1403,8 @@
                 return;
             }
 
-            if (typeof grecaptcha === 'undefined') {
-                Toast.error('Security service not loaded. Please refresh.', 'Security Error');
+            if (RECAPTCHA_ENABLED && typeof grecaptcha === 'undefined') {
+                Toast.error('Security service not loaded. Please refresh the page or disable ad blockers.', 'Security Error');
                 return;
             }
 
@@ -1418,20 +1431,23 @@
             }
 
             try {
-                // Get reCAPTCHA token
-                const token = await new Promise((resolve, reject) => {
-                    grecaptcha.ready(() => {
-                        grecaptcha.execute('{{ config('captcha.sitekey') }}', { action: 'register' })
-                            .then(resolve)
-                            .catch(reject);
+                if (RECAPTCHA_ENABLED) {
+                    const token = await new Promise((resolve, reject) => {
+                        grecaptcha.ready(() => {
+                            grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'register' })
+                                .then(resolve)
+                                .catch(reject);
+                        });
                     });
-                });
 
-                if (!token) {
-                    throw new Error('Empty reCAPTCHA token');
+                    if (!token) {
+                        throw new Error('Empty reCAPTCHA token');
+                    }
+
+                    recaptchaInput.value = token;
+                } else {
+                    recaptchaInput.value = '';
                 }
-
-                recaptchaInput.value = token;
 
                 // Prepare form data
                 const formData = new FormData(form);
@@ -1572,7 +1588,10 @@
                         currentStatusEl.textContent = '❌ Registration failed';
                     } else if (error.message.includes('Empty reCAPTCHA token')) {
                         currentStatusEl.textContent = '❌ Security check failed';
-                    } else {
+                        Toast.error('Security check failed. Refresh the page and try again.', 'reCAPTCHA');
+                        displayError('g-recaptcha-response', 'Security check failed. Please refresh and try again.');
+                    } else if (error.message && error.message !== 'VALIDATION_ERROR' && error.message !== 'PARSE_ERROR' && error.message !== 'SERVER_ERROR') {
+                        Toast.error(error.message, 'Error');
                         // For other errors, show the message
                         currentStatusEl.textContent = '❌ ' + (error.message || 'Submission failed');
                     }

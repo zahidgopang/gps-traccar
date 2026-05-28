@@ -17,6 +17,12 @@
 
 <hr class="my-3">
 
+@include('admin.billing-invoices._paired-invoice', [
+    'invoice' => $invoice,
+    'pairedInvoice' => $pairedInvoice ?? null,
+    'panel' => $panel,
+])
+
 <div class="row g-2 small">
     <div class="col-md-6">
         <div><strong>{{ __('app.forms.client_company') }}:</strong> {{ $invoice->client?->name ?? '—' }}</div>

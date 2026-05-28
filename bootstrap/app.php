@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->everyFiveSeconds()
                 ->withoutOverlapping(2);
         }
+
+        if (config('firebase.enabled') && config('firebase.event_notifications_enabled')) {
+            $schedule->command('devices:check-connectivity')
+                ->everyFiveMinutes()
+                ->withoutOverlapping(5);
+        }
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([

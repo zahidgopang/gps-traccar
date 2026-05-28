@@ -25,6 +25,48 @@
             font-weight: 600;
             margin-inline-end: 1.5rem;
             box-shadow: 0 8px 25px rgba(25, 118, 210, 0.3);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .profile-avatar img,
+        .profile-avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .avatar-upload-box {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border: 1px dashed rgba(25, 118, 210, 0.25);
+            border-radius: 14px;
+            background: rgba(25, 118, 210, 0.03);
+        }
+
+        .avatar-upload-preview {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .avatar-upload-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .profile-info h4 {
@@ -249,9 +291,12 @@
 
         <!-- Header with Profile Info -->
         <div class="profile-header">
-            <div class="profile-avatar">
-                {{ strtoupper(substr($user->name, 0, 1)) }}
-            </div>
+            @include('partials.user-avatar', [
+                'user' => $user,
+                'size' => 80,
+                'class' => 'profile-avatar',
+                'style' => 'margin-inline-end: 1.5rem;',
+            ])
             <div class="profile-info">
                 <h4>{{ $user->name }}</h4>
                 <p class="mb-2">{{ $user->email }}</p>
@@ -304,9 +349,31 @@
             <!-- Personal Information -->
             <div class="form-section">
                 <h5><i class="fas fa-user-edit"></i> Personal Information</h5>
-                <form method="POST" action="{{ route('user.profile.update') }}" id="profileForm">
+                <form method="POST" action="{{ route('user.profile.update') }}" id="profileForm" enctype="multipart/form-data">
                     @csrf
                     <!-- Removed @method('PUT') since route only accepts POST -->
+
+                    <div class="avatar-upload-box">
+                        <div class="avatar-upload-preview" id="avatarPreview">
+                            @if ($user->avatarUrl())
+                                <img src="{{ $user->avatarUrl() }}" alt="{{ $user->name }}">
+                            @else
+                                {{ strtoupper(substr($user->name, 0, 1)) }}
+                            @endif
+                        </div>
+                        <div class="flex-grow-1">
+                            <label class="form-label mb-1">Profile picture</label>
+                            <input type="file" name="avatar" id="avatarInput" accept="image/jpeg,image/png,image/webp,image/gif"
+                                   class="form-control form-control-premium">
+                            <small class="text-muted d-block mt-1">JPG, PNG, WebP or GIF. Max 2 MB. Visible in web and mobile app.</small>
+                            @if ($user->avatarUrl())
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="remove_avatar" value="1" id="removeAvatar">
+                                    <label class="form-check-label" for="removeAvatar">Remove current photo</label>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -415,7 +482,7 @@
                     <div class="info-row">
                         <div class="info-label">Profile Updated</div>
                         <div class="info-value">
-                            {{ $user->updated_at?->format('M d, Y H:i') ?? '—' }}
+                            {{ app_datetime_format($user->updated_at) ?? '—' }}
                             @if($user->updated_at)
                             <small class="text-muted ms-2">({{ $user->updated_at->diffForHumans() }})</small>
                             @endif
@@ -583,6 +650,22 @@
                         value = '+' + value;
                     }
                     e.target.value = value;
+                });
+            }
+
+            const avatarInput = document.getElementById('avatarInput');
+            const avatarPreview = document.getElementById('avatarPreview');
+            if (avatarInput && avatarPreview) {
+                avatarInput.addEventListener('change', function () {
+                    const file = this.files && this.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        avatarPreview.innerHTML = '<img src="' + event.target.result + '" alt="Preview">';
+                    };
+                    reader.readAsDataURL(file);
+                    const removeCheckbox = document.getElementById('removeAvatar');
+                    if (removeCheckbox) removeCheckbox.checked = false;
                 });
             }
         });

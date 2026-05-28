@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Mobile\GeofenceController as MobileGeofenceControll
 use App\Http\Controllers\Api\Mobile\LiveStreamController as MobileLiveStreamController;
 use App\Http\Controllers\Api\Mobile\MapController as MobileMapController;
 use App\Http\Controllers\Api\Mobile\ProfileController as MobileProfileController;
+use App\Http\Controllers\Api\Mobile\PushTokenController as MobilePushTokenController;
 use App\Http\Controllers\Api\UserDeviceController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,9 @@ Route::post('/login', [MobileAuthController::class, 'login']);
 
 Route::middleware(['auth:sanctum', 'mobile.end_user'])->group(function () {
     Route::post('/logout', [MobileAuthController::class, 'logout']);
+    Route::post('/push-token', [MobilePushTokenController::class, 'store']);
+    Route::delete('/push-token', [MobilePushTokenController::class, 'destroy']);
+    Route::post('/push-test', [\App\Http\Controllers\Api\Mobile\PushTestController::class, 'send']);
 });
 
 Route::middleware([
@@ -33,6 +37,8 @@ Route::middleware([
 ])->group(function () {
     Route::get('/profile', [MobileProfileController::class, 'show']);
     Route::post('/profile/update', [MobileProfileController::class, 'update']);
+    Route::post('/profile/avatar', [MobileProfileController::class, 'uploadAvatar']);
+    Route::delete('/profile/avatar', [MobileProfileController::class, 'deleteAvatar']);
     Route::post('/change-password', [MobileProfileController::class, 'changePassword']);
 
     Route::get('/dashboard', [MobileDashboardController::class, 'summary']);
@@ -48,9 +54,6 @@ Route::middleware([
     Route::get('/devices/{id}/live-stream', [MobileLiveStreamController::class, 'show'])->whereNumber('id');
 
     Route::get('/geofences', [MobileGeofenceController::class, 'index']);
-    Route::post('/geofences', [MobileGeofenceController::class, 'store']);
-    Route::delete('/geofences/{id}', [MobileGeofenceController::class, 'destroy'])->whereNumber('id');
-    Route::post('/geofences/assign', [MobileGeofenceController::class, 'assign']);
 
     Route::get('/alerts', [MobileAlertController::class, 'index']);
     Route::get('/alerts/unread', [MobileAlertController::class, 'unread']);

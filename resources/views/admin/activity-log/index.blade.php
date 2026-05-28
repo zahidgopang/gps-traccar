@@ -136,8 +136,8 @@
                     <tr>
                         <td class="text-nowrap">
                             <x-admin.ltr class="admin-ltr--block">
-                                <span class="d-block">{{ $log->created_at->format('M d, Y') }}</span>
-                                <small class="text-muted">{{ $log->created_at->format('H:i:s') }}</small>
+                                <span class="d-block">{{ app_datetime_format($log->created_at, 'date') }}</span>
+                                <small class="text-muted">{{ app_datetime_format($log->created_at, 'time') }}</small>
                             </x-admin.ltr>
                         </td>
                         @if($showClientColumn ?? false)

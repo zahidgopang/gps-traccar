@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use App\Events\DeviceLocationUpdated;
 use App\Services\DeviceAccessService;
 use App\Services\Traccar\TraccarEntityProvisioner;
+use App\Services\Push\DeviceConnectivityPushService;
 use App\Services\VehicleEventService;
 use App\Support\Tracking\DeviceLocationPayload;
 use App\Support\Tracking\TrackerPayloadNormalizer;
@@ -122,6 +123,8 @@ class DeviceDataController extends Controller
         );
 
         app(VehicleEventService::class)->processLocation($device, $loc, $previousLocation);
+
+        app(DeviceConnectivityPushService::class)->onPositionReceived($device);
 
         return response()->json([
 

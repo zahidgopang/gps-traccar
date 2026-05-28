@@ -306,7 +306,7 @@
                                 <div class="activity-desc">{{ Str::limit($activity['desc'], 60) }}</div>
                                 <div class="activity-time">
                                     <x-admin.ltr>
-                                        {{ $activity['time']?->format('M d, Y H:i') }}
+                                        {{ app_datetime_format($activity['time']) }}
                                         · {{ $activity['time']?->diffForHumans() }}
                                     </x-admin.ltr>
                                 </div>
@@ -358,7 +358,7 @@
                                 </td>
                                 <td>
                                     @if($d->latestLocation?->recorded_at)
-                                        <x-admin.ltr class="text-muted" title="{{ $d->latestLocation->recorded_at->format('Y-m-d H:i:s') }}">
+                                        <x-admin.ltr class="text-muted" title="{{ app_datetime_format($d->latestLocation->recorded_at, 'log') }}">
                                             {{ $d->latestLocation->recorded_at->diffForHumans() }}
                                         </x-admin.ltr>
                                     @else

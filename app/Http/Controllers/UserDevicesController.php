@@ -102,7 +102,9 @@ class UserDevicesController extends Controller
                 'live_status' => $liveStatus,
                 'speed' => $latest ? round((float) ($latest->speed ?? 0), 0) : null,
                 'recorded_at' => $latest?->recorded_at?->toIso8601String(),
-                'recorded_at_human' => $latest?->recorded_at?->diffForHumans() ?? __('app.user.devices.no_data_yet'),
+                'recorded_at_human' => $latest?->recorded_at
+                    ? app_datetime_format($latest->recorded_at)
+                    : __('app.user.devices.no_data_yet'),
             ];
         })->values();
 

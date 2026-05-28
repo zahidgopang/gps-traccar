@@ -3,18 +3,22 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Concerns\PresentsMobileUser;
 use App\Http\Concerns\RespondsWithMobileJson;
 use App\Services\Mobile\MobileEntitlementService;
+use App\Services\UserAvatarService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class ProfileController extends Controller
 {
+    use PresentsMobileUser;
     use RespondsWithMobileJson;
 
     public function __construct(
         private MobileEntitlementService $entitlement,
+        private UserAvatarService $avatars,
     ) {}
 
     public function show(Request $request)
@@ -22,14 +26,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         return $this->mobileSuccess([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'country_code' => $user->country_code,
-                'status' => $user->status ?? 'active',
-            ],
+            'user' => $this->mobileUserPayload($user),
             'permissions' => $this->entitlement->permissionsFor($user),
             'subscription' => $this->entitlement->subscriptionSummaryForUser($user),
         ]);
@@ -41,7 +38,7 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:150',
-            'email' => 'required|email|unique:tc_users,email,' . $user->id,
+            'email' => 'required|email|unique:tc_users,email,'.$user->id,
             'phone' => 'nullable|string|max:20',
             'country_code' => 'nullable|string|max:5',
         ]);
@@ -54,14 +51,36 @@ class ProfileController extends Controller
         $user->save();
 
         return $this->mobileSuccess([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'country_code' => $user->country_code,
-            ],
+            'user' => $this->mobileUserPayload($user),
             'message' => 'Profile updated successfully.',
+        ]);
+    }
+
+    public function uploadAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
+        ]);
+
+        $user = $request->user();
+        $user->avatar = $this->avatars->store($user, $request->file('avatar'));
+        $user->save();
+
+        return $this->mobileSuccess([
+            'user' => $this->mobileUserPayload($user),
+            'message' => 'Profile picture updated.',
+        ]);
+    }
+
+    public function deleteAvatar(Request $request)
+    {
+        $user = $request->user();
+        $this->avatars->delete($user);
+        $user->save();
+
+        return $this->mobileSuccess([
+            'user' => $this->mobileUserPayload($user),
+            'message' => 'Profile picture removed.',
         ]);
     }
 
@@ -104,15 +123,12 @@ class ProfileController extends Controller
             return null;
         }
 
-        // Accept "971" and normalize to "+971".
         if ($v[0] !== '+') {
-            $v = '+' . $v;
+            $v = '+'.$v;
         }
 
-        // Keep only + and digits.
-        $v = '+' . preg_replace('/\D+/', '', $v);
+        $v = '+'.preg_replace('/\D+/', '', $v);
 
-        // Safety limit (web uses maxlength 5 like +971, +966, +92).
         if (strlen($v) > 6) {
             $v = substr($v, 0, 6);
         }

@@ -55,7 +55,8 @@ class DeviceController extends Controller
     public function live(Request $request, int $id)
     {
         $device = $this->findMobileDevice($request->user(), $id);
-        $latest = $this->positions->latestForDevice($device);
+        $this->positionLoader->attachLatest($device);
+        $latest = $device->latestLocation;
 
         if ($latest && config('tracking.laravel_geofence_detection', true)) {
             app(VehicleEventService::class)->processGeofenceFromLocation(
@@ -94,7 +95,8 @@ class DeviceController extends Controller
             'heading' => (float) ($loc->heading ?? 0),
             'ignition' => (bool) $loc->ignition,
             'battery' => $loc->battery_level,
-            'recorded_at' => $loc->recorded_at?->toIso8601String(),
+            'recorded_at' => app_datetime_api($loc->recorded_at),
+            'recorded_at_display' => app_datetime_format($loc->recorded_at),
         ])->values();
 
         $stats = $this->routeAnalytics->analyze($locations);
@@ -104,8 +106,8 @@ class DeviceController extends Controller
             'stops' => $stats['stops'],
             'moving_points' => $stats['moving_points'],
             'idle_points' => $stats['idle_points'],
-            'from' => $range['from']->toIso8601String(),
-            'to' => $range['to']?->toIso8601String(),
+            'from' => app_datetime_api($range['from']),
+            'to' => app_datetime_api($range['to']),
         ]);
     }
 

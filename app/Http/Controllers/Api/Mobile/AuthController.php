@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Concerns\PresentsMobileUser;
 use App\Http\Concerns\RespondsWithMobileJson;
 use App\Models\User;
 use App\Services\Mobile\MobileDevicePresenter;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 class AuthController extends Controller
 {
+    use PresentsMobileUser;
     use RespondsWithMobileJson;
 
     public function __construct(
@@ -80,7 +82,7 @@ class AuthController extends Controller
         return $this->mobileSuccess([
             'token' => $token,
             'token_type' => 'Bearer',
-            'user' => $this->userPayload($user),
+            'user' => $this->mobileUserPayload($user),
             'permissions' => $this->entitlement->permissionsFor($user),
             'accessible_devices' => $devices->map(fn ($d) => $this->presenter->listItem($d))->values(),
             'subscription' => $this->entitlement->subscriptionSummaryForUser($user),
@@ -92,20 +94,5 @@ class AuthController extends Controller
         $request->user()?->currentAccessToken()?->delete();
 
         return $this->mobileSuccess(['message' => 'Logged out']);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function userPayload(User $user): array
-    {
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone,
-            'country_code' => $user->country_code,
-            'status' => $user->status ?? 'active',
-        ];
     }
 }

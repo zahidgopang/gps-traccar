@@ -86,7 +86,7 @@ class ExportController extends Controller
                 'lng' => (float) $loc->lng,
                 'speed' => (float) ($loc->speed ?? 0),
                 'heading' => (float) ($loc->heading ?? 0),
-                'recorded_at' => $loc->recorded_at?->toIso8601String(),
+                'recorded_at' => app_datetime_api($loc->recorded_at),
                 'battery' => $loc->battery_level,
                 'ignition' => (bool) $loc->ignition,
                 'odometer' => $loc->odometer,

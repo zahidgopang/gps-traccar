@@ -92,7 +92,9 @@ class LocationHistoryController extends Controller
                 'speed' => $latest ? round((float) ($latest->speed ?? 0), 0) : null,
                 'position_id' => $latest?->id,
                 'recorded_at' => $latest?->recorded_at?->toIso8601String(),
-                'recorded_at_human' => $latest?->recorded_at?->diffForHumans() ?? __('app.common.no_data'),
+                'recorded_at_human' => $latest?->recorded_at
+                    ? app_datetime_format($latest->recorded_at)
+                    : __('app.common.no_data'),
             ];
         })->values();
 

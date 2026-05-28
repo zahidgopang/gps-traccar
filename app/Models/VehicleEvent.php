@@ -120,9 +120,9 @@ class VehicleEvent extends Model
             'speed' => $this->speed,
             'lat' => $this->lat,
             'lng' => $this->lng,
-            'time' => $this->occurred_at?->toIso8601String(),
-            'date' => $this->occurred_at?->format('M d, Y'),
-            'clock' => $this->occurred_at?->format('H:i:s'),
+            ...\App\Support\DateTime\AppDateTime::apiFields($this->occurred_at),
+            'date' => \App\Support\DateTime\AppDateTime::format($this->occurred_at, 'date'),
+            'clock' => \App\Support\DateTime\AppDateTime::format($this->occurred_at, 'time'),
         ];
     }
 }

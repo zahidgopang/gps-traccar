@@ -313,7 +313,7 @@
         setText('hudSpeed', speedText);
         setText('hudMiniSpeed', speedText);
         setText('hudHeading', (point.heading ?? 0) + '°');
-        setText('hudUpdated', point.recorded_at ? new Date(point.recorded_at).toLocaleTimeString() : dash());
+        setText('hudUpdated', point.recorded_at ? (window.AppDateTime?.formatTime(point.recorded_at) ?? new Date(point.recorded_at).toLocaleTimeString()) : dash());
         setText('hudCoords', point.lat.toFixed(5) + ', ' + point.lng.toFixed(5));
 
         const dot = document.getElementById('hudStatusDot');
@@ -495,7 +495,7 @@
                     <div style="padding:8px;min-width:160px;">
                         <strong>Parking stop</strong><br>
                         <small>Duration: ${formatDurationLong(s.duration)}</small><br>
-                        <small>${s.start ? new Date(s.start).toLocaleString() : ''}</small>
+                        <small>${s.start ? (window.AppDateTime?.formatDateTimeShort(s.start) ?? s.start) : ''}</small>
                     </div>`);
                 customInfoWindow.setPosition({ lat: s.lat, lng: s.lng });
                 customInfoWindow.open(map);
@@ -597,7 +597,7 @@ ${pts}
         const speed = parseFloat(point.speed || 0);
         const battery = point.battery != null ? parseInt(point.battery, 10) : null;
 
-        setText('lastSeen', point.recorded_at ? new Date(point.recorded_at).toLocaleString() : dash());
+        setText('lastSeen', point.recorded_at ? (window.AppDateTime?.formatDateTime(point.recorded_at) ?? point.recorded_at) : dash());
         setText('telemetrySpeed', speed.toFixed(0) + ' ' + mi('kmh', 'km/h'));
         setText('telemetryHeading', point.heading != null && point.heading !== '' ? point.heading + '°' : dash());
         setText('telemetryBattery', battery != null ? battery + '%' : dash());

@@ -21,26 +21,41 @@ class BillingInvoiceController extends Controller
     {
         $this->authorizePermission('billing.view');
 
-        $type = $request->query('type', 'all');
-        $q = BillingInvoice::query()->with(['client', 'user', 'subscription']);
+        $type = $request->query('type', BillingInvoiceType::Platform->value);
+        if (! in_array($type, [BillingInvoiceType::Platform->value, BillingInvoiceType::Client->value], true)) {
+            $type = BillingInvoiceType::Platform->value;
+        }
+
+        $q = BillingInvoice::query()->with([
+            'client',
+            'user',
+            'subscription.platformInvoice',
+            'subscription.clientInvoice',
+        ]);
 
         $clientIds = $this->scopedClientIds($request->user());
         if ($clientIds !== null) {
             $q->whereIn('client_id', $clientIds !== [] ? $clientIds : [0]);
         }
 
-        if ($type === BillingInvoiceType::Platform->value) {
-            $q->where('invoice_type', BillingInvoiceType::Platform->value);
-        } elseif ($type === BillingInvoiceType::Client->value) {
-            $q->where('invoice_type', BillingInvoiceType::Client->value);
-        }
+        $q->where('invoice_type', $type);
 
         if ($status = $request->query('status')) {
             $q->where('status', $status);
         }
 
-        if ($search = $request->query('q')) {
-            $q->where('invoice_no', 'like', "%{$search}%");
+        if ($search = trim((string) $request->query('q'))) {
+            $like = '%'.$search.'%';
+            $q->where(function ($query) use ($like) {
+                $query->where('invoice_no', 'like', $like)
+                    ->orWhere('meta->paired_invoice_no', 'like', $like)
+                    ->orWhereHas('subscription', function ($sub) use ($like) {
+                        $sub->where(function ($s) use ($like) {
+                            $s->whereHas('platformInvoice', fn ($inv) => $inv->where('invoice_no', 'like', $like))
+                                ->orWhereHas('clientInvoice', fn ($inv) => $inv->where('invoice_no', 'like', $like));
+                        });
+                    });
+            });
         }
 
         $invoices = $q->orderByDesc('issued_at')->paginate(20)->withQueryString();
@@ -57,18 +72,35 @@ class BillingInvoiceController extends Controller
         $this->authorizePermission('billing.view');
         $this->authorizeInvoice($billingInvoice);
 
-        $billingInvoice->load(['lines', 'payments.recorder', 'client', 'user', 'subscription.device']);
+        $billingInvoice->load([
+            'lines',
+            'payments.recorder',
+            'client',
+            'user',
+            'subscription.device',
+            'subscription.platformInvoice',
+            'subscription.clientInvoice',
+        ]);
+
+        $pairedInvoice = $billingInvoice->pairedInvoice();
+        $listTab = $billingInvoice->isPlatformType()
+            ? BillingInvoiceType::Platform->value
+            : BillingInvoiceType::Client->value;
 
         if ($request->query('modal') === '1' || $request->ajax()) {
             return view('admin.billing-invoices._modal', [
                 'invoice' => $billingInvoice,
+                'pairedInvoice' => $pairedInvoice,
                 'panel' => $this->panelPrefix(),
+                'listTab' => $listTab,
             ]);
         }
 
         return view('admin.billing-invoices.show', [
             'invoice' => $billingInvoice,
+            'pairedInvoice' => $pairedInvoice,
             'panel' => $this->panelPrefix(),
+            'listTab' => $listTab,
         ]);
     }
 

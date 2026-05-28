@@ -36,7 +36,12 @@ class UserController extends Controller
             });
         }
 
-        $users = $q->orderByDesc('id')->paginate(15)->withQueryString();
+        $users = $q
+            ->withCount('clientMemberships')
+            ->with(['clients:id,name'])
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.users.index', [
             'users' => $users,

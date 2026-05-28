@@ -63,8 +63,10 @@ class MobileRouteAnalyticsService
                     'lat' => (float) $mid->lat,
                     'lng' => (float) $mid->lng,
                     'duration_seconds' => $dur,
-                    'start' => $t0->toIso8601String(),
-                    'end' => $t1->toIso8601String(),
+                    'start' => app_datetime_api($t0),
+                    'start_display' => app_datetime_format($t0),
+                    'end' => app_datetime_api($t1),
+                    'end_display' => app_datetime_format($t1),
                 ];
             }
 
@@ -169,7 +171,8 @@ class MobileRouteAnalyticsService
             'lat' => (float) $point->lat,
             'lng' => (float) $point->lng,
             'speed' => (float) ($point->speed ?? 0),
-            'recorded_at' => $at?->toIso8601String(),
+            'recorded_at' => app_datetime_api($at),
+            'recorded_at_display' => app_datetime_format($at),
         ];
     }
 

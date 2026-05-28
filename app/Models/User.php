@@ -167,6 +167,21 @@ class User extends Authenticatable
         $this->patchTraccarAppAttributes([TraccarAppFields::KEY_PHONE => $value]);
     }
 
+    public function getAvatarAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_AVATAR);
+    }
+
+    public function setAvatarAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_AVATAR => $value]);
+    }
+
+    public function avatarUrl(): ?string
+    {
+        return app(\App\Services\UserAvatarService::class)->url($this);
+    }
+
     public function getCreatedAtAttribute(): ?\Illuminate\Support\Carbon
     {
         $raw = TraccarAppFields::get(
@@ -371,6 +386,41 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Client::class, 'client_members', 'user_id', 'client_id')
             ->withTimestamps();
+    }
+
+    public const NEW_REGISTRATION_HOURS = 24;
+
+    /** Registered within the last N hours (public signup or admin-created). */
+    public function isNewRegistration(?int $hours = null): bool
+    {
+        $hours ??= self::NEW_REGISTRATION_HOURS;
+        $created = $this->created_at;
+
+        return $created !== null && $created->gte(now()->subHours($hours));
+    }
+
+    public function isEndUserRole(): bool
+    {
+        return $this->role === AppRole::EndUser->value;
+    }
+
+    /** End user assigned to at least one client company via client_members. */
+    public function isLinkedToAnyClient(): bool
+    {
+        if (array_key_exists('client_memberships_count', $this->attributes)) {
+            return (int) $this->client_memberships_count > 0;
+        }
+
+        return $this->clientMemberships()->exists();
+    }
+
+    public function primaryClientName(): ?string
+    {
+        if ($this->relationLoaded('clients')) {
+            return $this->clients->first()?->name;
+        }
+
+        return $this->clients()->orderBy('clients.name')->value('name');
     }
 
     public function getActivitylogOptions(): LogOptions

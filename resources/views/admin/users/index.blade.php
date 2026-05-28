@@ -14,6 +14,9 @@
         @keyframes sh { 0%{background-position:200% 0}100%{background-position:-200% 0} }
         .device-status-toggle .form-check-input { cursor: pointer; width: 2.5em; height: 1.25em; }
         .device-status-toggle .form-check-input:disabled { cursor: not-allowed; }
+        .user-name-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+        .user-badge-new { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
+        .user-badge-not-linked { font-size: 0.7rem; font-weight: 600; }
     </style>
 @endpush
 
@@ -63,6 +66,9 @@
                     <th>{{ __('app.forms.name') }}</th>
                     <th>{{ __('app.forms.email') }}</th>
                     <th>{{ __('app.forms.role') }}</th>
+                    @if($panel === 'admin')
+                        <th>{{ __('app.admin.users.client_link') }}</th>
+                    @endif
                     <th>{{ __('app.common.status') }}</th>
                     <th>{{ __('app.forms.joined') }}</th>
                     <th>{{ __('app.common.actions') }}</th>
@@ -70,10 +76,41 @@
                 </thead>
                 <tbody>
                 @foreach ($users as $u)
+                    @php
+                        $roleEnum = \App\Enums\AppRole::tryFrom($u->role);
+                        $isEndUser = $u->isEndUserRole();
+                        $isNew = $u->isNewRegistration();
+                        $isLinked = $u->isLinkedToAnyClient();
+                    @endphp
                     <tr>
-                        <td>{{ $u->name }}</td>
+                        <td>
+                            <div class="user-name-badges">
+                                <span>{{ $u->name }}</span>
+                                @if($isNew)
+                                    <span class="badge bg-success user-badge-new"
+                                          title="{{ __('app.admin.users.badge_new_title') }}">{{ __('app.admin.users.badge_new') }}</span>
+                                @endif
+                                @if($isEndUser && ! $isLinked)
+                                    <span class="badge bg-warning text-dark user-badge-not-linked"
+                                          title="{{ __('app.admin.users.badge_not_linked_title') }}">{{ __('app.admin.users.badge_not_linked') }}</span>
+                                @endif
+                            </div>
+                        </td>
                         <td><x-admin.ltr>{{ $u->email }}</x-admin.ltr></td>
-                        <td>{{ $u->role }}</td>
+                        <td>{{ $roleEnum?->label() ?? $u->role }}</td>
+                        @if($panel === 'admin')
+                            <td>
+                                @if($isEndUser)
+                                    @if($isLinked)
+                                        <span class="text-muted small">{{ $u->primaryClientName() ?? '—' }}</span>
+                                    @else
+                                        <span class="badge bg-warning text-dark user-badge-not-linked">{{ __('app.admin.users.badge_not_linked') }}</span>
+                                    @endif
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                        @endif
                         <td>
                             @include('partials.account-status-toggle', [
                                 'user' => $u,

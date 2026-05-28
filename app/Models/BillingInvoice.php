@@ -88,4 +88,60 @@ class BillingInvoice extends Model
     {
         return $this->status === BillingInvoiceStatus::Cancelled->value;
     }
+
+    public function isPlatformType(): bool
+    {
+        return $this->invoice_type === BillingInvoiceType::Platform->value;
+    }
+
+    public function isClientType(): bool
+    {
+        return $this->invoice_type === BillingInvoiceType::Client->value;
+    }
+
+    /** Paired platform ↔ end-user invoice (subscription or meta). */
+    public function pairedInvoice(): ?BillingInvoice
+    {
+        $pairedId = $this->meta['paired_invoice_id'] ?? null;
+        if ($pairedId) {
+            return BillingInvoice::query()->find((int) $pairedId);
+        }
+
+        if (! $this->subscription_id) {
+            return null;
+        }
+
+        $subscription = $this->relationLoaded('subscription')
+            ? $this->subscription
+            : $this->subscription()->first();
+
+        if (! $subscription) {
+            return null;
+        }
+
+        if ($this->isPlatformType()) {
+            $paired = $subscription->relationLoaded('clientInvoice')
+                ? $subscription->clientInvoice
+                : ($subscription->client_invoice_id
+                    ? BillingInvoice::query()->find($subscription->client_invoice_id)
+                    : null);
+        } else {
+            $paired = $subscription->relationLoaded('platformInvoice')
+                ? $subscription->platformInvoice
+                : ($subscription->platform_invoice_id
+                    ? BillingInvoice::query()->find($subscription->platform_invoice_id)
+                    : null);
+        }
+
+        return $paired;
+    }
+
+    public function pairedInvoiceNo(): ?string
+    {
+        if (! empty($this->meta['paired_invoice_no'])) {
+            return (string) $this->meta['paired_invoice_no'];
+        }
+
+        return $this->pairedInvoice()?->invoice_no;
+    }
 }

@@ -743,7 +743,7 @@
                     © {{ date('Y') }} {{ __('app.brand') }} • {{ __('app.admin.footer') }}
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <span class="text-muted">{{ __('app.common.last_updated') }}: <x-admin.ltr>{{ now()->format('M d, Y H:i') }}</x-admin.ltr></span>
+                    <span class="text-muted">{{ __('app.common.last_updated') }}: <x-admin.ltr>{{ app_datetime_format(now()) }}</x-admin.ltr></span>
                 </div>
             </div>
         </div>
@@ -773,6 +773,7 @@
 @if(($htmlDir ?? 'ltr') === 'rtl')
     <script src="{{ asset('js/admin-rtl.js') }}"></script>
 @endif
+<script src="{{ protected_js('app-datetime.js') }}"></script>
 <script src="{{ protected_js('form-enhancements.js') }}"></script>
 <script src="{{ protected_js('map-session-guard.js') }}"></script>
 

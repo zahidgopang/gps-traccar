@@ -79,6 +79,19 @@ class SubscriptionBillingService
                 actor: $actor,
             );
 
+            $platformInvoice->update([
+                'meta' => array_merge($platformInvoice->meta ?? [], [
+                    'paired_invoice_id' => $clientInvoice->id,
+                    'paired_invoice_no' => $clientInvoice->invoice_no,
+                ]),
+            ]);
+            $clientInvoice->update([
+                'meta' => array_merge($clientInvoice->meta ?? [], [
+                    'paired_invoice_id' => $platformInvoice->id,
+                    'paired_invoice_no' => $platformInvoice->invoice_no,
+                ]),
+            ]);
+
             $subscription->update([
                 'platform_invoice_id' => $platformInvoice->id,
                 'client_invoice_id' => $clientInvoice->id,

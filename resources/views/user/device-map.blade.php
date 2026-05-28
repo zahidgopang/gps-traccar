@@ -1411,6 +1411,7 @@
     </script>
     @endif
     <script src="{{ protected_js('map-session-guard.js') }}"></script>
+    <script src="{{ protected_js('app-datetime.js') }}"></script>
     <script src="{{ protected_js('device-map-tracker.js') }}"></script>
     <script src="{{ protected_js('map-tour.js') }}"></script>
 @endpush

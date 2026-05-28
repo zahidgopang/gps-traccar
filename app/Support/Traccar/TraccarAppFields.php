@@ -27,6 +27,8 @@ final class TraccarAppFields
 
     public const KEY_COUNTRY = 'laravel_country_code';
 
+    public const KEY_AVATAR = 'laravel_avatar';
+
     public const KEY_CREATED_AT = 'laravel_created_at';
 
     public const KEY_UPDATED_AT = 'laravel_updated_at';
