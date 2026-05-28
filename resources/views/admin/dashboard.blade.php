@@ -169,13 +169,13 @@
             <div class="status-label">{{ __('app.admin.dashboard.api') }}</div>
             <div class="status-value"><span class="status-indicator up"></span> {{ __('app.admin.dashboard.operational') }}</div>
         </div>
-        <div class="status-item {{ $pendingContacts > 0 ? 'down' : 'up' }}">
+        <a href="{{ route('admin.contact-messages.index') }}" class="status-item {{ $pendingContacts > 0 ? 'down' : 'up' }} text-decoration-none">
             <div class="status-label">{{ __('app.admin.dashboard.contact_inbox') }}</div>
             <div class="status-value">
                 <span class="status-indicator {{ $pendingContacts > 0 ? 'down' : 'up' }}"></span>
                 {{ __('app.admin.dashboard.pending', ['count' => $pendingContacts]) }}
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="row mb-4">

@@ -20,14 +20,14 @@ class ContactConfirmationMail extends Mailable
     public function __construct(ContactMessage $contactMessage)
     {
         $this->contactMessage = $contactMessage;
-        $this->supportEmail = config('mail.support_email', 'support@falconeyegps.com');
+        $this->supportEmail = config('contact.email', config('mail.support_email', 'support@falconeyegps.com'));
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
             subject: 'Thank You for Contacting FalconEyeGPS',
-            replyTo: [config('mail.reply_to.address', 'support@falconeyegps.com')]
+            replyTo: [config('contact.email', 'support@falconeyegps.com')]
         );
     }
 
@@ -38,7 +38,8 @@ class ContactConfirmationMail extends Mailable
             with: [
                 'ticketNumber' => 'TP-' . str_pad($this->contactMessage->id, 6, '0', STR_PAD_LEFT),
                 'estimatedResponseTime' => '24 hours',
-                'supportPhone' => config('app.support_phone', '+1 (555) 123-4567')
+                'supportPhone' => config('contact.whatsapp', '+923003026824'),
+                'supportEmail' => config('contact.email', 'zhg786@gmail.com'),
             ]
         );
     }

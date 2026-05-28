@@ -188,6 +188,13 @@ Route::middleware(['auth', 'panel:admin', 'can:admin'])
         Route::get('activity-log', [ActivityLogController::class, 'index'])
             ->name('activity-log.index');
 
+        Route::get('contact-messages', [\App\Http\Controllers\Admin\ContactMessageController::class, 'index'])
+            ->name('contact-messages.index');
+        Route::get('contact-messages/{contactMessage}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'show'])
+            ->name('contact-messages.show');
+        Route::patch('contact-messages/{contactMessage}', [\App\Http\Controllers\Admin\ContactMessageController::class, 'update'])
+            ->name('contact-messages.update');
+
         Route::middleware('maps.tracking')->group(function () {
             Route::get('locations', [\App\Http\Controllers\Admin\LocationHistoryController::class, 'index'])
                 ->name('locations.index');

@@ -115,9 +115,10 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
-    'admin_emails' => [
-        env('CONTACT_ADMIN_EMAIL_1', 'admin@falconeyegps.com'),
-        env('CONTACT_ADMIN_EMAIL_2', 'support@falconeyegps.com'),
-    ],
+    'admin_emails' => array_values(array_filter([
+        env('CONTACT_ADMIN_EMAIL_1'),
+        env('CONTACT_ADMIN_EMAIL_2'),
+        env('CONTACT_EMAIL'),
+    ])),
 
 ];

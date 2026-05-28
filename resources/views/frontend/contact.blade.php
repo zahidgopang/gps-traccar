@@ -5,6 +5,14 @@
 @section('description', __('frontend.contact.description'))
 
 @section('content')
+@php
+    $contactWhatsapp = config('contact.whatsapp');
+    $contactWhatsappDigits = preg_replace('/\D/', '', $contactWhatsapp);
+    $contactEmail = config('contact.email');
+    $androidApkRelative = config('contact.android_apk');
+    $androidApkUrl = asset($androidApkRelative);
+    $androidApkAvailable = file_exists(public_path($androidApkRelative));
+@endphp
 
     <!-- Contact Hero Section -->
     <section class="relative min-h-[60vh] flex items-center overflow-hidden">
@@ -45,62 +53,71 @@
 
                     <!-- Contact Cards -->
                     <div class="space-y-6">
-                        <!-- Support Card -->
-                        <div class="p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-300">
+                        <!-- WhatsApp -->
+                        <a href="https://wa.me/{{ $contactWhatsappDigits }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="block p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all duration-300 group">
                             <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                                    <i class="fa-solid fa-headset text-white text-xl"></i>
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                                    <i class="fa-brands fa-whatsapp text-white text-2xl"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-lg mb-2">Technical Support</h3>
+                                    <h3 class="font-bold text-lg mb-2">WhatsApp</h3>
                                     <p class="text-slate-600 dark:text-slate-400 mb-3">
-                                        24/7 support for all technical inquiries and troubleshooting.
-                                    </p>
-                                    <div class="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-medium">
-                                        <i class="fa-solid fa-phone"></i>
-                                        <span>+1 (555) 123-4567</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sales Card -->
-                        <div class="p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300">
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0">
-                                    <i class="fa-solid fa-chart-line text-white text-xl"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-lg mb-2">Sales & Pricing</h3>
-                                    <p class="text-slate-600 dark:text-slate-400 mb-3">
-                                        Get customized quotes and enterprise pricing.
+                                        Chat with us on WhatsApp for quick support and sales inquiries.
                                     </p>
                                     <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium">
-                                        <i class="fa-solid fa-envelope"></i>
-                                        <span>sales@falconeyegps.com</span>
+                                        <i class="fa-brands fa-whatsapp"></i>
+                                        <span>{{ $contactWhatsapp }}</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
 
-                        <!-- Partnership Card -->
-                        <div class="p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-300">
+                        <!-- Email -->
+                        <a href="mailto:{{ $contactEmail }}"
+                           class="block p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-300 group">
                             <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
-                                    <i class="fa-solid fa-handshake text-white text-xl"></i>
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                                    <i class="fa-solid fa-envelope text-white text-xl"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-lg mb-2">Partnerships</h3>
+                                    <h3 class="font-bold text-lg mb-2">Email</h3>
                                     <p class="text-slate-600 dark:text-slate-400 mb-3">
-                                        Become a reseller or integration partner.
+                                        Send us an email and we will respond within 24 hours.
                                     </p>
-                                    <div class="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-medium">
+                                    <div class="flex items-center gap-2 text-sky-600 dark:text-sky-400 font-medium">
                                         <i class="fa-solid fa-envelope"></i>
-                                        <span>partners@falconeyegps.com</span>
+                                        <span>{{ $contactEmail }}</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
+
+                        <!-- Android App -->
+                        @if($androidApkAvailable)
+                        <a href="{{ $androidApkUrl }}"
+                           download="FalconEyeGPS.apk"
+                           class="block p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-green-400 dark:hover:border-green-600 transition-all duration-300 group">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-lime-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                                    <i class="fa-brands fa-android text-white text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg mb-2">Android App</h3>
+                                    <p class="text-slate-600 dark:text-slate-400 mb-3">
+                                        Download the FalconEyeGPS mobile app for fleet tracking on Android.
+                                    </p>
+                                    <div class="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
+                                        <i class="fa-brands fa-android"></i>
+                                        <span>Download APK</span>
+                                        <i class="fa-solid fa-download text-sm"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                        @endif
                     </div>
 
                     <!-- Stats -->
@@ -188,7 +205,7 @@
                                                id="phone"
                                                name="phone"
                                                class="pl-10 w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
-                                               placeholder="+1 (555) 123-4567">
+                                               placeholder="+923003026824">
                                     </div>
                                 </div>
 
@@ -238,9 +255,8 @@
                                           name="message"
                                           required
                                           rows="6"
-                                          class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all resize-none"
+                                          class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all resize-y"
                                           placeholder="Tell us about your GPS tracking needs..."></textarea>
-                                    <div class="absolute bottom-3 right-3 text-xs text-slate-500" id="charCount">0/5000</div>
                                 </div>
                                 <div class="text-xs text-red-500 mt-1" id="message-error"></div>
                             </div>
@@ -373,84 +389,6 @@
         </div>
     </section>
 
-    <!-- Map Section -->
-    <section class="py-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl font-bold mb-4">Visit Our Offices</h2>
-                <p class="text-slate-600 dark:text-slate-400">Global presence with local support teams</p>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-8">
-                <!-- Headquarters -->
-                <div class="p-8 rounded-2xl glass border border-slate-200 dark:border-slate-800">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center mb-6">
-                        <i class="fa-solid fa-map-marker-alt text-white text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-xl mb-4">Headquarters</h3>
-                    <div class="space-y-3 text-slate-600 dark:text-slate-400">
-                        <p class="flex items-start gap-2">
-                            <i class="fa-solid fa-location-dot text-sky-500 mt-1"></i>
-                            <span>123 Tech Street, Suite 100<br>San Francisco, CA 94107</span>
-                        </p>
-                        <p class="flex items-center gap-2">
-                            <i class="fa-solid fa-phone text-sky-500"></i>
-                            <span>+1 (555) 123-4567</span>
-                        </p>
-                        <p class="flex items-center gap-2">
-                            <i class="fa-solid fa-clock text-sky-500"></i>
-                            <span>Mon-Fri: 9AM-6PM PST</span>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- EMEA Office -->
-                <div class="p-8 rounded-2xl glass border border-slate-200 dark:border-slate-800">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-6">
-                        <i class="fa-solid fa-globe-europe text-white text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-xl mb-4">EMEA Office</h3>
-                    <div class="space-y-3 text-slate-600 dark:text-slate-400">
-                        <p class="flex items-start gap-2">
-                            <i class="fa-solid fa-location-dot text-emerald-500 mt-1"></i>
-                            <span>45 Innovation Avenue<br>London, UK EC2A 4BX</span>
-                        </p>
-                        <p class="flex items-center gap-2">
-                            <i class="fa-solid fa-phone text-emerald-500"></i>
-                            <span>+44 20 7123 4567</span>
-                        </p>
-                        <p class="flex items-center gap-2">
-                            <i class="fa-solid fa-clock text-emerald-500"></i>
-                            <span>Mon-Fri: 9AM-6PM GMT</span>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- APAC Office -->
-                <div class="p-8 rounded-2xl glass border border-slate-200 dark:border-slate-800">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-6">
-                        <i class="fa-solid fa-globe-asia text-white text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-xl mb-4">APAC Office</h3>
-                    <div class="space-y-3 text-slate-600 dark:text-slate-400">
-                        <p class="flex items-start gap-2">
-                            <i class="fa-solid fa-location-dot text-purple-500 mt-1"></i>
-                            <span>78 Digital Tower, Level 15<br>Singapore 038987</span>
-                        </p>
-                        <p class="flex items-center gap-2">
-                            <i class="fa-solid fa-phone text-purple-500"></i>
-                            <span>+65 6123 4567</span>
-                        </p>
-                        <p class="flex items-center gap-2">
-                            <i class="fa-solid fa-clock text-purple-500"></i>
-                            <span>Mon-Fri: 9AM-6PM SGT</span>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
 @endsection
 
 @push('head')
@@ -470,25 +408,8 @@
             const errorMessageText = document.getElementById('errorMessageText');
             const ticketNumber = document.getElementById('ticketNumber');
 
-            const charCount = document.getElementById('charCount');
-            const messageField = document.getElementById('message');
-
             // 🔹 Rate limit UI
             const rateLimitMessage = document.getElementById('rateLimitMessage');
-
-            /* ----------------------------------
-               Character counter
-            ---------------------------------- */
-            messageField.addEventListener('input', function () {
-                const length = this.value.length;
-                charCount.textContent = `${length}/5000`;
-
-                if (length > 5000) {
-                    charCount.classList.add('text-red-500');
-                } else {
-                    charCount.classList.remove('text-red-500');
-                }
-            });
 
             /* ----------------------------------
                Rate limit check (UX only)
@@ -568,14 +489,13 @@
 
                     const data = await response.json();
 
-                    if (data.success) {
+                    if (response.ok && data.success) {
                         successMessage.classList.remove('hidden');
                         errorMessage.classList.add('hidden');
 
                         ticketNumber.textContent = `Ticket Number: ${data.ticket_number}`;
 
                         form.reset();
-                        charCount.textContent = '0/5000';
 
                         // 🔒 Immediately lock form for 30 minutes
                         lockFormForMinutes(30);
@@ -585,7 +505,8 @@
                         });
 
                     } else {
-                        errorMessageText.textContent = data.message || 'Something went wrong.';
+                        errorMessageText.textContent =
+                            data.message || 'Something went wrong. Please try again or contact us directly.';
                         errorMessage.classList.remove('hidden');
                         successMessage.classList.add('hidden');
 
@@ -594,6 +515,10 @@
                                 const el = document.getElementById(`${field}-error`);
                                 if (el) el.textContent = data.errors[field][0];
                             });
+                        }
+
+                        if (!response.ok && response.status !== 422) {
+                            submitBtn.disabled = false;
                         }
                     }
 

@@ -47,7 +47,7 @@
         </div>
 
         <p><strong>Need immediate assistance?</strong><br>
-            Call our support team: {{ $supportPhone }} (24/7)</p>
+            WhatsApp: {{ $supportPhone }} · Email: {{ $supportEmail }}</p>
 
         <p>Best regards,<br>
             <strong>The FalconEyeGPS Team</strong></p>

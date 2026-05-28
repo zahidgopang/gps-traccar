@@ -39,7 +39,7 @@ class ContactNotificationMail extends Mailable
             view: 'emails.contact.notification',
             with: [
                 'ticketNumber' => 'TP-' . str_pad($this->contactMessage->id, 6, '0', STR_PAD_LEFT),
-                'dashboardUrl' => config('app.admin_url') . '/contact-messages/' . $this->contactMessage->id
+                'dashboardUrl' => route('admin.contact-messages.show', $this->contactMessage),
             ]
         );
     }

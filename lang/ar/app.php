@@ -58,6 +58,7 @@ return [
             'location_history' => 'سجل المواقع',
             'track_devices' => 'تتبع الأجهزة',
             'activity_log' => 'سجل النشاط',
+            'contact_us' => 'اتصل بنا',
             'device_stock' => 'المخزون (طلبات الشراء)',
             'stock_sales' => 'فواتير البيع (للعملاء)',
             'stock_repairs' => 'قائمة الإصلاح',

@@ -167,6 +167,17 @@
                     </a>
                 @endif
             @endcan
+            @if($navPanel === 'admin' && Route::has('admin.contact-messages.index'))
+                @php $newContactCount = \App\Models\ContactMessage::where('status', 'new')->count(); @endphp
+                <a href="{{ route('admin.contact-messages.index') }}"
+                   class="nav-link-premium {{ request()->routeIs('admin.contact-messages.*') ? 'active' : '' }}">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <span>{{ __('app.admin.nav.contact_us') }}</span>
+                    @if($newContactCount > 0)
+                        <span class="nav-badge">{{ $newContactCount }}</span>
+                    @endif
+                </a>
+            @endif
         </div>
     </nav>
 

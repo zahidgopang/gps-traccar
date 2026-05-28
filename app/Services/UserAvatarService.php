@@ -26,9 +26,14 @@ class UserAvatarService
             return null;
         }
 
+        $url = Storage::disk(self::DISK)->url($path);
+        if (! str_starts_with($url, 'http://') && ! str_starts_with($url, 'https://')) {
+            $url = rtrim((string) config('app.url'), '/').'/'.ltrim($url, '/');
+        }
+
         $version = $user->updated_at?->getTimestamp() ?? time();
 
-        return Storage::disk(self::DISK)->url($path).'?v='.$version;
+        return $url.'?v='.$version;
     }
 
     public function store(User $user, UploadedFile $file): string
