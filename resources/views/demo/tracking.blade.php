@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Live Tracking Dashboard – TrackPro Premium</title>
+    <title>Live Tracking Dashboard – FalconEyeGPS Premium</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -445,23 +445,80 @@
         return { lat: point[0], lng: point[1] };
     }
 
-    function loadGoogleMaps() {
+    function mapsApiReady() {
+        return typeof window.google?.maps?.importLibrary === 'function';
+    }
+
+    function injectMapsScript() {
         return new Promise((resolve, reject) => {
-            if (window.google?.maps?.Map) {
-                resolve();
-                return;
-            }
             if (!GOOGLE_MAPS_KEY) {
                 reject(new Error('Missing Google Maps API key'));
                 return;
             }
+
+            const existing = document.querySelector('script[data-demo-gmaps]');
+            if (existing) {
+                let tries = 0;
+                (function waitExisting() {
+                    if (mapsApiReady()) {
+                        resolve();
+                    } else if (++tries > 120) {
+                        reject(new Error('Google Maps API timeout'));
+                    } else {
+                        setTimeout(waitExisting, 50);
+                    }
+                })();
+                return;
+            }
+
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_KEY)}&loading=async`;
+            script.dataset.demoGmaps = '1';
             script.async = true;
-            script.onload = () => resolve();
+            script.defer = true;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_KEY)}&loading=async`;
             script.onerror = () => reject(new Error('Google Maps failed to load'));
+            script.onload = () => {
+                let tries = 0;
+                (function waitMaps() {
+                    if (mapsApiReady()) {
+                        resolve();
+                    } else if (++tries > 120) {
+                        reject(new Error('Google Maps API unavailable'));
+                    } else {
+                        setTimeout(waitMaps, 50);
+                    }
+                })();
+            };
             document.head.appendChild(script);
         });
+    }
+
+    async function loadGoogleMaps() {
+        await injectMapsScript();
+
+        if (typeof google.maps.importLibrary === 'function') {
+            await google.maps.importLibrary('maps');
+        }
+
+        let tries = 0;
+        while (typeof google?.maps?.Map !== 'function' && tries < 120) {
+            await new Promise((r) => setTimeout(r, 50));
+            tries++;
+        }
+
+        if (typeof google?.maps?.Map !== 'function') {
+            throw new Error('Google Maps Map constructor not available');
+        }
+
+        return google.maps;
+    }
+
+    function showMapLoadError(message) {
+        const el = document.getElementById('map');
+        if (!el) return;
+        el.innerHTML = `<div class="flex h-full items-center justify-center p-6 text-center text-slate-600 dark:text-slate-300">
+            <div><i class="fas fa-map-marked-alt text-3xl mb-3 opacity-50"></i><p class="font-medium">Map could not load</p><p class="text-sm mt-1 opacity-80">${message}</p></div>
+        </div>`;
     }
 
     function circleIcon(fillColor, scale) {
@@ -711,6 +768,7 @@
             setTimeout(addPointsOfInterest, 2000);
         } catch (err) {
             console.error('Demo map failed to load', err);
+            showMapLoadError(err?.message || 'Please check GOOGLE_MAPS_API_KEY in .env');
         }
     });
 

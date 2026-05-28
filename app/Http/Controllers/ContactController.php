@@ -123,7 +123,7 @@ class ContactController extends Controller
 
             // Send notification to admin team
             $adminEmails = config('mail.admin_emails', [
-                env('MAIL_USERNAME', 'support@trackpro.com')
+                env('MAIL_USERNAME', 'support@falconeyegps.com')
             ]);
 
             foreach ($adminEmails as $adminEmail) {

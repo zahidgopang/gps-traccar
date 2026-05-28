@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'tracker.access' => \App\Http\Middleware\EnsureTrackerAccess::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
             'panel' => \App\Http\Middleware\EnsurePanelAccess::class,
+            'mobile.end_user' => \App\Http\Middleware\EnsureMobileEndUser::class,
+            'mobile.entitlement' => \App\Http\Middleware\EnsureMobileEntitlement::class,
         ]);
 
         $middleware->appendToGroup('web', [

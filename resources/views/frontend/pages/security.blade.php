@@ -2,7 +2,7 @@
 @extends('frontend.layout')
 
 @section('title', __('frontend.pages.security.title'))
-@section('description', 'Learn about TrackPro GPS security measures, certifications, and data protection practices.')
+@section('description', 'Learn about FalconEyeGPS security measures, certifications, and data protection practices.')
 
 @section('content')
 
@@ -331,7 +331,7 @@
                 <div class="grid md:grid-cols-2 gap-6 mb-8">
                     <div class="p-6 rounded-xl bg-white dark:bg-slate-800">
                         <h3 class="font-bold mb-2">Security Team</h3>
-                        <div class="text-emerald-600 dark:text-emerald-400">security@trackpro.com</div>
+                        <div class="text-emerald-600 dark:text-emerald-400">security@falconeyegps.com</div>
                         <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
                             For security vulnerabilities and threats
                         </p>
@@ -346,7 +346,7 @@
                     </div>
                 </div>
 
-                <a href="mailto:security@trackpro.com"
+                <a href="mailto:security@falconeyegps.com"
                    class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all">
                     <i class="fa-solid fa-envelope"></i>
                     Report Security Issue

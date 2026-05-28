@@ -5,7 +5,6 @@
     <div class="premium-login-container">
         <!-- Premium Header with Custom Logo -->
         <div class="premium-login-header">
-
             <h1 class="premium-title">Welcome Back</h1>
             <p class="premium-subtitle">Sign in to your account to continue</p>
         </div>

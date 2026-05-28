@@ -1,6 +1,6 @@
 @extends('user.layout_user')
 
-@section('title', 'Change Password - GPS Tracker Pro')
+@section('title', 'Change Password — FalconEyeGPS')
 
 @push('styles')
     <style>

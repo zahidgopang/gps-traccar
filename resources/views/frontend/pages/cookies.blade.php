@@ -2,7 +2,7 @@
 @extends('frontend.layout')
 
 @section('title', __('frontend.pages.cookies.title'))
-@section('description', 'Learn about how TrackPro GPS uses cookies and similar tracking technologies on our platform.')
+@section('description', 'Learn about how FalconEyeGPS uses cookies and similar tracking technologies on our platform.')
 
 @section('content')
 
@@ -119,7 +119,7 @@
                 @php
                     $cookies = [
                         [
-                            'name' => 'trackpro_session',
+                            'name' => 'falconeyegps_session',
                             'purpose' => 'Maintains user session state',
                             'duration' => 'Session',
                             'type' => 'Essential'
@@ -326,13 +326,13 @@
                         please contact our Data Protection Officer.
                     </p>
                     <div class="space-y-3">
-                        <a href="mailto:privacy@trackprogps.com" class="flex items-center gap-3 group">
+                        <a href="mailto:privacy@falconeyegps.com" class="flex items-center gap-3 group">
                             <div class="w-10 h-10 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center group-hover:bg-sky-200 dark:group-hover:bg-sky-900/50 transition-colors">
                                 <i class="fa-solid fa-envelope text-sky-600 dark:text-sky-400"></i>
                             </div>
                             <div>
                                 <div class="font-medium group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">Email</div>
-                                <div class="text-sm text-slate-500 dark:text-slate-500">privacy@trackprogps.com</div>
+                                <div class="text-sm text-slate-500 dark:text-slate-500">privacy@falconeyegps.com</div>
                             </div>
                         </a>
                         <a href="{{ route('privacy') }}" class="flex items-center gap-3 group">

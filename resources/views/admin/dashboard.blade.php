@@ -44,7 +44,13 @@
             border: 1px solid var(--admin-border);
         }
         .chart-container { height: 300px; position: relative; }
-        .activity-timeline { list-style: none; padding: 0; margin: 0; }
+        .activity-timeline {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 420px;
+            overflow-y: auto;
+        }
         .activity-item {
             display: flex;
             gap: 1rem;
@@ -278,8 +284,16 @@
         </div>
         <div class="col-xl-4 mb-4">
             <div class="premium-card h-100">
-                <div class="card-header">
-                    <h5 class="card-title"><i class="fas fa-history"></i> {{ __('app.admin.dashboard.recent_activity') }}</h5>
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                    <h5 class="card-title mb-0"><i class="fas fa-history"></i> {{ __('app.admin.dashboard.recent_activity') }}</h5>
+                    @can('permission', 'activity.view')
+                        @if(Route::has('admin.activity-log.index'))
+                            <a href="{{ route(request()->routeIs('client.*') ? 'client.activity-log.index' : 'admin.activity-log.index') }}"
+                               class="btn btn-sm btn-outline-primary flex-shrink-0">
+                                {{ __('app.admin.dashboard.view_all') }}
+                            </a>
+                        @endif
+                    @endcan
                 </div>
                 <ul class="activity-timeline">
                     @forelse($recentActivities as $activity)
@@ -289,7 +303,7 @@
                             </div>
                             <div class="activity-content">
                                 <div class="activity-title">{{ $activity['title'] }}</div>
-                                <div class="activity-desc">{{ Str::limit($activity['desc'], 80) }}</div>
+                                <div class="activity-desc">{{ Str::limit($activity['desc'], 60) }}</div>
                                 <div class="activity-time">
                                     <x-admin.ltr>
                                         {{ $activity['time']?->format('M d, Y H:i') }}

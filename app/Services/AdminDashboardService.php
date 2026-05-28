@@ -6,6 +6,7 @@ use App\Contracts\Geofences\GeofenceStoreInterface;
 use App\Contracts\Tracking\EventReaderInterface;
 use App\Models\ContactMessage;
 use App\Models\Device;
+use App\Services\ActivityLogService;
 use App\Services\Tracking\DevicePositionLoader;
 use App\Services\Tracking\TrackingMetricsService;
 use App\Models\Subscription;
@@ -14,16 +15,20 @@ use App\Models\VehicleEvent;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Models\Activity;
 
 class AdminDashboardService
 {
     public const ONLINE_MINUTES = 5;
+
+    public const RECENT_ACTIVITY_LIMIT = 5;
 
     public function __construct(
         private DevicePositionLoader $positionLoader,
         private TrackingMetricsService $metrics,
         private EventReaderInterface $events,
         private GeofenceStoreInterface $geofences,
+        private ActivityLogService $activityLog,
     ) {}
 
     public function getStats(): array
@@ -177,45 +182,46 @@ class AdminDashboardService
 
     private function getRecentActivities(): Collection
     {
-        $events = $this->events->recentForDevices(Device::pluck('id'), 6)
-            ->map(fn (VehicleEvent $e) => [
-                'icon' => $this->eventIcon($e->type),
-                'color' => $this->eventColor($e->severity()),
-                'title' => $e->title,
-                'desc' => $e->message,
-                'time' => $e->occurred_at,
-            ]);
+        $actor = auth()->user();
+        if (! $actor) {
+            return collect();
+        }
 
-        $users = User::query()->appCustomers()
-            ->orderByRecent()
-            ->limit(3)
+        $query = $this->activityLog->baseQuery();
+        $this->activityLog->applyTenantScope($query, $actor, null);
+
+        return $query
+            ->limit(self::RECENT_ACTIVITY_LIMIT)
             ->get()
-            ->map(fn (User $u) => [
-                'icon' => 'fa-user-plus',
-                'color' => 'var(--admin-success)',
-                'title' => 'New user registered',
-                'desc' => $u->name . ' (' . $u->email . ')',
-                'time' => $u->created_at,
+            ->map(fn (Activity $log) => [
+                'icon' => $this->auditActivityIcon($log->event),
+                'color' => $this->auditActivityColor($log->event),
+                'title' => $log->description,
+                'desc' => $this->activityLog->subjectLabel($log),
+                'time' => $log->created_at,
             ]);
+    }
 
-        $devices = Device::with('user:id,name')
-            ->orderByRecent()
-            ->limit(3)
-            ->get()
-            ->map(fn (Device $d) => [
-                'icon' => 'fa-satellite',
-                'color' => 'var(--admin-primary)',
-                'title' => 'Device registered',
-                'desc' => ($d->name ?: 'Unnamed') . ' · IMEI ' . $d->imei . ($d->user ? ' · ' . $d->user->name : ''),
-                'time' => $d->created_at,
-            ]);
+    private function auditActivityIcon(?string $event): string
+    {
+        return match ($event) {
+            'created' => 'fa-plus',
+            'updated' => 'fa-pen',
+            'deleted' => 'fa-trash',
+            'renewed' => 'fa-sync',
+            default => 'fa-clipboard-list',
+        };
+    }
 
-        return $events
-            ->concat($users)
-            ->concat($devices)
-            ->sortByDesc('time')
-            ->take(8)
-            ->values();
+    private function auditActivityColor(?string $event): string
+    {
+        return match ($event) {
+            'created' => 'var(--admin-success)',
+            'updated' => 'var(--admin-primary)',
+            'deleted' => 'var(--admin-danger)',
+            'renewed' => 'var(--admin-info)',
+            default => 'var(--admin-info)',
+        };
     }
 
     private function eventsByType(int $days): Collection

@@ -24,7 +24,7 @@ class Device extends Model
 
     /** Common GPS hardware / tracker unit types (not vehicle body type). */
     public const DEVICE_TYPES = [
-        'gps_tracker' => 'GPS Tracker',
+        'gps_tracker' => 'GPS device',
         'obd' => 'OBD-II Tracker',
         'hardwired' => 'Hardwired GPS',
         'portable' => 'Portable GPS',

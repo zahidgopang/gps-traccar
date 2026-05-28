@@ -7,31 +7,9 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- ========== SEO ESSENTIALS ========== -->
-    <title>@yield('title','Admin - GPS Tracker')</title>
-
-    <meta name="description" content="GPS Tracker system for real-time vehicle tracking, live location, speed monitoring and route history.">
-    <meta name="keywords" content="GPS Tracker, Vehicle Tracking, Bike Tracking, Car Tracking, Live Location, Fleet Monitoring, GPS Device">
-    <meta name="author" content="GPS Tracker">
-
-    <!-- ========== OPEN GRAPH (SOCIAL MEDIA SHARE) ========== -->
-    <meta property="og:title" content="GPS Tracker System">
-    <meta property="og:description" content="Live tracking, route history, speed monitoring & device management.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="{{ asset('images/logo.png') }}">
-    <meta property="og:url" content="{{ url('/') }}">
-    <meta property="og:site_name" content="GPS Tracker">
-
-    <!-- ========== TWITTER CARD ========== -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="GPS Tracker System">
-    <meta name="twitter:description" content="Real-time GPS tracking system with modern dashboard.">
-    <meta name="twitter:image" content="{{ asset('images/logo.png') }}">
-
-    <!-- ========== FAVICON SETUP ========== -->
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/favicon.png') }}">
-    <meta name="theme-color" content="#0A0F2D">
+    @include('partials.seo-meta', [
+        'seoTitle' => trim($__env->yieldContent('title')) ?: config('branding.seo.default_title'),
+    ])
 
     <!-- CSS -->
     @include('partials.head-core')
@@ -96,12 +74,18 @@
             letter-spacing: -0.5px;
         }
 
-        .navbar-brand img {
+        .navbar-brand .brand-logo-wrap--on-dark {
+            padding: 0.35rem 0.65rem;
+        }
+
+        .navbar-brand .brand-logo {
+            height: 72px;
+            filter: none;
             transition: transform 0.3s ease;
         }
 
-        .navbar-brand:hover img {
-            transform: scale(1.1);
+        .navbar-brand:hover .brand-logo {
+            transform: scale(1.05);
         }
 
         /* User Profile Circle */
@@ -620,9 +604,8 @@
         </button>
 
         <!-- Brand Logo -->
-        <a class="navbar-brand d-flex align-items-center" href="{{ route('user.dashboard') }}">
-            <img src="{{ asset('images/logo.png') }}" class="me-2" style="height:38px;">
-            <strong>{{ __('app.brand') }}</strong>
+        <a class="navbar-brand d-flex align-items-center" href="{{ route('user.dashboard') }}" aria-label="{{ __('app.common.dashboard') }}">
+            @include('partials.brand-logo', ['size' => 'lg', 'onDark' => true])
         </a>
     </div>
 

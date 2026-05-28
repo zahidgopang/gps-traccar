@@ -77,7 +77,7 @@
                                     </p>
                                     <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium">
                                         <i class="fa-solid fa-envelope"></i>
-                                        <span>sales@trackpro.com</span>
+                                        <span>sales@falconeyegps.com</span>
                                     </div>
                                 </div>
                             </div>
@@ -96,7 +96,7 @@
                                     </p>
                                     <div class="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-medium">
                                         <i class="fa-solid fa-envelope"></i>
-                                        <span>partners@trackpro.com</span>
+                                        <span>partners@falconeyegps.com</span>
                                     </div>
                                 </div>
                             </div>
@@ -322,7 +322,7 @@
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-12">
                 <h2 class="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
-                <p class="text-slate-600 dark:text-slate-400">Common questions about contacting TrackPro</p>
+                <p class="text-slate-600 dark:text-slate-400">Common questions about contacting FalconEyeGPS</p>
             </div>
 
             <div class="space-y-4">

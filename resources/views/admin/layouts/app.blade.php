@@ -7,17 +7,11 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- ========== SEO ESSENTIALS ========== -->
-    <title>@yield('title','Admin - GPS Tracker Pro')</title>
-
-    <meta name="description" content="Admin panel for GPS Tracker Pro system. Manage users, devices, subscriptions, and monitor real-time tracking.">
-    <meta name="keywords" content="GPS Tracker Admin, Fleet Management Admin, Vehicle Tracking System, GPS Device Management">
-    <meta name="author" content="GPS Tracker Pro">
-
-    <!-- ========== FAVICON SETUP ========== -->
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/favicon.png') }}">
-    <meta name="theme-color" content="#0A0F2D">
+    @include('partials.seo-meta', [
+        'seoTitle' => trim($__env->yieldContent('title')) ?: 'Admin — '.config('branding.name'),
+        'seoDescription' => config('branding.seo.admin_description'),
+        'seoKeywords' => config('branding.seo.admin_keywords'),
+    ])
 
     <!-- ========== CORE CSS ========== -->
     @include('partials.head-core')
@@ -216,18 +210,8 @@
         }
 
         .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
             color: white;
-            font-weight: 700;
-            font-size: 1.25rem;
             text-decoration: none;
-        }
-
-        .sidebar-brand img {
-            height: 32px;
-            filter: brightness(0) invert(1);
         }
 
         /* Sidebar Links */

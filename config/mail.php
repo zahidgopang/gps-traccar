@@ -116,8 +116,8 @@ return [
     ],
 
     'admin_emails' => [
-        env('CONTACT_ADMIN_EMAIL_1', 'admin@trackpro.com'),
-        env('CONTACT_ADMIN_EMAIL_2', 'support@trackpro.com'),
+        env('CONTACT_ADMIN_EMAIL_1', 'admin@falconeyegps.com'),
+        env('CONTACT_ADMIN_EMAIL_2', 'support@falconeyegps.com'),
     ],
 
 ];

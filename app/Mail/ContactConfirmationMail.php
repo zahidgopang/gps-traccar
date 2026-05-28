@@ -20,14 +20,14 @@ class ContactConfirmationMail extends Mailable
     public function __construct(ContactMessage $contactMessage)
     {
         $this->contactMessage = $contactMessage;
-        $this->supportEmail = config('mail.support_email', 'support@trackpro.com');
+        $this->supportEmail = config('mail.support_email', 'support@falconeyegps.com');
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Thank You for Contacting TrackPro GPS',
-            replyTo: [config('mail.reply_to.address', 'support@trackpro.com')]
+            subject: 'Thank You for Contacting FalconEyeGPS',
+            replyTo: [config('mail.reply_to.address', 'support@falconeyegps.com')]
         );
     }
 

@@ -1,6 +1,8 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white">
   <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url('/') }}">{{ config('app.name','GPS Tracker') }}</a>
+    <a class="navbar-brand brand-logo-slot d-flex align-items-center" href="{{ url('/') }}" aria-label="{{ config('branding.name') }}">
+        @include('partials.brand-logo')
+    </a>
     <div class="collapse navbar-collapse">
       <ul class="navbar-nav ms-auto">
         @auth

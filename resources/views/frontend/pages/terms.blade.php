@@ -2,7 +2,7 @@
 @extends('frontend.layout')
 
 @section('title', __('frontend.pages.terms.title'))
-@section('description', 'TrackPro GPS terms of service and conditions of use for our GPS tracking platform.')
+@section('description', 'FalconEyeGPS terms of service and conditions of use for our GPS tracking platform.')
 
 @section('content')
 
@@ -31,7 +31,7 @@
                 <div class="mb-12 p-6 rounded-xl bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-indigo-200 dark:border-indigo-800">
                     <h2 class="text-3xl font-bold mb-4">Important Notice</h2>
                     <p class="text-slate-600 dark:text-slate-400">
-                        These Terms of Service ("Terms") govern your access to and use of TrackPro GPS services. By accessing or using our services, you agree to be bound by these Terms. If you disagree with any part of the terms, you may not access the service.
+                        These Terms of Service ("Terms") govern your access to and use of FalconEyeGPS services. By accessing or using our services, you agree to be bound by these Terms. If you disagree with any part of the terms, you may not access the service.
                     </p>
                 </div>
 
@@ -43,7 +43,7 @@
                         <div class="p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                             <h4 class="font-bold mb-2">"Service"</h4>
                             <p class="text-slate-600 dark:text-slate-400">
-                                Refers to the TrackPro GPS platform, website, mobile applications, and all related services provided by TrackPro GPS.
+                                Refers to the FalconEyeGPS platform, website, mobile applications, and all related services provided by FalconEyeGPS.
                             </p>
                         </div>
 
@@ -192,7 +192,7 @@
                             <div>
                                 <h4 class="font-bold mb-2">Ownership Rights</h4>
                                 <p class="text-slate-600 dark:text-slate-400">
-                                    The Service and its original content, features, and functionality are and will remain the exclusive property of TrackPro GPS and its licensors. Our trademarks and trade dress may not be used without prior written permission.
+                                    The Service and its original content, features, and functionality are and will remain the exclusive property of FalconEyeGPS and its licensors. Our trademarks and trade dress may not be used without prior written permission.
                                 </p>
                             </div>
                         </div>
@@ -268,7 +268,7 @@
 
                     <div class="p-6 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                         <p class="text-red-600 dark:text-red-300">
-                            TO THE MAXIMUM EXTENT PERMITTED BY LAW, TRACKPRO GPS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING WITHOUT LIMITATION, LOSS OF PROFITS, DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES.
+                            TO THE MAXIMUM EXTENT PERMITTED BY LAW, FalconEyeGPS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING WITHOUT LIMITATION, LOSS OF PROFITS, DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES.
                         </p>
                     </div>
 
@@ -322,12 +322,12 @@
                         <div class="space-y-2">
                             <p class="text-slate-700 dark:text-slate-300">
                                 <strong>Legal Department</strong><br>
-                                TrackPro GPS<br>
+                                FalconEyeGPS<br>
                                 123 Legal Avenue, Suite 200<br>
                                 San Francisco, CA 94107
                             </p>
                             <p class="text-slate-700 dark:text-slate-300">
-                                <strong>Email:</strong> legal@trackpro.com
+                                <strong>Email:</strong> legal@falconeyegps.com
                             </p>
                             <p class="text-slate-700 dark:text-slate-300">
                                 <strong>Phone:</strong> +1 (555) 123-4567
@@ -345,7 +345,7 @@
             <div class="p-8 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20">
                 <h2 class="text-2xl font-bold text-white mb-4">Acceptance of Terms</h2>
                 <p class="text-indigo-200 mb-6">
-                    By using TrackPro GPS services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
+                    By using FalconEyeGPS services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="{{ route('register') }}" class="px-6 py-3 bg-white text-indigo-700 font-semibold rounded-xl hover:bg-indigo-50 transition-colors">

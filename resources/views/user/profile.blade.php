@@ -1,6 +1,6 @@
 @extends('user.layout_user')
 
-@section('title', 'My Profile - GPS Tracker Pro')
+@section('title', 'My Profile — FalconEyeGPS')
 
 @push('styles')
     <style>
@@ -504,7 +504,7 @@
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        Two-factor authentication is coming soon to GPS Tracker Pro.
+                        Two-factor authentication is coming soon to FalconEyeGPS.
                     </div>
                 </div>
                 <div class="modal-footer">

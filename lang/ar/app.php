@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'brand' => 'نظام تتبع GPS الاحترافي',
+    'brand' => 'FalconEyeGPS',
 
     'language' => [
         'label' => 'اللغة',

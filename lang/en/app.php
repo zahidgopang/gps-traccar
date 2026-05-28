@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'brand' => 'GPS Tracker Pro',
+    'brand' => 'FalconEyeGPS',
 
     'language' => [
         'label' => 'Language',
@@ -354,7 +354,7 @@ return [
             'no_devices_yet' => 'No devices assigned to your account yet.',
             'no_activity_hint' => 'No fleet activity yet. Activity will appear when your assigned devices send GPS updates.',
             'tracker_unavailable_title' => 'GPS tracking not linked',
-            'tracker_unavailable_msg' => 'You can sign in here, but your account is not in the GPS tracker (tc_users). Maps, devices, and fleet data stay hidden until an administrator adds you in Traccar or runs sync.',
+            'tracker_unavailable_msg' => 'You can sign in here, but your account is not linked to FalconEyeGPS fleet tracking yet. Maps, devices, and fleet data stay hidden until an administrator enables access or runs sync.',
             'tracker_route_blocked' => 'That page requires an active tracker account (tc_users).',
         ],
         'devices' => [
@@ -379,7 +379,7 @@ return [
             'track' => 'Track',
             'map_locked' => 'Map locked',
             'unnamed_device' => 'Unnamed Device',
-            'gps_tracker' => 'GPS Tracker',
+            'gps_tracker' => 'GPS device',
             'no_data_yet' => 'No data yet',
             'no_devices' => 'No devices found',
             'no_devices_desc' => 'No devices are assigned to your account yet. Please contact your administrator.',
@@ -572,7 +572,7 @@ return [
         'access_permissions_hint' => 'Role, company, and account status.',
         'device_information' => 'Device Information',
         'device_information_hint' => 'IMEI, display name, type, and operational status.',
-        'device_information_tracker_hint' => 'GPS tracker hardware: IMEI, device type, and tracker status.',
+        'device_information_tracker_hint' => 'Tracking device hardware: IMEI, device type, and connection status.',
         'device_imei_hint' => 'Unique IMEI of the GPS hardware unit. Each IMEI can only be registered once.',
         'device_label' => 'Device label',
         'device_label_placeholder' => 'e.g. Tracker #12',
@@ -700,7 +700,7 @@ return [
         'off' => 'Off',
         'role_admin' => 'Admin',
         'role_user' => 'User',
-        'device_type_gps_tracker' => 'GPS Tracker',
+        'device_type_gps_tracker' => 'GPS device',
         'device_type_obd' => 'OBD-II Tracker',
         'device_type_hardwired' => 'Hardwired GPS',
         'device_type_portable' => 'Portable GPS',
@@ -711,7 +711,7 @@ return [
         'device_type_telematics' => 'Telematics Unit',
         'device_type_satellite' => 'Satellite Tracker',
         'device_type_other' => 'Other',
-        'device_type_car' => 'GPS Tracker',
+        'device_type_car' => 'GPS device',
         'device_type_truck' => 'Telematics Unit',
         'device_type_bike' => 'Motorcycle GPS',
         'plan_basic' => 'Basic',

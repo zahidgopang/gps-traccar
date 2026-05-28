@@ -6,9 +6,8 @@
 <aside class="admin-sidebar is-open" id="adminSidebar" aria-label="{{ __('app.forms.toggle_sidebar') }}">
     <!-- Sidebar Header -->
     <div class="sidebar-header">
-        <a href="{{ route($navPanel . '.dashboard') }}" class="sidebar-brand">
-            <img src="{{ asset('images/logo.png') }}" alt="GPS Tracker Pro">
-            <span>{{ __('app.brand') }}</span>
+        <a href="{{ route($navPanel . '.dashboard') }}" class="sidebar-brand" aria-label="{{ __('app.common.dashboard') }}">
+            @include('partials.brand-logo', ['onDark' => true])
         </a>
     </div>
 

@@ -2,9 +2,12 @@
 <html lang="{{ $htmlLang ?? 'ar' }}" dir="{{ $htmlDir ?? 'ltr' }}" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <title>@yield('title', __('frontend.meta.title'))</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="@yield('description', __('frontend.meta.description'))">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+    @include('partials.seo-meta', [
+        'seoTitle' => trim($__env->yieldContent('title')) ?: __('frontend.meta.title'),
+        'seoDescription' => trim($__env->yieldContent('description')) ?: __('frontend.meta.description'),
+        'seoKeywords' => config('branding.seo.keywords'),
+    ])
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
@@ -52,36 +55,30 @@
         }
     </script>
 
+    <link rel="stylesheet" href="{{ asset('css/brand-logo.css') }}?v={{ filemtime(public_path('css/brand-logo.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/site-header.css') }}?v={{ filemtime(public_path('css/site-header.css')) }}">
+
     @stack('head')
 
     <style>
-        /* Mobile Menu Fix */
-        .mobile-menu-open {
-            max-height: calc(100vh - 80px) !important;
-            overflow-y: auto !important;
-        }
-
-        .mobile-menu-overlay {
+        .site-header-overlay {
             position: fixed;
-            top: 80px;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            inset: 0;
+            top: var(--site-header-height, 4.5rem);
             background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(4px);
             z-index: 40;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
-        .mobile-menu-overlay.active {
+        .site-header-overlay.active {
             opacity: 1;
             visibility: visible;
         }
 
-        /* Ensure content is hidden when menu is open */
-        body.menu-open {
+        body.site-menu-open {
             overflow: hidden;
         }
 
@@ -97,23 +94,12 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Custom scrollbar for mobile menu */
-        .mobile-menu-open::-webkit-scrollbar {
+        html {
+            scroll-padding-top: var(--site-header-height, 4.5rem);
+        }
+
+        .site-header__mobile-panel.is-open::-webkit-scrollbar {
             width: 6px;
-        }
-
-        .mobile-menu-open::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-        }
-
-        .mobile-menu-open::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }
-
-        .mobile-menu-open::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.4);
         }
     </style>
 </head>
@@ -126,84 +112,57 @@
 </div>
 
 {{-- ================= FIXED NAVBAR ================= --}}
-<header class="fixed top-0 inset-x-0 z-50 glass border-b border-slate-200 dark:border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-20">
-            {{-- Logo --}}
-            <div class="flex items-center space-x-3">
-                <div class="relative">
-                    <div class="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-                        </svg>
-                    </div>
-                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                </div>
-                <div>
-                    <span class="text-xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">TrackPro</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400 block">{{ __('frontend.meta.tagline') }}</span>
-                </div>
-            </div>
+<header id="siteHeader" class="site-header fixed top-0 inset-x-0 z-50 glass border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="site-header__inner">
+            <a href="{{ url('/') }}" class="site-header__logo" aria-label="{{ config('branding.name') }}">
+                @include('partials.brand-logo')
+            </a>
 
-            {{-- Desktop Navigation --}}
-            <nav class="hidden lg:flex items-center gap-8">
-                <a href="{{ url('/') }}" class="nav-link relative group">
-                    <span class="font-medium text-slate-700 dark:text-slate-300 group-hover:text-sky-600 transition-colors">{{ __('frontend.nav.home') }}</span>
-                    <span class="absolute -bottom-1 start-0 w-0 h-0.5 bg-gradient-to-r from-sky-500 to-blue-500 group-hover:w-full transition-all duration-300"></span>
-                </a>
-                <a href="{{ url('/') }}#features" class="nav-link relative group">
-                    <span class="font-medium text-slate-700 dark:text-slate-300 group-hover:text-sky-600 transition-colors">{{ __('frontend.nav.features') }}</span>
-                    <span class="absolute -bottom-1 start-0 w-0 h-0.5 bg-gradient-to-r from-sky-500 to-blue-500 group-hover:w-full transition-all duration-300"></span>
-                </a>
-                <a href="{{ url('/pricing') }}" class="nav-link relative group">
-                    <span class="font-medium text-slate-700 dark:text-slate-300 group-hover:text-sky-600 transition-colors">{{ __('frontend.nav.pricing') }}</span>
-                    <span class="absolute -bottom-1 start-0 w-0 h-0.5 bg-gradient-to-r from-sky-500 to-blue-500 group-hover:w-full transition-all duration-300"></span>
-                </a>
-                <a href="{{ url('/') }}#testimonials" class="nav-link relative group">
-                    <span class="font-medium text-slate-700 dark:text-slate-300 group-hover:text-sky-600 transition-colors">{{ __('frontend.nav.testimonials') }}</span>
-                    <span class="absolute -bottom-1 start-0 w-0 h-0.5 bg-gradient-to-r from-sky-500 to-blue-500 group-hover:w-full transition-all duration-300"></span>
-                </a>
-
+            <nav class="site-header__nav" aria-label="Main navigation">
+                <a href="{{ url('/') }}" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.home') }}</a>
+                <a href="{{ url('/') }}#features" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.features') }}</a>
+                <a href="{{ url('/pricing') }}" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.pricing') }}</a>
+                <a href="{{ url('/') }}#testimonials" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.testimonials') }}</a>
+                <a href="{{ url('/') }}#use-cases" class="hidden xl:inline text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.use_cases') }}</a>
                 <a href="{{ url('/demo/login') }}"
-                   class="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span>{{ __('frontend.nav.live_demo') }}</span>
-                        </span>
+                   class="site-header__demo bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] transition-all">
+                    {{ __('frontend.nav.live_demo') }}
                 </a>
             </nav>
 
-            {{-- Right Side Actions --}}
-            <div class="flex items-center gap-4">
-                @include('frontend.partials.language-toggle')
+            <div class="site-header__right">
+                <div class="site-header__tools">
+                    <div class="hidden sm:block">
+                        @include('frontend.partials.language-toggle')
+                    </div>
+                    <button type="button" id="themeToggle"
+                            class="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            aria-label="Toggle theme">
+                        <svg class="w-5 h-5 text-slate-600 dark:text-slate-400 hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                        </svg>
+                        <svg class="w-5 h-5 text-slate-600 dark:text-slate-400 block dark:hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
 
-                <button id="themeToggle"
-                        class="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
-                    <svg class="w-5 h-5 text-slate-600 dark:text-slate-400 hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
-                    </svg>
-                    <svg class="w-5 h-5 text-slate-600 dark:text-slate-400 block dark:hidden" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
-                    </svg>
-                </button>
-
-                <div class="hidden lg:flex items-center gap-3">
+                <div class="site-header__cta">
                     <a href="{{ url('login') }}"
-                       class="px-5 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                       class="site-header__cta-signin text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         {{ __('frontend.nav.sign_in') }}
                     </a>
                     <a href="{{ url('register') }}"
-                       class="px-5 py-2.5 bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                       class="site-header__cta-primary bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all">
                         {{ __('frontend.nav.get_started') }}
                     </a>
                 </div>
 
-                {{-- Mobile Menu Button --}}
-                <button id="mobileMenuBtn"
-                        class="lg:hidden w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <button type="button" id="mobileMenuBtn"
+                        class="lg:hidden w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                        aria-expanded="false"
+                        aria-controls="mobileMenu">
                     <svg id="menuIcon" class="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
@@ -213,43 +172,38 @@
                 </button>
             </div>
         </div>
-    </div>
 
-    {{-- Mobile Menu Overlay --}}
-    <div id="mobileMenuOverlay" class="mobile-menu-overlay"></div>
-
-    {{-- Mobile Menu --}}
-    <div id="mobileMenu"
-         class="lg:hidden absolute top-20 inset-x-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 max-h-0 overflow-hidden transition-all duration-300 shadow-lg">
-        <div class="px-4 py-6 space-y-4">
-            <div class="flex justify-center pb-2">
-                @include('frontend.partials.language-toggle')
-            </div>
-            <a href="{{ url('/') }}" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium">{{ __('frontend.nav.home') }}</a>
-            <a href="{{ url('/') }}#features" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium">{{ __('frontend.nav.features') }}</a>
-            <a href="{{ url('/pricing') }}" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium">{{ __('frontend.nav.pricing') }}</a>
-            <a href="{{ url('/') }}#testimonials" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium">{{ __('frontend.nav.testimonials') }}</a>
-            <a href="{{ url('/') }}#use-cases" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium">{{ __('frontend.nav.use_cases') }}</a>
-
-            <div class="pt-4 space-y-3 border-t border-slate-200 dark:border-slate-800">
-                <a href="{{ url('/demo/login') }}"
-                   class="block py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-center">
+        <div id="mobileMenu" class="site-header__mobile-panel lg:hidden bg-white dark:bg-slate-900">
+            <div class="px-4 py-5 space-y-1">
+                <div class="flex justify-center pb-3 sm:hidden">
+                    @include('frontend.partials.language-toggle')
+                </div>
+                <a href="{{ url('/') }}" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.home') }}</a>
+                <a href="{{ url('/') }}#features" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.features') }}</a>
+                <a href="{{ url('/pricing') }}" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.pricing') }}</a>
+                <a href="{{ url('/') }}#testimonials" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.testimonials') }}</a>
+                <a href="{{ url('/') }}#use-cases" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.use_cases') }}</a>
+                <a href="{{ url('/demo/login') }}" class="block py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-center">
                     {{ __('frontend.nav.live_demo') }}
                 </a>
-                <a href="{{ url('login') }}"
-                   class="block py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-center font-medium">
-                    {{ __('frontend.nav.sign_in') }}
-                </a>
-                <a href="{{ url('register') }}"
-                   class="block py-3 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold text-center">
-                    {{ __('frontend.nav.get_started') }}
-                </a>
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <div class="site-header__mobile-cta-row">
+                        <a href="{{ url('login') }}" class="border border-slate-300 dark:border-slate-600 font-medium text-slate-800 dark:text-slate-200">
+                            {{ __('frontend.nav.sign_in') }}
+                        </a>
+                        <a href="{{ url('register') }}" class="bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold">
+                            {{ __('frontend.nav.get_started') }}
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <div id="mobileMenuOverlay" class="site-header-overlay lg:hidden" aria-hidden="true"></div>
 </header>
 
-<main class="pt-20">
+<main class="site-main">
     @yield('content')
 </main>
 
@@ -267,17 +221,9 @@
         <div class="grid lg:grid-cols-4 gap-12">
             {{-- Brand --}}
             <div class="lg:col-span-1">
-                <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-12 h-12 bg-gradient-to-br from-sky-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <span class="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">TrackPro</span>
-                        <span class="text-xs text-slate-400 block">{{ __('frontend.meta.platform') }}</span>
-                    </div>
-                </div>
+                <a href="{{ url('/') }}" class="site-footer-brand inline-flex mb-6" aria-label="{{ config('branding.name') }}">
+                    @include('partials.brand-logo')
+                </a>
                 <p class="text-slate-400 text-sm">
                     {{ __('frontend.meta.footer_blurb') }}
                 </p>
@@ -340,7 +286,7 @@
         <div class="mt-12 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center">
             <div class="text-center md:text-left mb-4 md:mb-0">
                 <p class="text-slate-500 text-sm">
-                    {{ __('frontend.meta.copyright') }}
+                    {{ str_replace(':year', (string) date('Y'), __('frontend.meta.copyright')) }}
                 </p>
                 <p class="text-slate-600 text-xs mt-1">
                     {{ __('frontend.meta.trademark') }}
@@ -374,6 +320,15 @@
 
     applyTheme();
 
+    function syncSiteHeaderHeight() {
+        const header = document.getElementById('siteHeader');
+        if (!header) return;
+        document.documentElement.style.setProperty('--site-header-height', header.offsetHeight + 'px');
+    }
+
+    syncSiteHeaderHeight();
+    window.addEventListener('resize', syncSiteHeaderHeight);
+
     // Mobile Menu Functionality
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileMenu = document.getElementById('mobileMenu');
@@ -382,59 +337,36 @@
     const closeIcon = document.getElementById('closeIcon');
     const body = document.body;
 
-    mobileMenuBtn.addEventListener('click', () => {
-        const isOpen = mobileMenu.classList.contains('mobile-menu-open');
-
-        if (isOpen) {
-            // Close menu
-            mobileMenu.classList.remove('mobile-menu-open');
-            mobileMenu.style.maxHeight = '0';
-            mobileMenuOverlay.classList.remove('active');
-            body.classList.remove('menu-open');
-            menuIcon.classList.remove('hidden');
-            closeIcon.classList.add('hidden');
-        } else {
-            // Open menu
-            mobileMenu.classList.add('mobile-menu-open');
-            mobileMenu.style.maxHeight = 'calc(100vh - 80px)';
-            mobileMenuOverlay.classList.add('active');
-            body.classList.add('menu-open');
-            menuIcon.classList.add('hidden');
-            closeIcon.classList.remove('hidden');
+    function setMobileMenuOpen(open) {
+        if (!mobileMenu || !mobileMenuBtn) return;
+        mobileMenu.classList.toggle('is-open', open);
+        mobileMenuOverlay?.classList.toggle('active', open);
+        body.classList.toggle('site-menu-open', open);
+        mobileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        menuIcon?.classList.toggle('hidden', open);
+        closeIcon?.classList.toggle('hidden', !open);
+        if (open) {
+            syncSiteHeaderHeight();
         }
+    }
+
+    function closeMobileMenu() {
+        setMobileMenuOpen(false);
+    }
+
+    mobileMenuBtn?.addEventListener('click', () => {
+        setMobileMenuOpen(!mobileMenu.classList.contains('is-open'));
     });
 
-    // Close menu when clicking overlay
-    mobileMenuOverlay.addEventListener('click', () => {
-        mobileMenu.classList.remove('mobile-menu-open');
-        mobileMenu.style.maxHeight = '0';
-        mobileMenuOverlay.classList.remove('active');
-        body.classList.remove('menu-open');
-        menuIcon.classList.remove('hidden');
-        closeIcon.classList.add('hidden');
-    });
+    mobileMenuOverlay?.addEventListener('click', closeMobileMenu);
 
-    // Close menu when clicking links
     document.querySelectorAll('#mobileMenu a').forEach(link => {
-        link.addEventListener('click', () => {
-            mobileMenu.classList.remove('mobile-menu-open');
-            mobileMenu.style.maxHeight = '0';
-            mobileMenuOverlay.classList.remove('active');
-            body.classList.remove('menu-open');
-            menuIcon.classList.remove('hidden');
-            closeIcon.classList.add('hidden');
-        });
+        link.addEventListener('click', closeMobileMenu);
     });
 
-    // Close menu on escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && mobileMenu.classList.contains('mobile-menu-open')) {
-            mobileMenu.classList.remove('mobile-menu-open');
-            mobileMenu.style.maxHeight = '0';
-            mobileMenuOverlay.classList.remove('active');
-            body.classList.remove('menu-open');
-            menuIcon.classList.remove('hidden');
-            closeIcon.classList.add('hidden');
+        if (e.key === 'Escape' && mobileMenu?.classList.contains('is-open')) {
+            closeMobileMenu();
         }
     });
 
@@ -447,16 +379,7 @@
             e.preventDefault();
             const target = document.querySelector(href);
             if (target) {
-                // Close mobile menu if open
-                if (mobileMenu.classList.contains('mobile-menu-open')) {
-                    mobileMenu.classList.remove('mobile-menu-open');
-                    mobileMenu.style.maxHeight = '0';
-                    mobileMenuOverlay.classList.remove('active');
-                    body.classList.remove('menu-open');
-                    menuIcon.classList.remove('hidden');
-                    closeIcon.classList.add('hidden');
-                }
-
+                closeMobileMenu();
                 target.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start'

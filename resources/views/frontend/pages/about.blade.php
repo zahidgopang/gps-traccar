@@ -53,7 +53,7 @@
                         [
                             'year' => '2015',
                             'title' => 'Company Founded',
-                            'desc' => 'TrackPro GPS established with focus on real-time GPS tracking',
+                            'desc' => 'FalconEyeGPS established with focus on real-time GPS tracking',
                             'align' => 'left'
                         ],
                         [

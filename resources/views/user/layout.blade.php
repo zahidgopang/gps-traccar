@@ -7,17 +7,9 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- ========== SEO ESSENTIALS ========== -->
-    <title>@yield('title','GPS Tracker Pro - Live Tracking')</title>
-
-    <meta name="description" content="Real-time GPS tracking system with live location monitoring, route history, and advanced geofencing.">
-    <meta name="keywords" content="Live GPS Tracking, Real-time Vehicle Tracking, Location Monitoring, Fleet Management">
-    <meta name="author" content="GPS Tracker Pro">
-
-    <!-- ========== FAVICON SETUP ========== -->
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/favicon.png') }}">
-    <meta name="theme-color" content="#0A0F2D">
+    @include('partials.seo-meta', [
+        'seoTitle' => trim($__env->yieldContent('title')) ?: config('branding.seo.default_title'),
+    ])
 
     <!-- CSS -->
     @include('partials.head-core')
@@ -51,14 +43,14 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            padding-top: 70px; /* Add padding for fixed navbar */
+            padding-top: var(--app-nav-height, 204px);
         }
 
         .content-wrap {
             width: 100%;
             margin: 0;
             padding: 0;
-            height: calc(100vh - 70px); /* Full height minus navbar */
+            height: calc(100vh - var(--app-nav-height, 204px));
             overflow-y: auto; /* Allow content scrolling if needed */
         }
 
@@ -82,7 +74,8 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
             padding: 1rem 1.5rem;
-            height: 70px;
+            min-height: var(--app-nav-height, 204px);
+            height: auto;
             z-index: 1000;
             position: fixed; /* Keep it fixed */
             top: 0;
@@ -110,13 +103,10 @@
             gap: 0.75rem;
         }
 
-        .navbar-brand img {
-            height: 32px;
-            transition: transform 0.3s ease;
-        }
-
-        .navbar-brand:hover img {
-            transform: scale(1.1);
+        .navbar-brand:hover .brand-logo,
+        .map-nav-logo:hover .brand-logo {
+            transform: scale(1.02);
+            transition: transform 0.2s ease;
         }
 
         /* Sidebar Toggle Button */
@@ -177,10 +167,8 @@
             align-items: center;
             line-height: 0;
         }
-        .map-nav-logo img {
-            height: 28px;
-            width: auto;
-            opacity: 0.95;
+        .map-nav-logo .brand-logo {
+            opacity: 0.98;
         }
         .map-nav-device-row {
             display: flex;
@@ -649,7 +637,7 @@
             </button>
             <div class="map-nav-content">
                 <a href="{{ ($isAdminMap ?? false) ? route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') : route('user.dashboard') }}" class="map-nav-logo" title="{{ ($isAdminMap ?? false) ? __('app.admin.locations.title') : __('app.common.dashboard') }}">
-                    <img src="{{ asset('images/logo.png') }}" alt="GPS Tracker Pro">
+                    @include('partials.brand-logo', ['size' => 'lg', 'onDark' => true])
                 </a>
                 <div class="map-nav-device-row">
                     <h1 class="map-nav-title">{{ $device->mapDisplayTitle() }}</h1>
@@ -675,9 +663,8 @@
             <button type="button" id="toggleSidebar" aria-label="{{ __('app.forms.toggle_sidebar') }}">
                 <i class="fas fa-sliders-h"></i>
             </button>
-            <a class="navbar-brand" href="{{ route('user.dashboard') }}">
-                <img src="{{ asset('images/logo.png') }}" alt="GPS Tracker Pro">
-                <span>{{ __('app.brand') }}</span>
+            <a class="navbar-brand" href="{{ route('user.dashboard') }}" aria-label="{{ __('app.common.dashboard') }}">
+                @include('partials.brand-logo', ['size' => 'lg', 'onDark' => true])
             </a>
         @endif
     </div>

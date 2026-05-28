@@ -1,7 +1,7 @@
-GPS Tracker — Clean ZIP v2 (Full Blade Views)
+FalconEyeGPS — Clean ZIP v2 (Full Blade Views)
 =============================================
 
-This archive contains only the custom application files for the GPS Tracker project.
+This archive contains only the custom application files for the FalconEyeGPS project.
 DO NOT copy Laravel core files from this ZIP. Instead, create a fresh Laravel 12 project
 and then copy these files into it (overwriting the matching app files).
 

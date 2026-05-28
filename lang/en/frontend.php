@@ -2,13 +2,13 @@
 
 return [
     'meta' => [
-        'title' => 'TrackPro – Enterprise GPS Tracking Platform',
-        'description' => 'AI-powered fleet management with real-time GPS tracking, predictive analytics, and automated optimization',
-        'tagline' => 'Enterprise GPS',
-        'platform' => 'Enterprise GPS Platform',
-        'footer_blurb' => 'AI-powered fleet management with real-time GPS tracking for enterprises worldwide.',
-        'copyright' => '© 2024 TrackPro GPS. All rights reserved. Patents pending.',
-        'trademark' => 'TrackPro is a registered trademark of TrackPro Technologies Inc.',
+        'title' => 'FalconEyeGPS — Live GPS, Vehicle & Fleet Tracking',
+        'description' => 'FalconEyeGPS delivers real-time GPS tracking, vehicle monitoring, fleet management, live location, route history, and geofencing.',
+        'tagline' => 'Live GPS & Fleet Tracking',
+        'platform' => 'FalconEyeGPS Platform',
+        'footer_blurb' => 'FalconEyeGPS — real-time GPS tracking and fleet management for businesses worldwide.',
+        'copyright' => '© :year FalconEyeGPS. All rights reserved.',
+        'trademark' => 'FalconEyeGPS',
     ],
 
     'nav' => [
@@ -62,7 +62,7 @@ return [
     'home' => [
         'why_badge' => 'ENTERPRISE-GRADE',
         'why_title' => 'Why Industry Leaders',
-        'why_title_highlight' => 'Choose TrackPro',
+        'why_title_highlight' => 'Choose FalconEyeGPS',
         'why_subtitle' => 'Built with cutting-edge technology for mission-critical fleet operations',
         'precision_title' => 'Real-Time Precision',
         'precision_desc' => 'Sub-second GPS updates with centimeter-level accuracy using multi-constellation satellite systems.',
@@ -83,7 +83,7 @@ return [
         'cta_badge' => 'Trusted by 10,000+ fleets worldwide',
         'cta_title' => 'Ready to Transform Your',
         'cta_title_highlight' => 'Fleet Operations?',
-        'cta_subtitle' => 'Join industry leaders who trust TrackPro for mission-critical GPS tracking and fleet management.',
+        'cta_subtitle' => 'Join industry leaders who trust FalconEyeGPS for mission-critical GPS tracking and fleet management.',
         'cta_trial' => 'Start Free 30-Day Trial',
         'cta_demo' => 'Schedule a Demo',
         'cta_trusted' => 'Trusted by industry leaders:',
@@ -96,7 +96,7 @@ return [
         'subtitle' => 'Comprehensive suite of features designed for modern fleet management',
         'learn_more' => 'Learn more',
         'demo_title' => 'Experience Real-Time Tracking',
-        'demo_desc' => 'See how TrackPro transforms fleet management with interactive dashboards, live maps, and predictive analytics.',
+        'demo_desc' => 'See how FalconEyeGPS transforms fleet management with interactive dashboards, live maps, and predictive analytics.',
         'demo_btn' => 'Launch Interactive Demo',
         'active_vehicles' => 'Active Vehicles',
         'uptime_month' => 'Uptime This Month',
@@ -153,14 +153,14 @@ return [
         'badge' => 'TRUSTED BY INDUSTRY LEADERS',
         'title' => 'What Our',
         'title_highlight' => 'Customers Say',
-        'subtitle' => 'Join thousands of businesses that transformed their fleet operations with TrackPro',
+        'subtitle' => 'Join thousands of businesses that transformed their fleet operations with FalconEyeGPS',
         'items' => [
             [
                 'name' => 'Michael Rodriguez',
                 'role' => 'Fleet Operations Director',
                 'company' => 'Global Logistics Inc.',
                 'logo' => '🚚',
-                'content' => 'TrackPro reduced our fuel costs by 23% in the first quarter alone. The predictive maintenance alerts have saved us over $150,000 in unexpected repairs.',
+                'content' => 'FalconEyeGPS reduced our fuel costs by 23% in the first quarter alone. The predictive maintenance alerts have saved us over $150,000 in unexpected repairs.',
                 'metrics' => ['Fuel Savings: 23%', 'Uptime: 99.9%', 'ROI: 4.2x'],
             ],
             [
@@ -186,7 +186,7 @@ return [
         'badge' => 'INDUSTRY SOLUTIONS',
         'title' => 'Trusted Across',
         'title_highlight' => 'Every Industry',
-        'subtitle' => 'From small fleets to global enterprises, TrackPro delivers measurable ROI across all sectors',
+        'subtitle' => 'From small fleets to global enterprises, FalconEyeGPS delivers measurable ROI across all sectors',
         'explore' => 'Explore Solution',
         'items' => [
             [
@@ -221,7 +221,7 @@ return [
     ],
 
     'pricing' => [
-        'title' => 'Pricing – TrackPro Enterprise GPS Platform',
+        'title' => 'Pricing – FalconEyeGPS Enterprise GPS Platform',
         'description' => 'Flexible, transparent pricing for GPS tracking and fleet management',
         'badge' => 'SIMPLE, TRANSPARENT PRICING',
         'heading' => 'Plans for',
@@ -250,11 +250,11 @@ return [
         'regular_updates' => 'Regular Updates',
         'regular_updates_desc' => 'New features & improvements',
         'faq_title' => 'Frequently Asked Questions',
-        'faq_subtitle' => 'Everything you need to know about TrackPro',
+        'faq_subtitle' => 'Everything you need to know about FalconEyeGPS',
         'still_have_questions' => 'Still have questions?',
         'contact_support' => 'Contact Support',
         'cta_title' => 'Ready to Transform Your Fleet Operations?',
-        'cta_subtitle' => 'Join 10,000+ companies that trust TrackPro for mission-critical tracking.',
+        'cta_subtitle' => 'Join 10,000+ companies that trust FalconEyeGPS for mission-critical tracking.',
         'start_trial' => 'Start Free 30-Day Trial',
         'schedule_demo' => 'Schedule a Demo',
         'cta_footer' => 'No credit card required • Free onboarding • 24/7 support included',
@@ -265,14 +265,14 @@ return [
             ],
             [
                 'q' => 'What GPS devices are supported?',
-                'a' => 'TrackPro supports all major GPS protocols including GT06, TK103, LTE Cat-1, and most IoT devices. We provide detailed setup guides for over 200 devices.',
+                'a' => 'FalconEyeGPS supports all major GPS protocols including GT06, TK103, LTE Cat-1, and most IoT devices. We provide detailed setup guides for over 200 devices.',
             ],
             [
                 'q' => 'Can I cancel my subscription anytime?',
                 'a' => 'Absolutely. There are no long-term contracts. You can cancel anytime from your account settings, and we\'ll process any prorated refunds immediately.',
             ],
             [
-                'q' => 'Is my data secure with TrackPro?',
+                'q' => 'Is my data secure with FalconEyeGPS?',
                 'a' => 'Yes. We use AES-256 encryption, maintain SOC 2 Type II compliance, and follow GDPR guidelines. Your data is never shared with third parties.',
             ],
             [
@@ -287,7 +287,7 @@ return [
     ],
 
     'contact' => [
-        'title' => 'Contact Us – TrackPro GPS Tracking',
+        'title' => 'Contact Us – FalconEyeGPS Tracking',
         'description' => 'Get in touch with our GPS tracking experts. 24/7 support for fleet management solutions.',
         'badge' => 'GET IN TOUCH',
         'heading' => "Let's",
@@ -299,25 +299,25 @@ return [
 
     'pages' => [
         'about' => [
-            'title' => 'About Us – TrackPro GPS Tracking',
-            'description' => 'Learn about TrackPro GPS history, leadership team, and our journey in revolutionizing fleet management.',
+            'title' => 'About Us – FalconEyeGPS Tracking',
+            'description' => 'Learn about FalconEyeGPS history, leadership team, and our journey in revolutionizing fleet management.',
             'badge' => 'OUR STORY',
             'heading' => 'Pioneering',
             'heading_highlight' => 'GPS Innovation',
-            'intro' => 'Founded in 2015, TrackPro GPS began with a simple mission: to make fleet management smarter, safer, and more efficient.',
+            'intro' => 'Founded in 2015, FalconEyeGPS began with a simple mission: to make fleet management smarter, safer, and more efficient.',
             'years' => 'Years of Innovation',
         ],
-        'company' => ['title' => 'Company – TrackPro', 'description' => 'TrackPro company information'],
-        'careers' => ['title' => 'Careers – TrackPro', 'description' => 'Join the TrackPro team'],
-        'press' => ['title' => 'Press – TrackPro', 'description' => 'TrackPro press and media'],
-        'blog' => ['title' => 'Blog – TrackPro', 'description' => 'Fleet management insights and news'],
-        'help' => ['title' => 'Help Center – TrackPro', 'description' => 'Get help with TrackPro GPS tracking'],
-        'docs' => ['title' => 'Documentation – TrackPro', 'description' => 'TrackPro developer and user documentation'],
-        'api' => ['title' => 'API Reference – TrackPro', 'description' => 'TrackPro REST API documentation'],
-        'status' => ['title' => 'System Status – TrackPro', 'description' => 'TrackPro platform status and uptime'],
-        'terms' => ['title' => 'Terms of Service – TrackPro', 'description' => 'TrackPro terms of service'],
-        'privacy' => ['title' => 'Privacy Policy – TrackPro', 'description' => 'TrackPro privacy policy'],
-        'security' => ['title' => 'Security – TrackPro', 'description' => 'TrackPro security practices'],
-        'cookies' => ['title' => 'Cookie Policy – TrackPro', 'description' => 'TrackPro cookie policy'],
+        'company' => ['title' => 'Company – FalconEyeGPS', 'description' => 'FalconEyeGPS company information'],
+        'careers' => ['title' => 'Careers – FalconEyeGPS', 'description' => 'Join the FalconEyeGPS team'],
+        'press' => ['title' => 'Press – FalconEyeGPS', 'description' => 'FalconEyeGPS press and media'],
+        'blog' => ['title' => 'Blog – FalconEyeGPS', 'description' => 'Fleet management insights and news'],
+        'help' => ['title' => 'Help Center – FalconEyeGPS', 'description' => 'Get help with FalconEyeGPS tracking'],
+        'docs' => ['title' => 'Documentation – FalconEyeGPS', 'description' => 'FalconEyeGPS developer and user documentation'],
+        'api' => ['title' => 'API Reference – FalconEyeGPS', 'description' => 'FalconEyeGPS REST API documentation'],
+        'status' => ['title' => 'System Status – FalconEyeGPS', 'description' => 'FalconEyeGPS platform status and uptime'],
+        'terms' => ['title' => 'Terms of Service – FalconEyeGPS', 'description' => 'FalconEyeGPS terms of service'],
+        'privacy' => ['title' => 'Privacy Policy – FalconEyeGPS', 'description' => 'FalconEyeGPS privacy policy'],
+        'security' => ['title' => 'Security – FalconEyeGPS', 'description' => 'FalconEyeGPS security practices'],
+        'cookies' => ['title' => 'Cookie Policy – FalconEyeGPS', 'description' => 'FalconEyeGPS cookie policy'],
     ],
 ];

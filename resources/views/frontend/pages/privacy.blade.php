@@ -2,7 +2,7 @@
 @extends('frontend.layout')
 
 @section('title', __('frontend.pages.privacy.title'))
-@section('description', 'TrackPro GPS privacy policy. Learn how we collect, use, and protect your data.')
+@section('description', 'FalconEyeGPS privacy policy. Learn how we collect, use, and protect your data.')
 
 @section('content')
 
@@ -31,10 +31,10 @@
                 <div class="mb-12">
                     <h2 class="text-3xl font-bold mb-6">1. Introduction</h2>
                     <p class="text-slate-600 dark:text-slate-400 mb-4">
-                        TrackPro GPS ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our GPS tracking platform and services.
+                        FalconEyeGPS ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our GPS tracking platform and services.
                     </p>
                     <p class="text-slate-600 dark:text-slate-400">
-                        By using TrackPro GPS, you agree to the collection and use of information in accordance with this policy. If you have any questions about this Privacy Policy, please contact us.
+                        By using FalconEyeGPS, you agree to the collection and use of information in accordance with this policy. If you have any questions about this Privacy Policy, please contact us.
                     </p>
                 </div>
 
@@ -217,7 +217,7 @@
                 <div class="mb-12">
                     <h2 class="text-3xl font-bold mb-6">7. International Data Transfers</h2>
                     <p class="text-slate-600 dark:text-slate-400">
-                        TrackPro GPS operates globally. Your information may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place for international data transfers, including Standard Contractual Clauses and Privacy Shield frameworks where applicable.
+                        FalconEyeGPS operates globally. Your information may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place for international data transfers, including Standard Contractual Clauses and Privacy Shield frameworks where applicable.
                     </p>
                 </div>
 
@@ -249,7 +249,7 @@
                         </p>
                         <div class="space-y-2">
                             <p class="text-slate-700 dark:text-slate-300">
-                                <strong>Email:</strong> privacy@trackpro.com
+                                <strong>Email:</strong> privacy@falconeyegps.com
                             </p>
                             <p class="text-slate-700 dark:text-slate-300">
                                 <strong>Phone:</strong> +1 (555) 123-4567

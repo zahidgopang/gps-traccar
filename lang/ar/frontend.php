@@ -2,13 +2,13 @@
 
 return [
     'meta' => [
-        'title' => 'TrackPro – منصة تتبع GPS للمؤسسات',
-        'description' => 'إدارة أساطيل مدعومة بالذكاء الاصطناعي مع تتبع GPS فوري وتحليلات تنبؤية وتحسين تلقائي',
-        'tagline' => 'GPS للمؤسسات',
-        'platform' => 'منصة GPS للمؤسسات',
-        'footer_blurb' => 'إدارة أساطيل مدعومة بالذكاء الاصطناعي مع تتبع GPS فوري للمؤسسات حول العالم.',
-        'copyright' => '© 2024 TrackPro GPS. جميع الحقوق محفوظة.',
-        'trademark' => 'TrackPro علامة تجارية مسجلة لشركة TrackPro Technologies Inc.',
+        'title' => 'FalconEyeGPS — تتبع GPS والمركبات والأساطيل',
+        'description' => 'FalconEyeGPS يوفر تتبع GPS فوري، مراقبة المركبات، إدارة الأساطيل، الموقع المباشر، وسجل المسارات.',
+        'tagline' => 'تتبع GPS والأساطيل',
+        'platform' => 'منصة FalconEyeGPS',
+        'footer_blurb' => 'FalconEyeGPS — تتبع GPS فوري وإدارة أساطيل للشركات حول العالم.',
+        'copyright' => '© :year FalconEyeGPS. جميع الحقوق محفوظة.',
+        'trademark' => 'FalconEyeGPS',
     ],
 
     'nav' => [
@@ -62,7 +62,7 @@ return [
     'home' => [
         'why_badge' => 'مستوى المؤسسات',
         'why_title' => 'لماذا يختار قادة الصناعة',
-        'why_title_highlight' => 'TrackPro',
+        'why_title_highlight' => 'FalconEyeGPS',
         'why_subtitle' => 'مبني بتقنية متطورة لعمليات الأساطيل الحرجة',
         'precision_title' => 'دقة فورية',
         'precision_desc' => 'تحديثات GPS أقل من ثانية بدقة على مستوى السنتيمتر باستخدام أنظمة أقمار متعددة.',
@@ -83,7 +83,7 @@ return [
         'cta_badge' => 'موثوق من أكثر من 10,000 أسطول حول العالم',
         'cta_title' => 'هل أنت مستعد لتحويل',
         'cta_title_highlight' => 'عمليات أسطولك؟',
-        'cta_subtitle' => 'انضم إلى قادة الصناعة الذين يثقون بـ TrackPro لتتبع GPS وإدارة الأساطيل الحرجة.',
+        'cta_subtitle' => 'انضم إلى قادة الصناعة الذين يثقون بـ FalconEyeGPS لتتبع GPS وإدارة الأساطيل الحرجة.',
         'cta_trial' => 'ابدأ تجربة مجانية 30 يوماً',
         'cta_demo' => 'احجز عرضاً',
         'cta_trusted' => 'موثوق من قادة الصناعة:',
@@ -96,7 +96,7 @@ return [
         'subtitle' => 'مجموعة شاملة من الميزات مصممة لإدارة الأساطيل الحديثة',
         'learn_more' => 'اعرف المزيد',
         'demo_title' => 'جرّب التتبع الفوري',
-        'demo_desc' => 'اكتشف كيف يحوّل TrackPro إدارة الأساطيل بلوحات تفاعلية وخرائط حية وتحليلات تنبؤية.',
+        'demo_desc' => 'اكتشف كيف يحوّل FalconEyeGPS إدارة الأساطيل بلوحات تفاعلية وخرائط حية وتحليلات تنبؤية.',
         'demo_btn' => 'تشغيل العرض التفاعلي',
         'active_vehicles' => 'المركبات النشطة',
         'uptime_month' => 'وقت التشغيل هذا الشهر',
@@ -153,14 +153,14 @@ return [
         'badge' => 'موثوق من قادة الصناعة',
         'title' => 'ماذا يقول',
         'title_highlight' => 'عملاؤنا',
-        'subtitle' => 'انضم إلى آلاف الشركات التي حوّلت عمليات أساطيلها مع TrackPro',
+        'subtitle' => 'انضم إلى آلاف الشركات التي حوّلت عمليات أساطيلها مع FalconEyeGPS',
         'items' => [
             [
                 'name' => 'مايكل رودريغيز',
                 'role' => 'مدير عمليات الأسطول',
                 'company' => 'Global Logistics Inc.',
                 'logo' => '🚚',
-                'content' => 'خفّض TrackPro تكاليف الوقود لدينا 23% في الربع الأول فقط. تنبيهات الصيانة التنبؤية وفّرت أكثر من 150,000 دولار من الإصلاحات غير المتوقعة.',
+                'content' => 'خفّض FalconEyeGPS تكاليف الوقود لدينا 23% في الربع الأول فقط. تنبيهات الصيانة التنبؤية وفّرت أكثر من 150,000 دولار من الإصلاحات غير المتوقعة.',
                 'metrics' => ['توفير الوقود: 23%', 'وقت التشغيل: 99.9%', 'العائد: 4.2x'],
             ],
             [
@@ -186,7 +186,7 @@ return [
         'badge' => 'حلول القطاعات',
         'title' => 'موثوق في',
         'title_highlight' => 'كل قطاع',
-        'subtitle' => 'من الأساطيل الصغيرة إلى المؤسسات العالمية، يقدّم TrackPro عائداً قابلاً للقياس في كل القطاعات',
+        'subtitle' => 'من الأساطيل الصغيرة إلى المؤسسات العالمية، يقدّم FalconEyeGPS عائداً قابلاً للقياس في كل القطاعات',
         'explore' => 'استكشف الحل',
         'items' => [
             [
@@ -221,7 +221,7 @@ return [
     ],
 
     'pricing' => [
-        'title' => 'الأسعار – TrackPro منصة GPS للمؤسسات',
+        'title' => 'الأسعار – FalconEyeGPS منصة GPS للمؤسسات',
         'description' => 'أسعار مرنة وشفافة لتتبع GPS وإدارة الأساطيل',
         'badge' => 'أسعار بسيطة وشفافة',
         'heading' => 'خطط لكل',
@@ -250,11 +250,11 @@ return [
         'regular_updates' => 'تحديثات منتظمة',
         'regular_updates_desc' => 'ميزات وتحسينات جديدة',
         'faq_title' => 'الأسئلة الشائعة',
-        'faq_subtitle' => 'كل ما تحتاج معرفته عن TrackPro',
+        'faq_subtitle' => 'كل ما تحتاج معرفته عن FalconEyeGPS',
         'still_have_questions' => 'لا تزال لديك أسئلة؟',
         'contact_support' => 'تواصل مع الدعم',
         'cta_title' => 'هل أنت مستعد لتحويل عمليات أسطولك؟',
-        'cta_subtitle' => 'انضم إلى أكثر من 10,000 شركة تثق بـ TrackPro للتتبع الحرج.',
+        'cta_subtitle' => 'انضم إلى أكثر من 10,000 شركة تثق بـ FalconEyeGPS للتتبع الحرج.',
         'start_trial' => 'ابدأ تجربة مجانية 30 يوماً',
         'schedule_demo' => 'احجز عرضاً توضيحياً',
         'cta_footer' => 'لا حاجة لبطاقة ائتمان • إعداد مجاني • دعم على مدار الساعة',
@@ -265,14 +265,14 @@ return [
             ],
             [
                 'q' => 'ما أجهزة GPS المدعومة؟',
-                'a' => 'يدعم TrackPro جميع بروتوكولات GPS الرئيسية بما في ذلك GT06 و TK103 و LTE Cat-1 ومعظم أجهزة IoT. نوفر أدلة إعداد مفصلة لأكثر من 200 جهاز.',
+                'a' => 'يدعم FalconEyeGPS جميع بروتوكولات GPS الرئيسية بما في ذلك GT06 و TK103 و LTE Cat-1 ومعظم أجهزة IoT. نوفر أدلة إعداد مفصلة لأكثر من 200 جهاز.',
             ],
             [
                 'q' => 'هل يمكنني إلغاء الاشتراك في أي وقت؟',
                 'a' => 'بالتأكيد. لا توجد عقود طويلة الأجل. يمكنك الإلغاء في أي وقت من إعدادات حسابك، ونعالج أي مبالغ مستردة تناسبية فوراً.',
             ],
             [
-                'q' => 'هل بياناتي آمنة مع TrackPro؟',
+                'q' => 'هل بياناتي آمنة مع FalconEyeGPS؟',
                 'a' => 'نعم. نستخدم تشفير AES-256، ونلتزم بمعيار SOC 2 Type II، ونتبع إرشادات GDPR. لا تُشارك بياناتك مع أطراف ثالثة.',
             ],
             [
@@ -287,7 +287,7 @@ return [
     ],
 
     'contact' => [
-        'title' => 'اتصل بنا – TrackPro GPS',
+        'title' => 'اتصل بنا – FalconEyeGPS',
         'description' => 'تواصل مع خبراء تتبع GPS. دعم على مدار الساعة لحلول إدارة الأساطيل.',
         'badge' => 'تواصل معنا',
         'heading' => 'لن',
@@ -299,25 +299,25 @@ return [
 
     'pages' => [
         'about' => [
-            'title' => 'من نحن – TrackPro GPS',
-            'description' => 'تعرّف على تاريخ TrackPro GPS وفريق القيادة ورحلتنا في إحداث ثورة بإدارة الأساطيل.',
+            'title' => 'من نحن – FalconEyeGPS',
+            'description' => 'تعرّف على تاريخ FalconEyeGPS وفريق القيادة ورحلتنا في إحداث ثورة بإدارة الأساطيل.',
             'badge' => 'قصتنا',
             'heading' => 'ريادة',
             'heading_highlight' => 'ابتكار GPS',
-            'intro' => 'تأسست TrackPro GPS عام 2015 بمهمة بسيطة: جعل إدارة الأساطيل أذكى وأكثر أماناً وكفاءة.',
+            'intro' => 'تأسست FalconEyeGPS عام 2015 بمهمة بسيطة: جعل إدارة الأساطيل أذكى وأكثر أماناً وكفاءة.',
             'years' => 'سنوات من الابتكار',
         ],
-        'company' => ['title' => 'الشركة – TrackPro', 'description' => 'معلومات شركة TrackPro'],
-        'careers' => ['title' => 'الوظائف – TrackPro', 'description' => 'انضم إلى فريق TrackPro'],
-        'press' => ['title' => 'الصحافة – TrackPro', 'description' => 'أخبار TrackPro ووسائل الإعلام'],
-        'blog' => ['title' => 'المدونة – TrackPro', 'description' => 'رؤى وأخبار إدارة الأساطيل'],
-        'help' => ['title' => 'مركز المساعدة – TrackPro', 'description' => 'احصل على مساعدة مع تتبع TrackPro GPS'],
-        'docs' => ['title' => 'التوثيق – TrackPro', 'description' => 'توثيق المطورين والمستخدمين لـ TrackPro'],
-        'api' => ['title' => 'مرجع API – TrackPro', 'description' => 'توثيق TrackPro REST API'],
-        'status' => ['title' => 'حالة النظام – TrackPro', 'description' => 'حالة منصة TrackPro ووقت التشغيل'],
-        'terms' => ['title' => 'شروط الخدمة – TrackPro', 'description' => 'شروط خدمة TrackPro'],
-        'privacy' => ['title' => 'سياسة الخصوصية – TrackPro', 'description' => 'سياسة خصوصية TrackPro'],
-        'security' => ['title' => 'الأمان – TrackPro', 'description' => 'ممارسات أمان TrackPro'],
-        'cookies' => ['title' => 'سياسة ملفات تعريف الارتباط – TrackPro', 'description' => 'سياسة ملفات تعريف الارتباط لـ TrackPro'],
+        'company' => ['title' => 'الشركة – FalconEyeGPS', 'description' => 'معلومات شركة FalconEyeGPS'],
+        'careers' => ['title' => 'الوظائف – FalconEyeGPS', 'description' => 'انضم إلى فريق FalconEyeGPS'],
+        'press' => ['title' => 'الصحافة – FalconEyeGPS', 'description' => 'أخبار FalconEyeGPS ووسائل الإعلام'],
+        'blog' => ['title' => 'المدونة – FalconEyeGPS', 'description' => 'رؤى وأخبار إدارة الأساطيل'],
+        'help' => ['title' => 'مركز المساعدة – FalconEyeGPS', 'description' => 'احصل على مساعدة مع تتبع FalconEyeGPS'],
+        'docs' => ['title' => 'التوثيق – FalconEyeGPS', 'description' => 'توثيق المطورين والمستخدمين لـ FalconEyeGPS'],
+        'api' => ['title' => 'مرجع API – FalconEyeGPS', 'description' => 'توثيق FalconEyeGPS REST API'],
+        'status' => ['title' => 'حالة النظام – FalconEyeGPS', 'description' => 'حالة منصة FalconEyeGPS ووقت التشغيل'],
+        'terms' => ['title' => 'شروط الخدمة – FalconEyeGPS', 'description' => 'شروط خدمة FalconEyeGPS'],
+        'privacy' => ['title' => 'سياسة الخصوصية – FalconEyeGPS', 'description' => 'سياسة خصوصية FalconEyeGPS'],
+        'security' => ['title' => 'الأمان – FalconEyeGPS', 'description' => 'ممارسات أمان FalconEyeGPS'],
+        'cookies' => ['title' => 'سياسة ملفات تعريف الارتباط – FalconEyeGPS', 'description' => 'سياسة ملفات تعريف الارتباط لـ FalconEyeGPS'],
     ],
 ];

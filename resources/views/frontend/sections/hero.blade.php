@@ -204,7 +204,7 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold text-white">TrackPro Product Tour</h3>
+                            <h3 class="text-xl font-bold text-white">FalconEyeGPS Product Tour</h3>
                             <p class="text-sm text-slate-300">See how we transform fleet management</p>
                         </div>
                     </div>
@@ -382,8 +382,8 @@
     }
 
     function shareVideo() {
-        const title = 'TrackPro Product Tour';
-        const text = 'Check out the TrackPro Fleet Management product tour!';
+        const title = 'FalconEyeGPS Product Tour';
+        const text = 'Check out the FalconEyeGPS Fleet Management product tour!';
 
         if (navigator.share) {
             navigator.share({ title, text, url: videoUrl });

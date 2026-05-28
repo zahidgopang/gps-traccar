@@ -74,7 +74,7 @@
                 <div>
                     <h3 class="text-2xl font-bold text-white mb-4">Need a Custom Solution?</h3>
                     <p class="text-slate-300 mb-6">
-                        Our enterprise team can customize TrackPro to fit your specific workflow, integrate with existing systems, and deliver tailored reporting.
+                        Our enterprise team can customize FalconEyeGPS to fit your specific workflow, integrate with existing systems, and deliver tailored reporting.
                     </p>
                     <a href="{{ url('/contact') }}"
                        class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all">
