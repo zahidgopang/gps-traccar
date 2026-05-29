@@ -31,10 +31,16 @@ class TraccarSyncService
         $devicesTable = config('traccar.tables.devices', 'tc_devices');
         $existing = $this->validatedTraccarId($devicesTable, TraccarEntityMap::TYPE_DEVICE, $device->id);
 
-        $attributes = TraccarAttributes::encode(array_filter([
-            'device_type' => $device->device_type,
-            'description' => $device->description,
-        ], fn ($v) => $v !== null && $v !== ''));
+        $existingAttrs = [];
+        if ($existing) {
+            $existingAttrs = TraccarAttributes::decode(
+                (string) DB::table($devicesTable)->where('id', $existing)->value('attributes')
+            );
+        }
+
+        $attributes = TraccarAttributes::encode(
+            array_merge($existingAttrs, $device->traccarSyncAttributes())
+        );
 
         $payload = [
             'name' => $device->name ?: $device->imei,

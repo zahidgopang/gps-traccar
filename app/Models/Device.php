@@ -7,6 +7,7 @@ use App\Models\Concerns\HasTraccarUserAssignment;
 use App\Models\Concerns\UsesTcTable;
 use App\Services\Traccar\TraccarDeviceAccessService;
 use App\Support\Traccar\TraccarAppFields;
+use App\Support\Traccar\TraccarAttributes;
 use App\Support\Traccar\TraccarSchema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -161,6 +162,20 @@ class Device extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Device $device) {
+            if (! TraccarSchema::hasColumn($device->getTable(), 'attributes')) {
+                return;
+            }
+
+            if ($device->getTraccarAttributesJson() === null) {
+                $device->setTraccarAttributesJson(TraccarAttributes::encode([]));
+            }
+
+            $device->setTraccarAttributesJson(
+                TraccarAttributes::encode($device->traccarSyncAttributes())
+            );
+        });
+
         static::saved(function (Device $device) {
             if ($device->pendingUserId === null || ! $device->id) {
                 return;
@@ -282,6 +297,39 @@ class Device extends Model
     public function plateTypeLabel(): string
     {
         return $this->typeLabelFor($this->plate_type, self::PLATE_TYPES, 'plate_type');
+    }
+
+    /**
+     * Full Laravel app fields stored in tc_devices.attributes (merged on Traccar sync).
+     *
+     * @return array<string, mixed>
+     */
+    public function traccarSyncAttributes(): array
+    {
+        $merged = $this->traccarAppAttributes();
+
+        $appFields = [
+            TraccarAppFields::KEY_DEVICE_TYPE => $this->attributes['category'] ?? $this->device_type,
+            TraccarAppFields::KEY_DEVICE_DESC => $this->attributes['contact'] ?? $this->description,
+            TraccarAppFields::KEY_DEVICE_STATUS => $this->status,
+            TraccarAppFields::KEY_VEHICLE_NAME => $this->vehicle_name,
+            TraccarAppFields::KEY_VEHICLE_NUMBER => $this->vehicle_number,
+            TraccarAppFields::KEY_VEHICLE_MODEL => $this->vehicle_model,
+            TraccarAppFields::KEY_VEHICLE_TYPE => $this->vehicle_type,
+            TraccarAppFields::KEY_SIM_TYPE => $this->sim_type,
+            TraccarAppFields::KEY_SIM_NUMBER => $this->sim_number,
+            TraccarAppFields::KEY_PLATE_TYPE => $this->plate_type,
+        ];
+
+        foreach ($appFields as $key => $value) {
+            if ($value === null || $value === '') {
+                unset($merged[$key]);
+            } else {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
     }
 
     public function deviceTypeLabel(): string

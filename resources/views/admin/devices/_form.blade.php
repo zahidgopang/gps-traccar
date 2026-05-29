@@ -9,6 +9,9 @@
     $deviceType = old('device_type', optional($device)->device_type ?? '');
     $simType = old('sim_type', optional($device)->sim_type ?? '');
     $simNumber = old('sim_number', optional($device)->sim_number ?? '');
+    $vehicleName = old('vehicle_name', optional($device)->vehicle_name ?? '');
+    $vehicleNumber = old('vehicle_number', optional($device)->vehicle_number ?? '');
+    $vehicleModel = old('vehicle_model', optional($device)->vehicle_model ?? '');
     $vehicleType = old('vehicle_type', optional($device)->vehicle_type ?? '');
     $plateType = old('plate_type', optional($device)->plate_type ?? '');
     $allowedDeviceTypes = $allowedDeviceTypes ?? array_keys(Device::DEVICE_TYPES);
@@ -147,21 +150,21 @@
 >
     <x-admin.form-col>
         <label class="admin-label" for="vehicle-name">{{ __('app.forms.vehicle_name') }}</label>
-        <input type="text" name="vehicle_name" id="vehicle-name" value="{{ old('vehicle_name', optional($device)->vehicle_name ?? '') }}" class="form-control form-control-sm" placeholder="{{ __('app.forms.vehicle_name_placeholder') }}">
+        <input type="text" name="vehicle_name" id="vehicle-name" value="{{ $vehicleName }}" class="form-control form-control-sm" placeholder="{{ __('app.forms.vehicle_name_placeholder') }}">
         <p class="admin-hint">{{ __('app.forms.vehicle_name_hint') }}</p>
         @error('vehicle_name') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 
     <x-admin.form-col>
         <label class="admin-label" for="vehicle-number">{{ __('app.forms.vehicle_number') }}</label>
-        <input type="text" name="vehicle_number" id="vehicle-number" value="{{ old('vehicle_number', optional($device)->vehicle_number ?? '') }}" class="form-control form-control-sm admin-ltr" dir="ltr" placeholder="{{ __('app.forms.vehicle_number_placeholder') }}">
+        <input type="text" name="vehicle_number" id="vehicle-number" value="{{ $vehicleNumber }}" class="form-control form-control-sm admin-ltr" dir="ltr" placeholder="{{ __('app.forms.vehicle_number_placeholder') }}">
         <p class="admin-hint">{{ __('app.forms.vehicle_number_hint') }}</p>
         @error('vehicle_number') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 
     <x-admin.form-col>
         <label class="admin-label" for="vehicle-model">{{ __('app.forms.vehicle_model') }}</label>
-        <input type="text" name="vehicle_model" id="vehicle-model" value="{{ old('vehicle_model', optional($device)->vehicle_model ?? '') }}" class="form-control form-control-sm" placeholder="{{ __('app.forms.vehicle_model_placeholder') }}">
+        <input type="text" name="vehicle_model" id="vehicle-model" value="{{ $vehicleModel }}" class="form-control form-control-sm" placeholder="{{ __('app.forms.vehicle_model_placeholder') }}">
         @error('vehicle_model') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 
