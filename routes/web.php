@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\DeviceStockController;
 use App\Http\Controllers\Admin\DeviceStockSaleController;
 use App\Http\Controllers\Admin\ClientStockBalanceController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\AndroidAppController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\MapAccessController;
@@ -374,6 +375,7 @@ Route::get('/contact', [ContactController::class, 'show'])->name('contact');
 Route::post('/contact/submit', [ContactController::class, 'submit'])->name('contact.submit');
 Route::get('/contact/rate-limit', [ContactController::class, 'checkRateLimit'])
     ->name('contact.rate-limit');
+Route::get('/android-app', [AndroidAppController::class, 'show'])->name('android-app');
 
 // Company pages
 Route::get('/company', [PageController::class, 'company'])->name('company');

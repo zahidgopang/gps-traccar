@@ -18,6 +18,8 @@ return [
         'testimonials' => 'Testimonials',
         'use_cases' => 'Use Cases',
         'live_demo' => 'Live Demo',
+        'android_app' => 'Android App',
+        'android_app_short' => 'App',
         'sign_in' => 'Sign In',
         'get_started' => 'Get Started Free',
     ],
@@ -87,6 +89,29 @@ return [
         'cta_trial' => 'Start Free 30-Day Trial',
         'cta_demo' => 'Schedule a Demo',
         'cta_trusted' => 'Trusted by industry leaders:',
+    ],
+
+    'android_app' => [
+        'badge' => 'MOBILE APP',
+        'title' => 'Track Your Fleet on',
+        'title_highlight' => 'Android',
+        'subtitle' => 'Download the official FalconEyeGPS app for live vehicle tracking, alerts, geofences, and profile sync with your web dashboard.',
+        'features' => [
+            'Live fleet map and vehicle status',
+            'Push alerts for geofence and speed events',
+            'Route playback and device details',
+            'Secure login synced with your account',
+        ],
+        'play_soon' => 'Google Play — coming soon',
+        'ios_soon' => 'iOS — coming soon',
+        'install_guide' => 'How to install',
+        'download_apk' => 'Download APK',
+        'file_size' => 'APK size: ~:size MB · Android 7.0+',
+        'security_note' => 'Download only from :url',
+        'learn_more' => 'View app details',
+        'mock_live_map' => 'Live map',
+        'mock_alerts' => 'Alerts',
+        'mock_geofences' => 'Geofences',
     ],
 
     'features' => [

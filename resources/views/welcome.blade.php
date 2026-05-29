@@ -170,6 +170,9 @@
     {{-- USE CASES SECTION --}}
     @include('frontend.sections.use_cases')
 
+    {{-- ANDROID APP --}}
+    @include('frontend.sections.android_app')
+
     {{-- PREMIUM CTA SECTION --}}
     <section class="py-32 relative overflow-hidden">
         <!-- Animated Gradient Background -->

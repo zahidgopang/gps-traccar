@@ -57,13 +57,25 @@ trait InteractsWithTenantAuthorization
      */
     protected function resolveClientIdForRequest(Request $request): int
     {
-        return $this->resolveClientIdForUser($request, $request->user(), (string) $request->input('role'));
+        $clientId = $this->resolveClientIdForUser(
+            $request,
+            $request->user(),
+            (string) $request->input('role', $request->user()->role),
+        );
+
+        if ($clientId === null) {
+            throw ValidationException::withMessages([
+                'client_id' => 'Please select a client company.',
+            ]);
+        }
+
+        return $clientId;
     }
 
     /**
      * Resolve tenant client for user create/update (admin panel).
      */
-    protected function resolveClientIdForUser(Request $request, User $user, string $role): int
+    protected function resolveClientIdForUser(Request $request, User $user, string $role): ?int
     {
         if ($this->isClientPanel($request)) {
             return $this->tenantScope()->ensureClientForManager($request->user());
@@ -75,15 +87,25 @@ trait InteractsWithTenantAuthorization
 
         $clientId = $request->integer('client_id');
 
-        if (! $clientId) {
-            throw ValidationException::withMessages([
-                'client_id' => 'Please select a client company.',
-            ]);
+        if ($role === AppRole::EndUser->value) {
+            if (! $clientId) {
+                throw ValidationException::withMessages([
+                    'client_id' => 'Please select a client company.',
+                ]);
+            }
+
+            $this->authorizeVisibleClient($request, $clientId);
+
+            return $clientId;
         }
 
-        $this->authorizeVisibleClient($request, $clientId);
+        if ($clientId) {
+            $this->authorizeVisibleClient($request, $clientId);
 
-        return $clientId;
+            return $clientId;
+        }
+
+        return null;
     }
 
     protected function resolveClientIdForClientRoleUser(Request $request, User $user): int
@@ -110,7 +132,23 @@ trait InteractsWithTenantAuthorization
 
     protected function userFormRequiresClientPicker(string $role): bool
     {
-        return in_array($role, [AppRole::Admin->value, AppRole::EndUser->value], true);
+        return $role === AppRole::EndUser->value;
+    }
+
+    protected function syncUserTenantLinks(Request $request, User $user, ?int $clientId): void
+    {
+        if ($clientId === null) {
+            return;
+        }
+
+        $this->authorizeVisibleClient($request, $clientId);
+
+        if ($user->role === AppRole::Admin->value) {
+            $this->tenantScope()->assignAdminToClient($user, $clientId);
+        }
+
+        $membership = $user->role === AppRole::Client->value ? 'owner' : 'member';
+        $this->tenantScope()->assignUserToClient($user, $clientId, $membership);
     }
 
     protected function assertUserBelongsToClient(User $user, int $clientId): void
@@ -120,18 +158,6 @@ trait InteractsWithTenantAuthorization
                 'user_id' => 'The selected user does not belong to this client.',
             ]);
         }
-    }
-
-    protected function syncUserTenantLinks(Request $request, User $user, int $clientId): void
-    {
-        $this->authorizeVisibleClient($request, $clientId);
-
-        if ($user->role === AppRole::Admin->value) {
-            $this->tenantScope()->assignAdminToClient($user, $clientId);
-        }
-
-        $membership = $user->role === AppRole::Client->value ? 'owner' : 'member';
-        $this->tenantScope()->assignUserToClient($user, $clientId, $membership);
     }
 
     protected function scopeEndUsersOnly(Builder $query): void

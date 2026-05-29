@@ -120,14 +120,14 @@
             </a>
 
             <nav class="site-header__nav" aria-label="Main navigation">
-                <a href="{{ url('/') }}" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.home') }}</a>
-                <a href="{{ url('/') }}#features" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.features') }}</a>
-                <a href="{{ url('/pricing') }}" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.pricing') }}</a>
-                <a href="{{ url('/') }}#testimonials" class="text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.testimonials') }}</a>
-                <a href="{{ url('/') }}#use-cases" class="hidden xl:inline text-slate-700 dark:text-slate-300 hover:text-sky-600 transition-colors">{{ __('frontend.nav.use_cases') }}</a>
-                <a href="{{ url('/demo/login') }}"
-                   class="site-header__demo bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] transition-all">
-                    {{ __('frontend.nav.live_demo') }}
+                <a href="{{ url('/') }}#features" class="site-header__nav-link">{{ __('frontend.nav.features') }}</a>
+                <a href="{{ url('/pricing') }}" class="site-header__nav-link">{{ __('frontend.nav.pricing') }}</a>
+                <a href="{{ url('/') }}#testimonials" class="site-header__nav-link site-header__nav-link--wide">{{ __('frontend.nav.testimonials') }}</a>
+                <a href="{{ url('/') }}#use-cases" class="site-header__nav-link site-header__nav-link--wide">{{ __('frontend.nav.use_cases') }}</a>
+                <a href="{{ url('/') }}#android-app" class="site-header__nav-link site-header__nav-link--app">
+                    <i class="fa-brands fa-android site-header__nav-icon" aria-hidden="true"></i>
+                    <span class="site-header__nav-label-full">{{ __('frontend.nav.android_app') }}</span>
+                    <span class="site-header__nav-label-short">{{ __('frontend.nav.android_app_short') }}</span>
                 </a>
             </nav>
 
@@ -149,6 +149,10 @@
                 </div>
 
                 <div class="site-header__cta">
+                    <a href="{{ url('/demo/login') }}"
+                       class="site-header__demo bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02] transition-all">
+                        {{ __('frontend.nav.live_demo') }}
+                    </a>
                     <a href="{{ url('login') }}"
                        class="site-header__cta-signin text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         {{ __('frontend.nav.sign_in') }}
@@ -183,6 +187,7 @@
                 <a href="{{ url('/pricing') }}" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.pricing') }}</a>
                 <a href="{{ url('/') }}#testimonials" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.testimonials') }}</a>
                 <a href="{{ url('/') }}#use-cases" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.use_cases') }}</a>
+                <a href="{{ url('/') }}#android-app" class="block py-3 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">{{ __('frontend.nav.android_app') }}</a>
                 <a href="{{ url('/demo/login') }}" class="block py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-center">
                     {{ __('frontend.nav.live_demo') }}
                 </a>
@@ -252,6 +257,7 @@
                     <li><a href="{{ url('/') }}#features" class="text-slate-400 hover:text-white transition-colors text-sm">{{ __('frontend.nav.features') }}</a></li>
                     <li><a href="{{ url('/pricing') }}" class="text-slate-400 hover:text-white transition-colors text-sm">{{ __('frontend.nav.pricing') }}</a></li>
                     <li><a href="{{ url('/') }}#use-cases" class="text-slate-400 hover:text-white transition-colors text-sm">{{ __('frontend.nav.use_cases') }}</a></li>
+                    <li><a href="{{ route('android-app') }}" class="text-slate-400 hover:text-white transition-colors text-sm">Android App</a></li>
                     <li><a href="{{ url('/demo/login') }}" class="text-slate-400 hover:text-white transition-colors text-sm">{{ __('frontend.nav.live_demo') }}</a></li>
                     <li><a href="{{ url('/') }}#testimonials" class="text-slate-400 hover:text-white transition-colors text-sm">{{ __('frontend.nav.testimonials') }}</a></li>
                 </ul>

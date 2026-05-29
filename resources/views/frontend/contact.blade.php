@@ -97,8 +97,7 @@
 
                         <!-- Android App -->
                         @if($androidApkAvailable)
-                        <a href="{{ $androidApkUrl }}"
-                           download="FalconEyeGPS.apk"
+                        <a href="{{ route('android-app') }}"
                            class="block p-6 rounded-2xl glass border border-slate-200 dark:border-slate-800 hover:border-green-400 dark:hover:border-green-600 transition-all duration-300 group">
                             <div class="flex items-start gap-4">
                                 <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-lime-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
@@ -107,12 +106,12 @@
                                 <div>
                                     <h3 class="font-bold text-lg mb-2">Android App</h3>
                                     <p class="text-slate-600 dark:text-slate-400 mb-3">
-                                        Download the FalconEyeGPS mobile app for fleet tracking on Android.
+                                        Download the FalconEyeGPS mobile app with our step-by-step installation guide.
                                     </p>
                                     <div class="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium">
                                         <i class="fa-brands fa-android"></i>
-                                        <span>Download APK</span>
-                                        <i class="fa-solid fa-download text-sm"></i>
+                                        <span>Download &amp; install guide</span>
+                                        <i class="fa-solid fa-arrow-right text-sm"></i>
                                     </div>
                                 </div>
                             </div>

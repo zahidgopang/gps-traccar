@@ -59,12 +59,13 @@ class ProfileController extends Controller
     public function uploadAvatar(Request $request)
     {
         $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png,jpg,webp,gif|max:2048',
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
         ]);
 
         $user = $request->user();
         $user->avatar = $this->avatars->store($user, $request->file('avatar'));
         $user->save();
+        $user->refresh();
 
         return $this->mobileSuccess([
             'user' => $this->mobileUserPayload($user),
@@ -77,6 +78,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $this->avatars->delete($user);
         $user->save();
+        $user->refresh();
 
         return $this->mobileSuccess([
             'user' => $this->mobileUserPayload($user),

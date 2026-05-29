@@ -7,7 +7,7 @@
     $showClientPicker = $panel === 'admin'
         && !empty($clients)
         && $clients->count()
-        && in_array($selectedRole, [\App\Enums\AppRole::Admin->value, \App\Enums\AppRole::EndUser->value], true);
+        && $selectedRole === \App\Enums\AppRole::EndUser->value;
     $clientRoleSelected = $selectedRole === \App\Enums\AppRole::Client->value;
     $linkedClient = isset($user) && $user->exists && $clientRoleSelected
         ? $user->clients()->first()
@@ -159,7 +159,6 @@
                 \App\Enums\AppRole::Client->value,
             ]);
             const clientPickerRoles = @json([
-                \App\Enums\AppRole::Admin->value,
                 \App\Enums\AppRole::EndUser->value,
             ]);
             const clientRole = @json(\App\Enums\AppRole::Client->value);

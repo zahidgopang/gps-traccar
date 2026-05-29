@@ -227,7 +227,7 @@ class SubscriptionController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function destroy(Subscription $subscription)
+    public function destroy(Request $request, Subscription $subscription)
     {
         $this->authorizePermission('subscriptions.manage');
         $this->authorizeSubscription($subscription);
