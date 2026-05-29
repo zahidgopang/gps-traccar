@@ -82,7 +82,7 @@ class TraccarPositionBroadcastService
 
             event(new DeviceLocationUpdated(
                 $device->id,
-                DeviceLocationPayload::fromDeviceLocation($location)
+                DeviceLocationPayload::fromDeviceLocation($location, $device)
             ));
 
             $previous = $this->positionReader->previousBefore(

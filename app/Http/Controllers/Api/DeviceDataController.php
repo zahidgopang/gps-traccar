@@ -109,7 +109,7 @@ class DeviceDataController extends Controller
 
         event(new DeviceLocationUpdated(
             $device->id,
-            DeviceLocationPayload::fromDeviceLocation($loc)
+            DeviceLocationPayload::fromDeviceLocation($loc, $device)
         ));
 
         $traccarPositionId = $loc->getAttribute('traccar_position_id') ?? (

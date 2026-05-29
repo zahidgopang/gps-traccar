@@ -187,7 +187,7 @@
         }
         el.classList.add(HIGHLIGHT_CLASS);
         highlightSectionHeading(el);
-        const elevateSelectors = ['.navbar', '.filter-panel', '.smart-controls', '.map-tools-left', '.map-hud', '.playback-fab', '.map-page-nav'];
+        const elevateSelectors = ['.navbar', '.filter-panel', '.smart-controls', '.map-tools-left', '.map-hud', '.map-live-panel', '.map-page-nav'];
         elevateSelectors.forEach(function (sel) {
             const parent = el.closest(sel);
             if (parent) {

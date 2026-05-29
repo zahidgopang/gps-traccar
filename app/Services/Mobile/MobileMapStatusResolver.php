@@ -7,8 +7,8 @@ use App\Models\DeviceLocation;
 use App\Services\UserDashboardService;
 
 /**
- * Matches public/js/device-map-tracker.js resolveVehicleStatus():
- * status from latest point metrics, not the 5-minute "online" cutoff.
+ * Shared status resolver for mobile API and web live map (speed/ignition metrics).
+ * Offline status requires missing GPS data — not the 5-minute connectivity window.
  */
 class MobileMapStatusResolver
 {

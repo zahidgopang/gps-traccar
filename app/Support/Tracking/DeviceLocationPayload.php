@@ -2,13 +2,15 @@
 
 namespace App\Support\Tracking;
 
+use App\Models\Device;
 use App\Models\DeviceLocation;
+use App\Services\Mobile\MobileMapStatusResolver;
 
 final class DeviceLocationPayload
 {
-    public static function fromDeviceLocation(DeviceLocation $location): array
+    public static function fromDeviceLocation(DeviceLocation $location, ?Device $device = null): array
     {
-        return [
+        $payload = [
             'lat' => (float) $location->lat,
             'lng' => (float) $location->lng,
             'speed' => (float) ($location->speed ?? 0),
@@ -23,10 +25,22 @@ final class DeviceLocationPayload
             'odometer' => $location->odometer,
             'power_cut' => (bool) $location->power_cut,
             'panic' => (bool) $location->panic,
-            'recorded_at' => $location->recorded_at?->toDateTimeString(),
+            'recorded_at' => $location->recorded_at?->toIso8601String(),
             'timestamp' => $location->recorded_at?->toDateTimeString(),
             'position_id' => (int) ($location->id ?? 0),
-            'online' => true,
         ];
+
+        if ($device) {
+            $resolver = app(MobileMapStatusResolver::class);
+            $map = $resolver->resolve($location, $device);
+            $payload['status'] = $map['label'];
+            $payload['status_key'] = $map['key'];
+            $payload['is_online'] = $resolver->isRecentlyOnline($location);
+            $payload['online'] = $payload['is_online'];
+        } else {
+            $payload['online'] = true;
+        }
+
+        return $payload;
     }
 }

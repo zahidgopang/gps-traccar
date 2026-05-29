@@ -87,6 +87,7 @@ class LocationHistoryController extends Controller
             return [
                 'id' => $device->id,
                 'live_status' => $liveStatus,
+                'status_key' => $liveStatus['key'] ?? null,
                 'lat' => $latest ? (float) $latest->lat : null,
                 'lng' => $latest ? (float) $latest->lng : null,
                 'speed' => $latest ? round((float) ($latest->speed ?? 0), 0) : null,

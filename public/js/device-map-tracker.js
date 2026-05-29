@@ -139,6 +139,9 @@
             panic: raw.panic === true || raw.panic === 1,
             recorded_at: ts,
             position_id: raw.position_id != null ? Number(raw.position_id) : null,
+            status: raw.status ?? null,
+            status_key: raw.status_key ?? null,
+            is_online: raw.is_online,
         };
     }
 
@@ -189,7 +192,13 @@
         return '#ef4444';
     }
 
-    function isPointOffline(point) {
+    /** True when there is no GPS fix to derive status from (matches mobile API). */
+    function hasNoGpsData(point) {
+        return !point || !point.recorded_at;
+    }
+
+    /** Connectivity staleness — used for alerts only, not status badge. */
+    function isConnectivityStale(point) {
         if (!point?.recorded_at) {
             return true;
         }
@@ -197,17 +206,46 @@
         return age > onlineTimeoutMs;
     }
 
-    function vehicleStateKey(point) {
-        if (!point || isPointOffline(point)) {
-            return 'offline';
+    /** @deprecated use hasNoGpsData — kept for minimal diff in call sites */
+    function isPointOffline(point) {
+        return hasNoGpsData(point);
+    }
+
+    function statusLabelForKey(key, point) {
+        const labels = {
+            moving: mi('statusRunning', 'Running'),
+            idle: mi('statusIdle', 'Idle'),
+            parked: mi('statusParked', 'Parked'),
+            stopped: mi('statusStopped', 'Stopped'),
+            offline: mi('statusOffline', 'Offline'),
+            alert: point?.panic
+                ? mi('statusSos', 'SOS')
+                : (point?.power_cut ? mi('statusPowerCut', 'Power cut') : mi('statusOverspeed', 'Overspeed')),
+            blocked: mi('statusOffline', 'Offline'),
+        };
+
+        return labels[key] || labels.parked;
+    }
+
+    function statusClassForKey(key) {
+        if (key === 'moving') {
+            return 'map-status-chip--moving';
         }
+        if (key === 'stopped') {
+            return 'map-status-chip--stopped';
+        }
+        if (key === 'blocked') {
+            return 'map-status-chip--offline';
+        }
+
+        return 'map-status-chip--' + key;
+    }
+
+    function vehicleStateKeyFromMetrics(point) {
         if (point.power_cut || point.panic) {
             return 'alert';
         }
         const speed = parseFloat(point.speed || 0);
-        if (speed > overSpeedLimit) {
-            return 'alert';
-        }
         if (speed > movingSpeedKmh) {
             return 'moving';
         }
@@ -215,9 +253,22 @@
             return 'idle';
         }
         if (point.ignition === true) {
-            return 'idle';
+            return 'stopped';
         }
+
         return 'parked';
+    }
+
+    function vehicleStateKey(point) {
+        if (hasNoGpsData(point)) {
+            return 'offline';
+        }
+
+        if (point.status_key) {
+            return point.status_key;
+        }
+
+        return vehicleStateKeyFromMetrics(point);
     }
 
     function vehicleStateColor(state) {
@@ -351,24 +402,19 @@
     }
 
     function resolveVehicleStatus(point) {
-        if (!point || isPointOffline(point)) {
+        if (hasNoGpsData(point)) {
             return { key: 'offline', label: mi('statusOffline', 'Offline'), cls: 'map-status-chip--offline' };
         }
 
-        const state = vehicleStateKey(point);
-        const labels = {
-            moving: mi('statusMoving', 'Moving'),
-            idle: mi('statusIdle', 'Idle'),
-            parked: mi('statusParked', 'Parked'),
-            offline: mi('statusOffline', 'Offline'),
-            alert: point.panic ? mi('statusSos', 'SOS') : (point.power_cut ? mi('statusPowerCut', 'Power cut') : mi('statusOverspeed', 'Overspeed')),
-            stopped: mi('statusStopped', 'Stopped'),
-        };
+        const key = vehicleStateKey(point);
+        const label = (point.status && String(point.status).trim())
+            ? String(point.status).trim()
+            : statusLabelForKey(key, point);
 
         return {
-            key: state,
-            label: labels[state] || labels.parked,
-            cls: 'map-status-chip--' + state,
+            key,
+            label,
+            cls: statusClassForKey(key),
         };
     }
 
@@ -404,6 +450,57 @@
             if (/\/device\/[^/]+\/map/i.test(window.location.pathname)) {
                 window.location.replace(backUrl);
             }
+        });
+    }
+
+    function setMapLivePanelExpanded(expanded, persist) {
+        const panel = document.getElementById('mapLivePanel');
+        const toggle = document.getElementById('mapLivePanelToggle');
+        if (!panel) return;
+        panel.classList.toggle('is-expanded', expanded);
+        panel.classList.toggle('is-collapsed', !expanded);
+        toggle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        if (persist) {
+            try {
+                localStorage.setItem('mapLivePanelExpanded.' + deviceId, expanded ? '1' : '0');
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    function initMapLivePanelToggle() {
+        const panel = document.getElementById('mapLivePanel');
+        const toggle = document.getElementById('mapLivePanelToggle');
+        const handle = document.getElementById('mapLivePanelHandle');
+        const header = panel?.querySelector('.map-live-panel__header-main');
+        if (!panel) return;
+
+        let startExpanded = false;
+        try {
+            startExpanded = localStorage.getItem('mapLivePanelExpanded.' + deviceId) === '1';
+        } catch (e) { /* ignore */ }
+        setMapLivePanelExpanded(startExpanded, false);
+
+        const flip = (e) => {
+            e?.preventDefault();
+            e?.stopPropagation();
+            setMapLivePanelExpanded(!panel.classList.contains('is-expanded'), true);
+        };
+
+        toggle?.addEventListener('click', flip);
+        handle?.addEventListener('click', flip);
+        header?.addEventListener('click', flip);
+
+        let dragStartY = null;
+        handle?.addEventListener('pointerdown', (e) => {
+            dragStartY = e.clientY;
+            handle.setPointerCapture?.(e.pointerId);
+        });
+        handle?.addEventListener('pointerup', (e) => {
+            if (dragStartY == null) return;
+            const delta = dragStartY - e.clientY;
+            dragStartY = null;
+            if (Math.abs(delta) < 24) return;
+            setMapLivePanelExpanded(delta > 0, true);
         });
     }
 
@@ -1137,12 +1234,12 @@ ${pts}
 
     function resetOfflineWatch(point) {
         if (offlineTimer) clearTimeout(offlineTimer);
+        if (!point || hasNoGpsData(point)) {
+            return;
+        }
         offlineTimer = setTimeout(() => {
-            triggerAlert('offline', 'No GPS update received recently', 'warning', 'Device Offline');
-            const statusEl = document.getElementById('curStatus');
-            if (statusEl) {
-                const offline = resolveVehicleStatus(null);
-                statusEl.innerHTML = `<span class="map-status-chip ${offline.cls}">${offline.label}</span>`;
+            if (isConnectivityStale(lastTelemetry)) {
+                triggerAlert('offline', mi('noGpsRecently', 'No GPS update received recently'), 'warning', mi('deviceOffline', 'Device Offline'));
             }
         }, onlineTimeoutMs);
     }
@@ -1593,6 +1690,7 @@ ${pts}
             bindControls();
             initNavAlerts();
             initMapHudToggle();
+            initMapLivePanelToggle();
             initMapBackNavigation();
             updatePlaybackFab();
             initDateFilter();
@@ -1768,7 +1866,8 @@ ${pts}
         document.getElementById('btnTraffic')?.addEventListener('click', () => {
             trafficLayer.setMap(trafficLayer.getMap() ? null : map);
         });
-        document.getElementById('playbackFab')?.addEventListener('click', () => {
+        document.getElementById('playbackFab')?.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (!playbackPoints.length) {
                 showNotification('Load route history first', 'info');
                 return;
@@ -1870,7 +1969,7 @@ ${pts}
         if (!panel) return;
         panel.classList.toggle('active', open);
         mapArea?.classList.toggle('playback-open', open);
-        fab?.classList.toggle('playback-fab--hidden', open);
+        fab?.classList.toggle('map-live-panel__playback--hidden', open);
         if (open) setTimeout(resizeMap, 400);
     }
 

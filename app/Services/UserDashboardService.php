@@ -7,6 +7,7 @@ use App\Contracts\Tracking\EventReaderInterface;
 use App\Models\Device;
 use App\Models\VehicleEvent;
 use App\Models\User;
+use App\Services\Mobile\MobileMapStatusResolver;
 use App\Services\Tracking\DevicePositionLoader;
 use App\Services\Tracking\TrackingMetricsService;
 use App\Services\Traccar\TraccarTrackingGate;
@@ -23,6 +24,7 @@ class UserDashboardService
         private GeofenceStoreInterface $geofences,
         private TraccarUserAccessService $trackerUsers,
         private TraccarTrackingGate $trackingGate,
+        private MobileMapStatusResolver $mapStatus,
     ) {}
 
     public const ONLINE_MINUTES = 5;
@@ -241,65 +243,54 @@ class UserDashboardService
 
     public function getDevicePageStats(Collection $devices): array
     {
-        $vehicleStates = $this->getVehicleStateCounts($devices);
-
         $onlineNow = $this->countOnlineDevices($devices);
-        $total = $devices->count();
+        $fleetCounts = $this->mapStatus->fleetCounts($devices);
 
         return [
-            'totalDevices' => $total,
+            'totalDevices' => $devices->count(),
             'activeDevices' => $devices->where('status', 'active')->count(),
             'inactiveDevices' => $devices->where('status', 'inactive')->count(),
             'blockedDevices' => $devices->where('status', 'blocked')->count(),
             'onlineNow' => $onlineNow,
-            'offlineNow' => max(0, $total - $onlineNow),
-            'running' => $vehicleStates['running'],
-            'parked' => $vehicleStates['parked'],
-            'maintenance' => $vehicleStates['maintenance'],
-            'alerts' => $vehicleStates['alerts'],
+            'offlineNow' => $fleetCounts['offline'],
+            'running' => $fleetCounts['running'],
+            'parked' => $fleetCounts['parked'],
+            'idle' => $fleetCounts['idle'],
+            'maintenance' => $devices->whereIn('status', ['inactive', 'blocked'])->count(),
+            'alerts' => $fleetCounts['alert'],
         ];
     }
 
     public function resolveDeviceStatus(Device $device, ?Collection $alertDeviceIds = null): array
     {
-        $cutoff = now()->subMinutes(self::ONLINE_MINUTES);
-        $latest = $device->latestLocation;
+        $map = $this->mapStatus->resolve($device->latestLocation, $device);
 
-        if ($device->status === 'blocked') {
-            return ['label' => __('app.common.blocked'), 'class' => 'bg-dark', 'dot' => 'bg-dark'];
-        }
+        return $this->presentMapStatus($map['key'], $map['label']);
+    }
 
-        if ($device->status === 'inactive') {
-            return ['label' => __('app.common.inactive'), 'class' => 'bg-secondary', 'dot' => 'bg-secondary'];
-        }
+    /**
+     * Bootstrap badge/dot styling for map-aligned status keys.
+     *
+     * @return array{label: string, class: string, dot: string, key: string}
+     */
+    public function presentMapStatus(string $key, string $label): array
+    {
+        $presentation = match ($key) {
+            'moving' => ['class' => 'bg-success', 'dot' => 'bg-success'],
+            'idle' => ['class' => 'bg-warning', 'dot' => 'bg-warning'],
+            'stopped' => ['class' => 'bg-warning', 'dot' => 'bg-warning'],
+            'parked' => ['class' => 'bg-info', 'dot' => 'bg-info'],
+            'alert' => ['class' => 'bg-danger', 'dot' => 'bg-danger'],
+            'blocked' => ['class' => 'bg-dark', 'dot' => 'bg-dark'],
+            default => ['class' => 'bg-secondary', 'dot' => 'bg-secondary'],
+        };
 
-        if (! $latest || $latest->recorded_at < $cutoff) {
-            return ['label' => __('app.common.offline'), 'class' => 'bg-secondary', 'dot' => 'bg-secondary'];
-        }
-
-        $hasAlert = $alertDeviceIds
-            ? $alertDeviceIds->contains($device->id)
-            : $this->events
-                ->forDevice($device, now()->subDay(), null, [
-                    VehicleEvent::TYPE_GEOFENCE_EXIT,
-                    VehicleEvent::TYPE_OVERSPEED,
-                    VehicleEvent::TYPE_PANIC,
-                ], 1)
-                ->isNotEmpty();
-
-        if ($hasAlert) {
-            return ['label' => __('app.user.devices.status_alert'), 'class' => 'bg-danger', 'dot' => 'bg-danger'];
-        }
-
-        if ((float) ($latest->speed ?? 0) > self::MOVING_SPEED_KMH) {
-            return ['label' => __('app.common.moving'), 'class' => 'bg-success', 'dot' => 'bg-success'];
-        }
-
-        if ((float) ($latest->speed ?? 0) > 0) {
-            return ['label' => __('app.user.devices.status_idle'), 'class' => 'bg-warning', 'dot' => 'bg-warning'];
-        }
-
-        return ['label' => __('app.user.devices.status_parked'), 'class' => 'bg-info', 'dot' => 'bg-info'];
+        return [
+            'label' => $label,
+            'class' => $presentation['class'],
+            'dot' => $presentation['dot'],
+            'key' => $key,
+        ];
     }
 
     private function haversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float

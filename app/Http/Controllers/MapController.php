@@ -9,6 +9,7 @@ use App\Http\Concerns\ResolvesMapDevice;
 use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\VehicleEvent;
+use App\Services\Mobile\MobileMapStatusResolver;
 use App\Services\VehicleEventService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,6 +24,7 @@ class MapController extends Controller
         private PositionReaderInterface $positions,
         private EventReaderInterface $events,
         private GeofenceStoreInterface $geofences,
+        private MobileMapStatusResolver $mapStatus,
     ) {}
 
     public function map(Request $request, string $token)
@@ -39,7 +41,7 @@ class MapController extends Controller
         );
 
         $latestLocation = $this->positions->latestForDevice($device);
-        $initialPoint = $this->formatLocation($latestLocation);
+        $initialPoint = $this->formatLocationForDevice($latestLocation, $device);
 
         $isAdminMap = $this->isAdminMapRequest();
         $mapApiRoutes = $this->mapApiRoutes($device, $token);
@@ -57,11 +59,16 @@ class MapController extends Controller
             ->values()
             ->all();
 
+        $initialStatus = $latestLocation
+            ? $this->mapStatus->resolve($latestLocation, $device)
+            : ['label' => __('app.common.offline'), 'key' => 'offline'];
+
         return view('user.device-map', compact(
             'device',
             'locations',
             'latestLocation',
             'initialPoint',
+            'initialStatus',
             'initialAlerts',
             'isAdminMap',
             'mapApiRoutes',
@@ -96,6 +103,29 @@ class MapController extends Controller
             'timestamp' => $location->recorded_at?->toDateTimeString(),
             'position_id' => (int) ($location->id ?? 0),
         ];
+    }
+
+    /**
+     * Live map payload with status aligned to MobileMapStatusResolver / mobile app.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function formatLocationForDevice(?DeviceLocation $location, Device $device): ?array
+    {
+        $formatted = $this->formatLocation($location);
+
+        if (! $formatted) {
+            return null;
+        }
+
+        $map = $this->mapStatus->resolve($location, $device);
+
+        return array_merge($formatted, [
+            'status' => $map['label'],
+            'status_key' => $map['key'],
+            'is_online' => $this->mapStatus->isRecentlyOnline($location),
+            'online' => $this->mapStatus->isRecentlyOnline($location),
+        ]);
     }
 
     public function historyJson(Request $request, string $token)
@@ -221,7 +251,7 @@ class MapController extends Controller
             );
         }
 
-        return response()->json($this->formatLocation($latest) ?? []);
+        return response()->json($this->formatLocationForDevice($latest, $device) ?? []);
     }
 
     public function summaryJson(string $token)

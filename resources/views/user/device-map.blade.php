@@ -61,46 +61,44 @@
         .smart-btn.active { background: var(--map-accent); color: #fff; }
         .smart-btn i { font-size: 18px; }
 
-        /* Bottom Play — opens route playback panel */
-        .playback-fab {
-            position: absolute;
-            left: 50%;
-            bottom: max(168px, calc(152px + env(safe-area-inset-bottom)));
-            transform: translateX(-50%);
-            z-index: 1050;
+        /* Play Route — integrated in live panel header (no floating FAB) */
+        .map-live-panel__playback {
+            flex-shrink: 0;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 12px 22px;
+            justify-content: center;
+            gap: 6px;
+            height: 34px;
+            padding: 0 12px;
             border: none;
-            border-radius: 999px;
+            border-radius: 10px;
             background: linear-gradient(135deg, var(--map-accent), #2563eb);
             color: #fff;
-            font-size: 0.9rem;
+            font-size: 0.72rem;
             font-weight: 700;
             letter-spacing: 0.02em;
             cursor: pointer;
-            box-shadow: 0 10px 28px var(--map-accent-glow), 0 2px 8px rgba(15, 23, 42, 0.12);
-            transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+            box-shadow: 0 4px 14px var(--map-accent-glow);
+            transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
         }
-        .playback-fab i { font-size: 1rem; }
-        .playback-fab:hover:not(:disabled) {
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 14px 32px var(--map-accent-glow);
+        .map-live-panel__playback i { font-size: 0.75rem; }
+        .map-live-panel__playback:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px var(--map-accent-glow);
         }
-        .playback-fab:active:not(:disabled) {
-            transform: translateX(-50%) scale(0.97);
+        .map-live-panel__playback:active:not(:disabled) {
+            transform: scale(0.97);
         }
-        .playback-fab:disabled {
-            opacity: 0.55;
+        .map-live-panel__playback:disabled {
+            opacity: 0.45;
             cursor: not-allowed;
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+            box-shadow: none;
+            background: #94a3b8;
         }
-        .playback-fab.playback-fab--hidden {
+        .map-live-panel__playback--hidden {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
-            transform: translateX(-50%) translateY(12px);
         }
 
         /* ——— Route playback (premium bottom bar) ——— */
@@ -443,18 +441,64 @@
             border: 1px solid var(--map-ui-border);
             border-radius: 18px;
             box-shadow: var(--map-ui-shadow);
-            padding: 12px 14px;
+            padding: 10px 14px 12px;
             pointer-events: auto;
-            transition: transform 0.35s ease, opacity 0.3s ease;
+            transition: transform 0.35s ease, padding 0.3s ease;
+        }
+        .map-live-panel.is-collapsed {
+            padding-bottom: 10px;
         }
         #mapArea.playback-open .map-live-panel {
             bottom: calc(210px + env(safe-area-inset-bottom));
         }
+        .map-live-panel__handle {
+            width: 44px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(100, 116, 139, 0.35);
+            margin: 0 auto 8px;
+            cursor: grab;
+            touch-action: none;
+        }
+        .map-live-panel.is-expanded .map-live-panel__handle {
+            width: 52px;
+            background: rgba(100, 116, 139, 0.5);
+        }
         .map-live-panel__header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: center;
+            gap: 12px;
+        }
+        .map-live-panel__left {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 10px;
+            min-width: 0;
+            justify-self: start;
+            cursor: pointer;
+        }
+        .map-live-panel__center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            justify-self: center;
+            flex-shrink: 0;
+        }
+        .map-live-panel__right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            justify-self: end;
+            flex-shrink: 0;
+        }
+        .map-live-panel__header-main {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
         }
         .map-live-panel__brand {
             width: 32px;
@@ -472,17 +516,28 @@
         }
         .map-live-panel__vehicle strong {
             display: block;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             font-weight: 700;
             color: #0f172a;
+            line-height: 1.25;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .map-live-panel__vehicle span {
             display: block;
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             color: #64748b;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .map-live-panel__vehicle-type {
+            display: block;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            line-height: 1.3;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -501,35 +556,80 @@
         .map-status-chip--moving { background: rgba(34,197,94,0.14); color: #15803d; }
         .map-status-chip--idle { background: rgba(249,115,22,0.14); color: #c2410c; }
         .map-status-chip--parked { background: rgba(59,130,246,0.14); color: #1d4ed8; }
+        .map-status-chip--stopped { background: rgba(249,115,22,0.12); color: #9a3412; }
         .map-status-chip--offline { background: rgba(239,68,68,0.14); color: #b91c1c; }
         .map-status-chip--alert { background: rgba(239,68,68,0.18); color: #991b1b; }
+        .map-live-panel__toggle {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border: 1px solid rgba(15,23,42,0.08);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.9);
+            color: #64748b;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.28s ease, border-color 0.2s ease;
+        }
+        .map-live-panel__toggle:hover {
+            border-color: var(--map-accent);
+            color: var(--map-accent);
+        }
+        .map-live-panel.is-expanded .map-live-panel__toggle i {
+            transform: rotate(180deg);
+        }
+        .map-live-panel__body {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.35s ease, opacity 0.28s ease, margin-top 0.28s ease;
+        }
+        .map-live-panel.is-expanded .map-live-panel__body {
+            max-height: 340px;
+            opacity: 1;
+            margin-top: 12px;
+            overflow: visible;
+        }
         .map-live-panel__grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
         }
         .map-info-chip {
-            background: rgba(255,255,255,0.85);
+            background: rgba(255,255,255,0.88);
             border: 1px solid rgba(15,23,42,0.06);
             border-radius: 12px;
-            padding: 8px 10px;
+            padding: 10px 10px;
             text-align: center;
+            min-height: 56px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
         }
         .map-info-chip__label {
             display: block;
             font-size: 0.62rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
             color: #94a3b8;
-            margin-bottom: 2px;
+            line-height: 1.2;
         }
         .map-info-chip__value {
             display: block;
-            font-size: 0.82rem;
-            font-weight: 700;
+            font-size: 0.84rem;
+            font-weight: 800;
             color: #0f172a;
             font-variant-numeric: tabular-nums;
+            line-height: 1.25;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            word-break: break-word;
         }
         .map-brand-watermark {
             position: absolute;
@@ -561,6 +661,15 @@
         body.map-night-mode .map-info-chip {
             background: rgba(30, 41, 59, 0.85);
             border-color: rgba(148,163,184,0.12);
+        }
+        body.map-night-mode .map-live-panel__vehicle span,
+        body.map-night-mode .map-live-panel__vehicle-type {
+            color: #94a3b8;
+        }
+        body.map-night-mode .map-live-panel__toggle {
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(148,163,184,0.15);
+            color: #94a3b8;
         }
         .map-hud__name { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
         .map-hud__grid {
@@ -747,10 +856,12 @@
             #mapArea.playback-open .smart-controls {
                 bottom: calc(220px + env(safe-area-inset-bottom));
             }
-            #mapArea.playback-open .playback-fab {
-                opacity: 0;
-                visibility: hidden;
-                pointer-events: none;
+            .map-live-panel__playback-label {
+                display: none;
+            }
+            .map-live-panel__playback {
+                width: 34px;
+                padding: 0;
             }
             .geofence-panel {
                 left: 0;
@@ -776,13 +887,26 @@
                 font-size: 0.85rem;
                 top: max(8px, env(safe-area-inset-top));
             }
-            .map-tools-left { bottom: max(180px, calc(160px + env(safe-area-inset-bottom))); }
-            .map-live-panel { width: calc(100% - 16px); padding: 10px 12px; }
-            .map-live-panel__grid { grid-template-columns: repeat(2, 1fr); }
+            .map-tools-left { bottom: max(168px, calc(152px + env(safe-area-inset-bottom))); }
+            .map-live-panel { width: calc(100% - 16px); padding: 8px 12px 10px; }
+            .map-live-panel__header { gap: 8px; }
+            .map-live-panel__brand { width: 28px; height: 28px; }
+            .map-live-panel__vehicle strong { font-size: 0.86rem; }
+            .map-live-panel__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .map-info-chip { min-height: 52px; padding: 8px; }
+            .map-info-chip__value { font-size: 0.78rem; }
+            .map-live-panel__playback-label { display: none; }
+            .map-live-panel__playback { width: 34px; padding: 0; }
             .map-brand-watermark { right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); }
         }
 
         @media (max-width: 576px) {
+            .map-live-panel__header {
+                grid-template-columns: minmax(0, 1fr) auto auto;
+                gap: 6px;
+            }
+            .map-live-panel__vehicle-type { display: none; }
+            .map-status-chip { padding: 4px 10px; font-size: 0.68rem; }
             .playback-panel__inner::before { display: block; }
             .map-hud__actions button { font-size: 0.62rem; padding: 4px 6px; }
             .playback-stats-row { grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -1245,39 +1369,76 @@
             </div>
 
             <!-- Bottom live vehicle panel -->
-            <div class="map-live-panel" id="mapLivePanel">
+            <div class="map-live-panel is-collapsed" id="mapLivePanel">
+                <div class="map-live-panel__handle" id="mapLivePanelHandle" aria-hidden="true"></div>
                 <div class="map-live-panel__header">
-                    <img class="map-live-panel__brand" src="{{ asset(config('branding.logo_icon')) }}" alt="">
-                    <div class="map-live-panel__vehicle">
-                        <strong id="liveVehicleName">{{ $device->mapDisplayTitle() }}</strong>
-                        <span id="liveVehicleNumber">{{ $device->vehicle_number ?: $device->mapNavSubtitle() ?: $device->imei }}</span>
+                    <div class="map-live-panel__left map-live-panel__header-main">
+                        <img class="map-live-panel__brand" src="{{ asset(config('branding.logo_icon')) }}" alt="">
+                        <div class="map-live-panel__vehicle">
+                            <strong id="liveVehicleName">{{ $device->mapDisplayTitle() }}</strong>
+                            <span id="liveVehicleNumber">{{ $device->vehicle_number ?: $device->imei }}</span>
+                            <span class="map-live-panel__vehicle-type" id="liveVehicleType">{{ $device->deviceTypeLabel() }}</span>
+                        </div>
                     </div>
-                    <span class="map-status-chip map-status-chip--offline" id="liveStatusChip">{{ __('app.map.status_offline') }}</span>
+                    <div class="map-live-panel__center">
+                        @php
+                            $liveChipKey = $initialStatus['key'] ?? 'offline';
+                            $liveChipClass = match ($liveChipKey) {
+                                'moving' => 'moving',
+                                'idle' => 'idle',
+                                'parked' => 'parked',
+                                'stopped' => 'stopped',
+                                'alert' => 'alert',
+                                default => 'offline',
+                            };
+                        @endphp
+                        <span class="map-status-chip map-status-chip--{{ $liveChipClass }}" id="liveStatusChip">{{ $initialStatus['label'] ?? __('app.map.status_offline') }}</span>
+                    </div>
+                    <div class="map-live-panel__right">
+                        <button type="button"
+                                class="map-live-panel__playback"
+                                id="playbackFab"
+                                disabled
+                                aria-label="{{ __('app.map.open_playback') }}">
+                            <i class="fas fa-play" aria-hidden="true"></i>
+                            <span class="map-live-panel__playback-label">{{ __('app.map.play_route') }}</span>
+                        </button>
+                        <button type="button"
+                                class="map-live-panel__toggle"
+                                id="mapLivePanelToggle"
+                                aria-expanded="false"
+                                aria-controls="mapLivePanelBody"
+                                title="{{ __('app.map.hud_toggle_title') }}">
+                            <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="map-live-panel__grid">
-                    <div class="map-info-chip">
-                        <span class="map-info-chip__label">{{ __('app.map.speed') }}</span>
-                        <span class="map-info-chip__value" id="livePanelSpeed">{{ __('app.map.dash') }}</span>
-                    </div>
-                    <div class="map-info-chip">
-                        <span class="map-info-chip__label">{{ __('app.map.ignition') }}</span>
-                        <span class="map-info-chip__value" id="livePanelIgnition">{{ __('app.map.dash') }}</span>
-                    </div>
-                    <div class="map-info-chip">
-                        <span class="map-info-chip__label">{{ __('app.map.gps_signal') }}</span>
-                        <span class="map-info-chip__value" id="livePanelGps">{{ __('app.map.dash') }}</span>
-                    </div>
-                    <div class="map-info-chip">
-                        <span class="map-info-chip__label">{{ __('app.map.gsm_signal') }}</span>
-                        <span class="map-info-chip__value" id="livePanelGsm">{{ __('app.map.dash') }}</span>
-                    </div>
-                    <div class="map-info-chip">
-                        <span class="map-info-chip__label">{{ __('app.map.battery') }}</span>
-                        <span class="map-info-chip__value" id="livePanelBattery">{{ __('app.map.dash') }}</span>
-                    </div>
-                    <div class="map-info-chip">
-                        <span class="map-info-chip__label">{{ __('app.map.updated') }}</span>
-                        <span class="map-info-chip__value" id="livePanelUpdated">{{ __('app.map.dash') }}</span>
+                <div class="map-live-panel__body" id="mapLivePanelBody">
+                    <div class="map-live-panel__grid">
+                        <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.speed') }}</span>
+                            <span class="map-info-chip__value" id="livePanelSpeed">{{ __('app.map.dash') }}</span>
+                        </div>
+                        <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.ignition') }}</span>
+                            <span class="map-info-chip__value" id="livePanelIgnition">{{ __('app.map.dash') }}</span>
+                        </div>
+                        <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.gps_signal') }}</span>
+                            <span class="map-info-chip__value" id="livePanelGps">{{ __('app.map.dash') }}</span>
+                        </div>
+                        <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.gsm_signal') }}</span>
+                            <span class="map-info-chip__value" id="livePanelGsm">{{ __('app.map.dash') }}</span>
+                        </div>
+                        <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.battery') }}</span>
+                            <span class="map-info-chip__value" id="livePanelBattery">{{ __('app.map.dash') }}</span>
+                        </div>
+                        <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.updated') }}</span>
+                            <span class="map-info-chip__value" id="livePanelUpdated">{{ __('app.map.dash') }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1315,11 +1476,6 @@
                 <div class="legend-bar"></div>
                 <div class="legend-labels"><span>{{ __('app.map.speed_normal') }}</span><span>{{ __('app.map.speed_medium') }}</span><span>{{ __('app.map.speed_high') }}</span></div>
             </div>
-
-            <button type="button" class="playback-fab" id="playbackFab" disabled aria-label="{{ __('app.map.open_playback') }}">
-                <i class="fas fa-play"></i>
-                <span>{{ __('app.map.play_route_lower') }}</span>
-            </button>
 
             <!-- Route Playback (hidden until Play is clicked) -->
             <div class="playback-panel" id="playbackPanel">
