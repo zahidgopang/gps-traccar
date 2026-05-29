@@ -63,6 +63,21 @@ class Device extends Model
         return $type;
     }
 
+    /** SIM card types used in GPS trackers. */
+    public const SIM_TYPES = [
+        'standard' => 'Standard SIM',
+        'micro' => 'Micro SIM',
+        'nano' => 'Nano SIM',
+        'esim' => 'eSIM',
+        'other' => 'Other',
+    ];
+
+    /** License / registration plate category. */
+    public const PLATE_TYPES = [
+        'public_transfer' => 'Public Transfer',
+        'private_transfer' => 'Private Transfer',
+    ];
+
     /** Vehicle using the tracker (separate from GPS hardware device type). */
     public const VEHICLE_TYPES = [
         'car' => 'Car',
@@ -227,6 +242,46 @@ class Device extends Model
     public function setVehicleTypeAttribute(?string $value): void
     {
         $this->patchTraccarAppAttributes([TraccarAppFields::KEY_VEHICLE_TYPE => $value ?: null]);
+    }
+
+    public function getSimTypeAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_SIM_TYPE);
+    }
+
+    public function setSimTypeAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_SIM_TYPE => $value ?: null]);
+    }
+
+    public function getSimNumberAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_SIM_NUMBER);
+    }
+
+    public function setSimNumberAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_SIM_NUMBER => $value ?: null]);
+    }
+
+    public function getPlateTypeAttribute(): ?string
+    {
+        return TraccarAppFields::get($this->getTraccarAttributesJson(), TraccarAppFields::KEY_PLATE_TYPE);
+    }
+
+    public function setPlateTypeAttribute(?string $value): void
+    {
+        $this->patchTraccarAppAttributes([TraccarAppFields::KEY_PLATE_TYPE => $value ?: null]);
+    }
+
+    public function simTypeLabel(): string
+    {
+        return $this->typeLabelFor($this->sim_type, self::SIM_TYPES, 'sim_type');
+    }
+
+    public function plateTypeLabel(): string
+    {
+        return $this->typeLabelFor($this->plate_type, self::PLATE_TYPES, 'plate_type');
     }
 
     public function deviceTypeLabel(): string

@@ -7,7 +7,10 @@
     $selectedUserId = old('user_id', optional($device)->user_id ?? '');
     $usersByClient = $usersByClient ?? [];
     $deviceType = old('device_type', optional($device)->device_type ?? '');
+    $simType = old('sim_type', optional($device)->sim_type ?? '');
+    $simNumber = old('sim_number', optional($device)->sim_number ?? '');
     $vehicleType = old('vehicle_type', optional($device)->vehicle_type ?? '');
+    $plateType = old('plate_type', optional($device)->plate_type ?? '');
     $allowedDeviceTypes = $allowedDeviceTypes ?? array_keys(Device::DEVICE_TYPES);
     $formClientId = $formClientId ?? ($panel === 'client' ? $selectedClient : ($selectedClient ?: null));
     $needsClient = $panel === 'admin' && ! $formClientId;
@@ -107,6 +110,25 @@
     </x-admin.form-col>
 
     <x-admin.form-col>
+        <label class="admin-label" for="device-sim-type">{{ __('app.forms.sim_type') }}</label>
+        <select name="sim_type" id="device-sim-type" class="form-select form-select-sm" data-search="false">
+            <option value="">{{ __('app.forms.select_sim_type') }}</option>
+            @foreach(Device::SIM_TYPES as $typeKey => $typeLabel)
+                <option value="{{ $typeKey }}" @selected($simType === $typeKey)>
+                    {{ __('app.forms.sim_type_' . $typeKey) }}
+                </option>
+            @endforeach
+        </select>
+        @error('sim_type') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
+    </x-admin.form-col>
+
+    <x-admin.form-col>
+        <label class="admin-label" for="device-sim-number">{{ __('app.forms.sim_number') }}</label>
+        <input type="text" name="sim_number" id="device-sim-number" value="{{ old('sim_number', $simNumber) }}" class="form-control form-control-sm admin-ltr" dir="ltr" maxlength="40" placeholder="{{ __('app.forms.sim_number_placeholder') }}">
+        @error('sim_number') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
+    </x-admin.form-col>
+
+    <x-admin.form-col>
         <label class="admin-label" for="device-status">{{ __('app.common.status') }}</label>
         <select name="status" id="device-status" class="form-select form-select-sm" required>
             @php $status = old('status', optional($device)->status ?? 'active'); @endphp
@@ -155,5 +177,18 @@
         </select>
         <p class="admin-hint">{{ __('app.forms.vehicle_type_hint') }}</p>
         @error('vehicle_type') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
+    </x-admin.form-col>
+
+    <x-admin.form-col>
+        <label class="admin-label" for="vehicle-plate-type">{{ __('app.forms.plate_type') }}</label>
+        <select name="plate_type" id="vehicle-plate-type" class="form-select form-select-sm" data-search="false">
+            <option value="">{{ __('app.forms.select_plate_type') }}</option>
+            @foreach(Device::PLATE_TYPES as $typeKey => $typeLabel)
+                <option value="{{ $typeKey }}" @selected($plateType === $typeKey)>
+                    {{ __('app.forms.plate_type_' . $typeKey) }}
+                </option>
+            @endforeach
+        </select>
+        @error('plate_type') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 </x-admin.form-section>

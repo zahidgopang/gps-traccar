@@ -261,6 +261,9 @@ class DeviceController extends Controller
             ],
             'vehicle_model' => 'nullable|string|max:80',
             'vehicle_type' => ['nullable', Rule::in(array_keys(Device::VEHICLE_TYPES))],
+            'sim_type' => ['nullable', Rule::in(array_keys(Device::SIM_TYPES))],
+            'sim_number' => 'nullable|string|max:40',
+            'plate_type' => ['nullable', Rule::in(array_keys(Device::PLATE_TYPES))],
         ];
 
         if (! $this->isClientPanel()) {
@@ -275,6 +278,9 @@ class DeviceController extends Controller
         $request->merge([
             'imei' => Device::normalizeImei($request->input('imei')),
             'vehicle_number' => Device::normalizeVehicleNumber($request->input('vehicle_number')),
+            'sim_number' => $request->filled('sim_number')
+                ? trim((string) $request->input('sim_number'))
+                : null,
         ]);
     }
 
@@ -294,6 +300,9 @@ class DeviceController extends Controller
             'vehicle_number' => $data['vehicle_number'] ?? null,
             'vehicle_model' => $data['vehicle_model'] ?? null,
             'vehicle_type' => $data['vehicle_type'] ?? null,
+            'sim_type' => $data['sim_type'] ?? null,
+            'sim_number' => $data['sim_number'] ?? null,
+            'plate_type' => $data['plate_type'] ?? null,
         ];
     }
 

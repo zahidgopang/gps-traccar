@@ -87,9 +87,30 @@ document.addEventListener('DOMContentLoaded', function () {
         return types;
     }
 
+    function destroyTypeSelect2() {
+        if (!typeSelect || typeof window.jQuery === 'undefined') {
+            return;
+        }
+
+        var $type = window.jQuery(typeSelect);
+        if ($type.hasClass('select2-hidden-accessible')) {
+            $type.select2('destroy');
+        }
+    }
+
+    function initTypeSelect2() {
+        if (!typeSelect || typeof window.FormEnhancements === 'undefined') {
+            return;
+        }
+
+        destroyTypeSelect2();
+        window.FormEnhancements.initSelect2(typeSelect.closest('.admin-form-col') || typeSelect.parentElement);
+    }
+
     function renderDeviceTypes(types, needsClient, noStock) {
         if (!typeSelect) return;
 
+        destroyTypeSelect2();
         typeSelect.innerHTML = '';
 
         if (needsClient) {
@@ -141,6 +162,15 @@ document.addEventListener('DOMContentLoaded', function () {
         typeSelect.disabled = false;
         typeSelect.setAttribute('required', 'required');
         setSubmitDisabled(false);
+        initTypeSelect2();
+    }
+
+    function onClientChange() {
+        currentType = '';
+        if (typeSelect) {
+            typeSelect.value = '';
+        }
+        fetchBalance(clientSelect ? clientSelect.value : initialClientId);
     }
 
     function fetchBalance(clientId) {
@@ -174,11 +204,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (panel === 'admin' && clientSelect) {
-        clientSelect.addEventListener('change', function () {
-            currentType = '';
-            fetchBalance(clientSelect.value);
-        });
-        fetchBalance(clientSelect.value || initialClientId);
+        clientSelect.addEventListener('change', onClientChange);
+
+        if (typeof window.jQuery !== 'undefined') {
+            window.jQuery(clientSelect).on('change select2:select select2:clear', onClientChange);
+        }
+
+        if (window.FormEnhancements) {
+            window.setTimeout(function () {
+                fetchBalance(clientSelect.value || initialClientId);
+            }, 0);
+        } else {
+            fetchBalance(clientSelect.value || initialClientId);
+        }
     } else if (panel === 'client') {
         fetchBalance(initialClientId);
     }

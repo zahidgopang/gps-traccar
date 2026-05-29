@@ -43,6 +43,12 @@ final class TraccarAppFields
 
     public const KEY_VEHICLE_TYPE = 'vehicle_type';
 
+    public const KEY_PLATE_TYPE = 'plate_type';
+
+    public const KEY_SIM_TYPE = 'sim_type';
+
+    public const KEY_SIM_NUMBER = 'sim_number';
+
     public const KEY_DEVICE_STATUS = 'laravel_device_status';
 
     public const KEY_DEVICE_DESC = 'description';
