@@ -171,6 +171,7 @@
     @include('frontend.sections.use_cases')
 
     {{-- ANDROID APP --}}
+    @include('frontend.sections.mobile_screenshots')
     @include('frontend.sections.android_app')
 
     {{-- PREMIUM CTA SECTION --}}

@@ -114,6 +114,71 @@ return [
         'mock_geofences' => 'Geofences',
     ],
 
+    'mobile_screens' => [
+        'badge' => 'MOBILE APP PREVIEW',
+        'title' => 'Explore FalconEyeGPS',
+        'title_highlight' => 'On Your Phone',
+        'subtitle' => 'Browse real app screens in dark mode — live tracking, fleet dashboard, alerts, geofences, and profile sync before you sign up.',
+        'prev' => 'Previous screenshot',
+        'next' => 'Next screenshot',
+        'cta_download' => 'Get the Android app',
+        'cta_signup' => 'Create free account',
+        'items' => [
+            '01-login' => [
+                'title' => 'Secure sign-in',
+                'description' => 'Log in with the same credentials as your web dashboard.',
+            ],
+            '02-profile-settings' => [
+                'title' => 'Profile & dark theme',
+                'description' => 'Premium dark fleet theme and synced profile settings.',
+            ],
+            '03-dashboard' => [
+                'title' => 'Fleet dashboard',
+                'description' => 'Overview of devices, activity, and key fleet metrics at a glance.',
+            ],
+            '04-live-tracking-map' => [
+                'title' => 'Live fleet map',
+                'description' => 'See all vehicles on an interactive map with real-time status.',
+            ],
+            '05-vehicle-list' => [
+                'title' => 'Vehicle list',
+                'description' => 'Browse every tracked device with status, speed, and last update.',
+            ],
+            '06-vehicle-details' => [
+                'title' => 'Vehicle details',
+                'description' => 'Deep dive into telemetry, location, and quick actions per vehicle.',
+            ],
+            '07-live-map-detail' => [
+                'title' => 'Live tracking',
+                'description' => 'Follow a single vehicle with route trail, events, and map controls.',
+            ],
+            '08-history-playback' => [
+                'title' => 'Route history',
+                'description' => 'Speed-colored route trails and trip playback on the live map.',
+            ],
+            '09-alerts-reports' => [
+                'title' => 'Alerts & events',
+                'description' => 'Review speed, geofence, and fleet alerts as they happen.',
+            ],
+            '10-notifications' => [
+                'title' => 'Alert center',
+                'description' => 'Unread alerts and fleet events in one prioritized feed.',
+            ],
+            '11-geofences' => [
+                'title' => 'Fleet map zones',
+                'description' => 'Geofence overlays and live positions on the fleet map.',
+            ],
+            '12-user-profile' => [
+                'title' => 'User profile',
+                'description' => 'Update name, email, phone, and avatar — synced with the web app.',
+            ],
+            '13-change-password' => [
+                'title' => 'Account settings',
+                'description' => 'Manage profile, dark theme, subscription, and security options.',
+            ],
+        ],
+    ],
+
     'features' => [
         'badge' => 'ENTERPRISE FEATURES',
         'title' => 'Advanced Tracking',

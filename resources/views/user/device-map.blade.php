@@ -65,7 +65,7 @@
         .playback-fab {
             position: absolute;
             left: 50%;
-            bottom: max(20px, env(safe-area-inset-bottom));
+            bottom: max(168px, calc(152px + env(safe-area-inset-bottom)));
             transform: translateX(-50%);
             z-index: 1050;
             display: inline-flex;
@@ -422,9 +422,146 @@
             box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
         }
         .map-hud__status-dot.is-online { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); }
-        .map-hud__status-dot.is-moving { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
-        .map-hud__status-dot.is-stopped { background: #94a3b8; }
+        .map-hud__status-dot.is-moving { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); }
+        .map-hud__status-dot.is-idle { background: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25); }
+        .map-hud__status-dot.is-parked { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+        .map-hud__status-dot.is-offline { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
+        .map-hud__status-dot.is-stopped { background: #f97316; }
         .map-hud__status-dot.is-alert { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
+
+        /* Bottom live vehicle panel */
+        .map-live-panel {
+            position: absolute;
+            left: 50%;
+            bottom: max(68px, calc(52px + env(safe-area-inset-bottom)));
+            transform: translateX(-50%);
+            width: min(760px, calc(100% - 20px));
+            z-index: 1040;
+            background: var(--map-ui-bg);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--map-ui-border);
+            border-radius: 18px;
+            box-shadow: var(--map-ui-shadow);
+            padding: 12px 14px;
+            pointer-events: auto;
+            transition: transform 0.35s ease, opacity 0.3s ease;
+        }
+        #mapArea.playback-open .map-live-panel {
+            bottom: calc(210px + env(safe-area-inset-bottom));
+        }
+        .map-live-panel__header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .map-live-panel__brand {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            flex-shrink: 0;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            padding: 3px;
+            box-shadow: 0 2px 8px rgba(15,23,42,0.08);
+        }
+        .map-live-panel__vehicle {
+            flex: 1;
+            min-width: 0;
+        }
+        .map-live-panel__vehicle strong {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .map-live-panel__vehicle span {
+            display: block;
+            font-size: 0.72rem;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .map-status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            flex-shrink: 0;
+        }
+        .map-status-chip--moving { background: rgba(34,197,94,0.14); color: #15803d; }
+        .map-status-chip--idle { background: rgba(249,115,22,0.14); color: #c2410c; }
+        .map-status-chip--parked { background: rgba(59,130,246,0.14); color: #1d4ed8; }
+        .map-status-chip--offline { background: rgba(239,68,68,0.14); color: #b91c1c; }
+        .map-status-chip--alert { background: rgba(239,68,68,0.18); color: #991b1b; }
+        .map-live-panel__grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .map-info-chip {
+            background: rgba(255,255,255,0.85);
+            border: 1px solid rgba(15,23,42,0.06);
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .map-info-chip__label {
+            display: block;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+        .map-info-chip__value {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #0f172a;
+            font-variant-numeric: tabular-nums;
+        }
+        .map-brand-watermark {
+            position: absolute;
+            top: max(12px, env(safe-area-inset-top));
+            right: max(68px, calc(60px + env(safe-area-inset-right)));
+            z-index: 999;
+            opacity: 0.92;
+            pointer-events: none;
+        }
+        .map-brand-watermark img {
+            height: 28px;
+            width: auto;
+            filter: drop-shadow(0 2px 6px rgba(15,23,42,0.15));
+        }
+        body.map-night-mode .map-brand-watermark img {
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)) brightness(1.15);
+        }
+        body.map-night-mode .map-live-panel,
+        body.map-night-mode .map-hud,
+        body.map-night-mode .control-group {
+            --map-ui-bg: rgba(15, 23, 42, 0.92);
+            --map-ui-border: rgba(148, 163, 184, 0.15);
+        }
+        body.map-night-mode .map-live-panel__vehicle strong,
+        body.map-night-mode .map-info-chip__value,
+        body.map-night-mode .map-hud__name {
+            color: #f1f5f9;
+        }
+        body.map-night-mode .map-info-chip {
+            background: rgba(30, 41, 59, 0.85);
+            border-color: rgba(148,163,184,0.12);
+        }
         .map-hud__name { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
         .map-hud__grid {
             display: grid;
@@ -478,7 +615,7 @@
         .heatmap-legend .legend-bar {
             height: 8px;
             border-radius: 4px;
-            background: linear-gradient(90deg, #9aa0a6, #34a853, #fbbc05, #ea4335);
+            background: linear-gradient(90deg, #64748b, #22c55e, #eab308, #ef4444);
             margin-bottom: 4px;
         }
         .heatmap-legend .legend-labels { display: flex; justify-content: space-between; color: #64748b; font-size: 0.65rem; }
@@ -600,7 +737,7 @@
             .playback-speed-group { justify-content: center; }
             .smart-controls {
                 top: auto;
-                bottom: max(16px, env(safe-area-inset-bottom));
+                bottom: max(168px, calc(152px + env(safe-area-inset-bottom)));
                 right: max(10px, env(safe-area-inset-right));
                 flex-direction: row;
             }
@@ -639,7 +776,10 @@
                 font-size: 0.85rem;
                 top: max(8px, env(safe-area-inset-top));
             }
-            .map-tools-left { bottom: max(100px, calc(84px + env(safe-area-inset-bottom))); }
+            .map-tools-left { bottom: max(180px, calc(160px + env(safe-area-inset-bottom))); }
+            .map-live-panel { width: calc(100% - 16px); padding: 10px 12px; }
+            .map-live-panel__grid { grid-template-columns: repeat(2, 1fr); }
+            .map-brand-watermark { right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); }
         }
 
         @media (max-width: 576px) {
@@ -1099,8 +1239,51 @@
             </div>
             <div class="notification-container" id="notificationContainer"></div>
 
-            <!-- Live vehicle HUD -->
-            <div class="map-hud" id="mapHud">
+            <!-- FalconEyeGPS branding -->
+            <div class="map-brand-watermark" aria-hidden="true">
+                <img src="{{ asset(config('branding.logo')) }}" alt="{{ config('branding.name') }}">
+            </div>
+
+            <!-- Bottom live vehicle panel -->
+            <div class="map-live-panel" id="mapLivePanel">
+                <div class="map-live-panel__header">
+                    <img class="map-live-panel__brand" src="{{ asset(config('branding.logo_icon')) }}" alt="">
+                    <div class="map-live-panel__vehicle">
+                        <strong id="liveVehicleName">{{ $device->mapDisplayTitle() }}</strong>
+                        <span id="liveVehicleNumber">{{ $device->vehicle_number ?: $device->mapNavSubtitle() ?: $device->imei }}</span>
+                    </div>
+                    <span class="map-status-chip map-status-chip--offline" id="liveStatusChip">{{ __('app.map.status_offline') }}</span>
+                </div>
+                <div class="map-live-panel__grid">
+                    <div class="map-info-chip">
+                        <span class="map-info-chip__label">{{ __('app.map.speed') }}</span>
+                        <span class="map-info-chip__value" id="livePanelSpeed">{{ __('app.map.dash') }}</span>
+                    </div>
+                    <div class="map-info-chip">
+                        <span class="map-info-chip__label">{{ __('app.map.ignition') }}</span>
+                        <span class="map-info-chip__value" id="livePanelIgnition">{{ __('app.map.dash') }}</span>
+                    </div>
+                    <div class="map-info-chip">
+                        <span class="map-info-chip__label">{{ __('app.map.gps_signal') }}</span>
+                        <span class="map-info-chip__value" id="livePanelGps">{{ __('app.map.dash') }}</span>
+                    </div>
+                    <div class="map-info-chip">
+                        <span class="map-info-chip__label">{{ __('app.map.gsm_signal') }}</span>
+                        <span class="map-info-chip__value" id="livePanelGsm">{{ __('app.map.dash') }}</span>
+                    </div>
+                    <div class="map-info-chip">
+                        <span class="map-info-chip__label">{{ __('app.map.battery') }}</span>
+                        <span class="map-info-chip__value" id="livePanelBattery">{{ __('app.map.dash') }}</span>
+                    </div>
+                    <div class="map-info-chip">
+                        <span class="map-info-chip__label">{{ __('app.map.updated') }}</span>
+                        <span class="map-info-chip__value" id="livePanelUpdated">{{ __('app.map.dash') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact top HUD (address + quick actions) -->
+            <div class="map-hud is-collapsed" id="mapHud">
                 <button type="button" class="map-hud__toggle" id="mapHudToggle" aria-expanded="true" aria-controls="mapHudBody" title="{{ __('app.map.hud_toggle_title') }}">
                     <span class="map-hud__status-dot" id="hudStatusDot"></span>
                     <span class="map-hud__toggle-text">
@@ -1130,7 +1313,7 @@
             <div class="heatmap-legend" id="heatmapLegend" style="display:none;">
                 <div class="legend-header"><i class="fas fa-fire"></i><span>{{ __('app.map.route_density') }}</span></div>
                 <div class="legend-bar"></div>
-                <div class="legend-labels"><span>0-40</span><span>40-80</span><span>80+</span></div>
+                <div class="legend-labels"><span>{{ __('app.map.speed_normal') }}</span><span>{{ __('app.map.speed_medium') }}</span><span>{{ __('app.map.speed_high') }}</span></div>
             </div>
 
             <button type="button" class="playback-fab" id="playbackFab" disabled aria-label="{{ __('app.map.open_playback') }}">
@@ -1221,21 +1404,22 @@
             <!-- Smart Controls -->
             <div class="smart-controls">
                 <div class="control-group">
-                    <button class="smart-btn" id="btnRecenter" title="{{ __('app.map.recenter') }}"><i class="fas fa-crosshairs"></i></button>
-                    <button class="smart-btn" id="btnFollow" title="{{ __('app.map.follow') }}"><i class="fas fa-satellite"></i></button>
+                    <button class="smart-btn" id="btnCenterVehicle" title="{{ __('app.map.center_vehicle') }}"><i class="fas fa-location-crosshairs"></i></button>
+                    <button class="smart-btn active" id="btnFollow" title="{{ __('app.map.follow') }}"><i class="fas fa-satellite"></i></button>
                     <button class="smart-btn" id="btnGeofence" title="{{ __('app.map.geofences') }}"><i class="fas fa-draw-polygon"></i></button>
                     <button class="smart-btn" id="btnClear" title="{{ __('app.map.clear_route') }}"><i class="fas fa-trash-alt"></i></button>
                     <button class="smart-btn" id="btnTraffic" title="{{ __('app.map.traffic') }}"><i class="fas fa-traffic-light"></i></button>
                 </div>
                 <div class="control-group" id="layerControls">
-                    <button class="smart-btn active" data-layer="roadmap" title="{{ __('app.map.road_map') }}"><i class="fas fa-road"></i></button>
+                    <button class="smart-btn active" data-layer="roadmap" title="{{ __('app.map.street_map') }}"><i class="fas fa-road"></i></button>
                     <button class="smart-btn" data-layer="satellite" title="{{ __('app.map.satellite_layer') }}"><i class="fas fa-satellite-dish"></i></button>
-                    <button class="smart-btn" data-layer="hybrid" title="{{ __('app.map.hybrid') }}"><i class="fas fa-layer-group"></i></button>
                 </div>
             </div>
             <div class="map-tools-left">
                 <div class="control-group">
+                    <button class="smart-btn" id="btnRecenter" title="{{ __('app.map.center_vehicle') }}"><i class="fas fa-crosshairs"></i></button>
                     <button class="smart-btn" id="btnFitRoute" title="{{ __('app.map.fit_route') }}"><i class="fas fa-expand"></i></button>
+                    <button class="smart-btn" id="btnEventMarkers" title="{{ __('app.map.route_events') }}"><i class="fas fa-map-pin"></i></button>
                     <button class="smart-btn" id="btnHeatmap" title="{{ __('app.map.heatmap') }}"><i class="fas fa-fire"></i></button>
                     <button class="smart-btn" id="btnNightMode" title="{{ __('app.map.night_mode') }}"><i class="fas fa-moon"></i></button>
                     <button class="smart-btn" id="btnExportRoute" title="{{ __('app.map.export_csv_title') }}"><i class="fas fa-download"></i></button>
@@ -1291,8 +1475,17 @@
             pollIntervalMs: 5000,
             stopMinMinutes: 2,
             stopIcon: @json(asset('images/stop.svg')),
-            startIcon: @json(asset('images/start.png')),
+            startIcon: @json(asset('images/map/marker-start.svg')),
+            endIcon: @json(asset('images/map/marker-end.svg')),
             parkingIcon: @json(asset('images/stop.svg')),
+            brandLogo: @json(asset(config('branding.logo'))),
+            brandLogoIcon: @json(asset(config('branding.logo_icon'))),
+            vehicleNumber: @json($device->vehicle_number ?: $device->imei),
+            backUrl: @json(($isAdminMap ?? false) ? route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') : route('user.devices.index')),
+            mediumSpeedKmh: 60,
+            routeGlowEnabled: true,
+            showEventMarkers: true,
+            markerAnimMs: 1200,
             mapTour: {
                 showOnLoad: @json($showMapTourOnLoad ?? true),
                 mode: @json($mapTourMode ?? 'repeat'),
@@ -1323,6 +1516,18 @@
                 statusParked: @json(__('app.map.status_parked')),
                 statusIdle: @json(__('app.map.status_idle')),
                 statusOffline: @json(__('app.map.status_offline')),
+                centerVehicle: @json(__('app.map.center_vehicle')),
+                routeStart: @json(__('app.map.route_start')),
+                routeEnd: @json(__('app.map.route_end')),
+                eventOverspeed: @json(__('app.map.event_overspeed')),
+                eventLongStop: @json(__('app.map.event_long_stop')),
+                eventHarshBrake: @json(__('app.map.event_harsh_brake')),
+                eventHarshAccel: @json(__('app.map.event_harsh_accel')),
+                eventLowBattery: @json(__('app.map.event_low_battery')),
+                eventFuel: @json(__('app.map.event_fuel')),
+                eventsShown: @json(__('app.map.events_shown')),
+                eventsHidden: @json(__('app.map.events_hidden')),
+                noPosition: @json(__('app.map.no_position')),
                 liveBadge: @json(__('app.map.live_badge')),
                 addressNotFound: @json(__('app.map.address_not_found')),
                 addressLoadError: @json(__('app.map.address_load_error')),

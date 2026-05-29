@@ -106,7 +106,7 @@ class SubscriptionController extends Controller
         ]);
 
         return redirect()
-            ->to($this->panelRoute('subscriptions.edit', $subscription))
+            ->to($this->panelRoute('subscriptions.index'))
             ->with('success', __('app.billing.subscription_created'));
     }
 

@@ -76,18 +76,43 @@
     let lastAppliedPositionKey = '';
     let livePollTimer = null;
     let alertsPollTimer = null;
+    let markerAnimationFrame = null;
+    let animFromPos = null;
+    let animFromHeading = 0;
+    let animStartTime = 0;
+    let endMarker = null;
+    let eventMarkers = [];
+    let routeGlowPolylines = [];
+    let showsEventMarkers = cfg.showEventMarkers !== false;
+    let routeGlowEnabled = cfg.routeGlowEnabled !== false;
+    const mediumSpeedKmh = cfg.mediumSpeedKmh ?? 60;
+    const ANIM_DURATION_MS = cfg.markerAnimMs ?? 1200;
 
-    function sleep(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-    }
+    const VEHICLE_STATE_COLORS = {
+        moving: '#22c55e',
+        idle: '#f97316',
+        parked: '#3b82f6',
+        offline: '#ef4444',
+        alert: '#ef4444',
+        stopped: '#f97316',
+    };
 
     const NIGHT_MAP_STYLES = [
-        { elementType: 'geometry', stylers: [{ color: '#1d2c4d' }] },
-        { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
-        { elementType: 'labels.text.stroke', stylers: [{ color: '#1a3646' }] },
-        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#304a7d' }] },
-        { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
+        { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
+        { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+        { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#64748b' }] },
+        { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1a2e1a' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+        { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1e293b' }] },
+        { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#475569' }] },
+        { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#334155' }] },
+        { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#3f4f63' }] },
+        { featureType: 'road.local', elementType: 'geometry', stylers: [{ color: '#2d3748' }] },
+        { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0c1929' }] },
+        { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#475569' }] },
     ];
 
     function normalizePoint(raw) {
@@ -106,7 +131,9 @@
             battery: raw.battery ?? raw.battery_level ?? null,
             ignition: raw.ignition === true || raw.ignition === 1 || raw.ignition === '1',
             gsm_signal: raw.gsm_signal ?? null,
+            gps_signal: raw.gps_signal ?? raw.gps ?? null,
             satellites: raw.satellites ?? null,
+            fuel: raw.fuel ?? raw.fuel_level ?? null,
             odometer: raw.odometer ?? null,
             power_cut: raw.power_cut === true || raw.power_cut === 1,
             panic: raw.panic === true || raw.panic === 1,
@@ -150,34 +177,113 @@
         return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
     }
 
-    function speedToColor(speed) {
-        const spd = parseFloat(speed || 0);
-        if (spd === 0) return '#9aa0a6';
-        if (spd <= 40) return '#34a853';
-        if (spd <= 60) return '#fbbc05';
-        if (spd <= 80) return '#f97316';
-        return '#ea4335';
+    function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    function vehicleIcon(speed, heading) {
+    function speedToColor(speed) {
         const spd = parseFloat(speed || 0);
-        if (spd <= parkedIconSpeedKmh) {
-            return {
-                url: cfg.stopIcon || '/images/stop.svg',
-                scaledSize: new google.maps.Size(36, 36),
-                anchor: new google.maps.Point(18, 18),
-            };
+        if (spd <= 0) return '#64748b';
+        if (spd <= mediumSpeedKmh) return '#22c55e';
+        if (spd <= overSpeedLimit) return '#eab308';
+        return '#ef4444';
+    }
+
+    function isPointOffline(point) {
+        if (!point?.recorded_at) {
+            return true;
         }
+        const age = Date.now() - new Date(point.recorded_at).getTime();
+        return age > onlineTimeoutMs;
+    }
+
+    function vehicleStateKey(point) {
+        if (!point || isPointOffline(point)) {
+            return 'offline';
+        }
+        if (point.power_cut || point.panic) {
+            return 'alert';
+        }
+        const speed = parseFloat(point.speed || 0);
+        if (speed > overSpeedLimit) {
+            return 'alert';
+        }
+        if (speed > movingSpeedKmh) {
+            return 'moving';
+        }
+        if (speed > idleSpeedKmh) {
+            return 'idle';
+        }
+        if (point.ignition === true) {
+            return 'idle';
+        }
+        return 'parked';
+    }
+
+    function vehicleStateColor(state) {
+        return VEHICLE_STATE_COLORS[state] || VEHICLE_STATE_COLORS.parked;
+    }
+
+    function vehicleSvgDataUrl(color, heading, showDirection) {
+        const rotation = showDirection ? (parseFloat(heading || 0)) : 0;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
+            <g transform="rotate(${rotation} 26 26)">
+                <ellipse cx="26" cy="26" rx="22" ry="22" fill="${color}" opacity="0.18"/>
+                <path d="M26 8 L34 36 L30 42 L22 42 L18 36 Z" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
+                <rect x="22" y="16" width="8" height="7" rx="1.5" fill="#ffffff" opacity="0.9"/>
+            </g>
+        </svg>`;
+        return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+    }
+
+    function vehicleIcon(point) {
+        const state = vehicleStateKey(point);
+        const color = vehicleStateColor(state);
+        const heading = parseFloat(point?.heading || 0);
+        const showDirection = state === 'moving' || state === 'idle' || state === 'alert';
+
         return {
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale: spd <= idleSpeedKmh ? 4.5 : 5,
-            fillColor: spd <= idleSpeedKmh ? '#42a5f5' : '#1976D2',
-            fillOpacity: 1,
-            strokeColor: '#ffffff',
-            strokeWeight: 1.5,
-            rotation: parseFloat(heading || 0),
-            anchor: new google.maps.Point(0, 2.5),
+            url: vehicleSvgDataUrl(color, heading, showDirection),
+            scaledSize: new google.maps.Size(48, 48),
+            anchor: new google.maps.Point(24, 24),
         };
+    }
+
+    function routeMarkerIcon(type) {
+        const url = type === 'start'
+            ? (cfg.startIcon || '/images/map/marker-start.svg')
+            : (cfg.endIcon || '/images/map/marker-end.svg');
+        return {
+            url,
+            scaledSize: new google.maps.Size(36, 36),
+            anchor: new google.maps.Point(18, 18),
+        };
+    }
+
+    function eventMarkerIcon(type) {
+        const palette = {
+            overspeed: '#ef4444',
+            stop: '#3b82f6',
+            harsh_brake: '#f97316',
+            harsh_accel: '#eab308',
+            low_battery: '#a855f7',
+            fuel: '#14b8a6',
+        };
+        const color = palette[type] || '#64748b';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+            <circle cx="16" cy="16" r="14" fill="${color}" stroke="#fff" stroke-width="2.5"/>
+            <circle cx="16" cy="16" r="5" fill="#fff"/>
+        </svg>`;
+        return {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+            scaledSize: new google.maps.Size(28, 28),
+            anchor: new google.maps.Point(14, 14),
+        };
+    }
+
+    function interpolateHeading(from, to, t) {
+        let delta = ((to - from + 540) % 360) - 180;
+        return (from + delta * t + 360) % 360;
     }
 
     function setText(id, value) {
@@ -245,32 +351,25 @@
     }
 
     function resolveVehicleStatus(point) {
-        if (!point) {
-            return { key: 'offline', label: mi('statusOffline', 'Offline'), cls: 'bg-secondary' };
+        if (!point || isPointOffline(point)) {
+            return { key: 'offline', label: mi('statusOffline', 'Offline'), cls: 'map-status-chip--offline' };
         }
 
-        const speed = parseFloat(point.speed || 0);
+        const state = vehicleStateKey(point);
+        const labels = {
+            moving: mi('statusMoving', 'Moving'),
+            idle: mi('statusIdle', 'Idle'),
+            parked: mi('statusParked', 'Parked'),
+            offline: mi('statusOffline', 'Offline'),
+            alert: point.panic ? mi('statusSos', 'SOS') : (point.power_cut ? mi('statusPowerCut', 'Power cut') : mi('statusOverspeed', 'Overspeed')),
+            stopped: mi('statusStopped', 'Stopped'),
+        };
 
-        if (point.power_cut) {
-            return { key: 'alert', label: mi('statusPowerCut', 'Power cut'), cls: 'bg-danger' };
-        }
-        if (point.panic) {
-            return { key: 'alert', label: mi('statusSos', 'SOS'), cls: 'bg-danger' };
-        }
-        if (speed > overSpeedLimit) {
-            return { key: 'alert', label: mi('statusOverspeed', 'Overspeed'), cls: 'bg-warning text-dark' };
-        }
-        if (speed > movingSpeedKmh) {
-            return { key: 'moving', label: mi('statusRunning', 'Running'), cls: 'bg-success' };
-        }
-        if (speed > idleSpeedKmh) {
-            return { key: 'idle', label: mi('statusIdle', 'Idle'), cls: 'bg-info' };
-        }
-        if (point.ignition === true) {
-            return { key: 'stopped', label: mi('statusStopped', 'Stopped'), cls: 'bg-warning text-dark' };
-        }
-
-        return { key: 'parked', label: mi('statusParked', 'Parked'), cls: 'bg-secondary' };
+        return {
+            key: state,
+            label: labels[state] || labels.parked,
+            cls: 'map-status-chip--' + state,
+        };
     }
 
     function getVehicleStatusKey(point) {
@@ -288,6 +387,24 @@
                 localStorage.setItem('mapHudCollapsed.' + deviceId, collapsed ? '1' : '0');
             } catch (e) { /* ignore */ }
         }
+    }
+
+    function initMapBackNavigation() {
+        const backUrl = cfg.backUrl || document.querySelector('.sidebar-back-link')?.href;
+        if (!backUrl) {
+            return;
+        }
+
+        try {
+            history.replaceState({ fegMapPage: true }, '', location.href);
+            history.pushState({ fegMapGuard: true }, '', location.href);
+        } catch (e) { /* ignore */ }
+
+        window.addEventListener('popstate', () => {
+            if (/\/device\/[^/]+\/map/i.test(window.location.pathname)) {
+                window.location.replace(backUrl);
+            }
+        });
     }
 
     function initMapHudToggle() {
@@ -310,15 +427,43 @@
         if (!point) return;
         const speed = parseFloat(point.speed || 0);
         const speedText = speed.toFixed(0) + ' ' + mi('kmh', 'km/h');
+        const status = resolveVehicleStatus(point);
+
         setText('hudSpeed', speedText);
+        setText('livePanelSpeed', speedText);
         setText('hudMiniSpeed', speedText);
         setText('hudHeading', (point.heading ?? 0) + '°');
-        setText('hudUpdated', point.recorded_at ? (window.AppDateTime?.formatTime(point.recorded_at) ?? new Date(point.recorded_at).toLocaleTimeString()) : dash());
+        const updatedText = point.recorded_at
+            ? (window.AppDateTime?.formatTime(point.recorded_at) ?? new Date(point.recorded_at).toLocaleTimeString())
+            : dash();
+        setText('hudUpdated', updatedText);
+        setText('livePanelUpdated', updatedText);
         setText('hudCoords', point.lat.toFixed(5) + ', ' + point.lng.toFixed(5));
+
+        const ignitionText = point.ignition != null
+            ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF'))
+            : dash();
+        setText('livePanelIgnition', ignitionText);
+
+        const gpsText = point.gps_signal != null
+            ? point.gps_signal + '%'
+            : (point.satellites != null ? point.satellites + ' sats' : dash());
+        setText('livePanelGps', gpsText);
+
+        setText('livePanelGsm', point.gsm_signal != null ? point.gsm_signal + '%' : dash());
+
+        const battery = point.battery != null ? parseInt(point.battery, 10) : null;
+        setText('livePanelBattery', battery != null ? battery + '%' : dash());
+
+        const statusChip = document.getElementById('liveStatusChip');
+        if (statusChip) {
+            statusChip.textContent = status.label;
+            statusChip.className = 'map-status-chip ' + status.cls;
+        }
 
         const dot = document.getElementById('hudStatusDot');
         if (dot) {
-            dot.className = 'map-hud__status-dot is-' + getVehicleStatusKey(point);
+            dot.className = 'map-hud__status-dot is-' + status.key;
         }
 
         scheduleAddressLookup(point.lat, point.lng);
@@ -352,6 +497,18 @@
         }
         if (lastTelemetry) return { lat: lastTelemetry.lat, lng: lastTelemetry.lng };
         return null;
+    }
+
+    function centerOnVehicle() {
+        const pos = getLivePosition();
+        if (!pos || !map) {
+            showNotification(mi('noPosition', 'No position available'), 'info');
+            return;
+        }
+        map.panTo(pos);
+        map.setZoom(Math.max(map.getZoom() || 15, 16));
+        followVehicle = true;
+        document.getElementById('btnFollow')?.classList.add('active');
     }
 
     function copyLiveCoords() {
@@ -422,6 +579,145 @@
         const totalSec = tStart && tEnd && tEnd > tStart ? (tEnd - tStart) / 1000 : 0;
 
         return { dist, maxSpeed, overspeedEvents, movingSec, stoppedSec, totalSec, stops };
+    }
+
+    function detectRouteEvents(data) {
+        if (!data || data.length < 2) {
+            return [];
+        }
+
+        const events = [];
+        const stopMinSec = (cfg.stopMinMinutes || 2) * 60;
+        let stopRun = [];
+
+        const flushStop = () => {
+            if (stopRun.length < 2) {
+                stopRun = [];
+                return;
+            }
+            const t0 = new Date(stopRun[0].recorded_at).getTime();
+            const t1 = new Date(stopRun[stopRun.length - 1].recorded_at).getTime();
+            const dur = (t1 - t0) / 1000;
+            if (dur >= stopMinSec) {
+                const mid = stopRun[Math.floor(stopRun.length / 2)];
+                events.push({
+                    type: 'stop',
+                    lat: mid.lat,
+                    lng: mid.lng,
+                    title: mi('eventLongStop', 'Long stop'),
+                    detail: formatDurationLong(dur),
+                });
+            }
+            stopRun = [];
+        };
+
+        for (let i = 1; i < data.length; i++) {
+            const a = data[i - 1];
+            const b = data[i];
+            const spdA = parseFloat(a.speed || 0);
+            const spdB = parseFloat(b.speed || 0);
+            const t0 = a.recorded_at ? new Date(a.recorded_at).getTime() : null;
+            const t1 = b.recorded_at ? new Date(b.recorded_at).getTime() : null;
+            const dtSec = t0 && t1 && t1 > t0 ? (t1 - t0) / 1000 : 0;
+
+            if (spdB > overSpeedLimit && spdA <= overSpeedLimit) {
+                events.push({
+                    type: 'overspeed',
+                    lat: b.lat,
+                    lng: b.lng,
+                    title: mi('eventOverspeed', 'Overspeed'),
+                    detail: spdB.toFixed(0) + ' km/h',
+                });
+            }
+
+            if (dtSec > 0 && dtSec <= 5) {
+                const delta = spdB - spdA;
+                if (delta <= -18) {
+                    events.push({
+                        type: 'harsh_brake',
+                        lat: b.lat,
+                        lng: b.lng,
+                        title: mi('eventHarshBrake', 'Harsh braking'),
+                        detail: Math.abs(delta).toFixed(0) + ' km/h',
+                    });
+                } else if (delta >= 18) {
+                    events.push({
+                        type: 'harsh_accel',
+                        lat: b.lat,
+                        lng: b.lng,
+                        title: mi('eventHarshAccel', 'Harsh acceleration'),
+                        detail: delta.toFixed(0) + ' km/h',
+                    });
+                }
+            }
+
+            if (b.battery != null && parseInt(b.battery, 10) <= lowBatteryThreshold) {
+                const prevBat = a.battery != null ? parseInt(a.battery, 10) : 100;
+                if (prevBat > lowBatteryThreshold) {
+                    events.push({
+                        type: 'low_battery',
+                        lat: b.lat,
+                        lng: b.lng,
+                        title: mi('eventLowBattery', 'Low battery'),
+                        detail: b.battery + '%',
+                    });
+                }
+            }
+
+            if (b.fuel != null && a.fuel != null) {
+                const fuelDelta = parseFloat(b.fuel) - parseFloat(a.fuel);
+                if (Math.abs(fuelDelta) >= 5) {
+                    events.push({
+                        type: 'fuel',
+                        lat: b.lat,
+                        lng: b.lng,
+                        title: mi('eventFuel', 'Fuel event'),
+                        detail: (fuelDelta > 0 ? '+' : '') + fuelDelta.toFixed(1) + '%',
+                    });
+                }
+            }
+
+            if (spdB < 2) {
+                stopRun.push(b);
+            } else {
+                flushStop();
+            }
+        }
+        flushStop();
+
+        return events;
+    }
+
+    function clearEventMarkers() {
+        eventMarkers.forEach((m) => m.setMap(null));
+        eventMarkers = [];
+    }
+
+    function renderEventMarkers(events) {
+        clearEventMarkers();
+        if (!showsEventMarkers || !events.length) {
+            return;
+        }
+
+        events.forEach((ev, i) => {
+            const m = new google.maps.Marker({
+                position: { lat: ev.lat, lng: ev.lng },
+                map,
+                title: ev.title + (ev.detail ? ': ' + ev.detail : ''),
+                icon: eventMarkerIcon(ev.type),
+                zIndex: 550 + i,
+            });
+            m.addListener('click', () => {
+                customInfoWindow.setContent(`
+                    <div style="padding:10px;min-width:160px;font-family:system-ui,sans-serif;">
+                        <strong>${escapeHtml(ev.title)}</strong><br>
+                        <small>${escapeHtml(ev.detail || '')}</small>
+                    </div>`);
+                customInfoWindow.setPosition({ lat: ev.lat, lng: ev.lng });
+                customInfoWindow.open(map);
+            });
+            eventMarkers.push(m);
+        });
     }
 
     function renderTripEvents(stops, overspeedEvents) {
@@ -545,6 +841,7 @@
     function toggleNightMode() {
         nightModeOn = !nightModeOn;
         document.getElementById('btnNightMode')?.classList.toggle('active', nightModeOn);
+        document.body.classList.toggle('map-night-mode', nightModeOn);
         map.setOptions({ styles: nightModeOn ? NIGHT_MAP_STYLES : [] });
     }
 
@@ -609,7 +906,7 @@ ${pts}
         const statusEl = document.getElementById('curStatus');
         if (statusEl) {
             const status = resolveVehicleStatus(point);
-            statusEl.innerHTML = `<span class="badge ${status.cls}">${status.label}</span>`;
+            statusEl.innerHTML = `<span class="map-status-chip ${status.cls}">${status.label}</span>`;
         }
 
         const navStatus = document.getElementById('navLiveStatus');
@@ -845,14 +1142,14 @@ ${pts}
             const statusEl = document.getElementById('curStatus');
             if (statusEl) {
                 const offline = resolveVehicleStatus(null);
-                statusEl.innerHTML = `<span class="badge ${offline.cls}">${offline.label}</span>`;
+                statusEl.innerHTML = `<span class="map-status-chip ${offline.cls}">${offline.label}</span>`;
             }
         }, onlineTimeoutMs);
     }
 
-    function updateCurrentMarker(point) {
+    function updateCurrentMarker(point, skipAnimation) {
         const position = { lat: point.lat, lng: point.lng };
-        const icon = vehicleIcon(point.speed, point.heading);
+        const icon = vehicleIcon(point);
 
         if (!currentPositionMarker) {
             currentPositionMarker = new google.maps.Marker({
@@ -863,26 +1160,103 @@ ${pts}
                 zIndex: 999,
             });
             markers.push(currentPositionMarker);
-        } else {
+            if (followVehicle) map.panTo(position);
+            return;
+        }
+
+        if (skipAnimation) {
             currentPositionMarker.setPosition(position);
             currentPositionMarker.setIcon(icon);
             currentPositionMarker.setTitle(cfg.deviceName || cfg.mapDisplayTitle || 'Vehicle');
+            if (followVehicle) map.panTo(position);
+            return;
         }
 
-        if (followVehicle) map.panTo(position);
+        animateMarkerTo(point);
+    }
+
+    function animateMarkerTo(point) {
+        const target = { lat: point.lat, lng: point.lng };
+        const startPos = currentPositionMarker?.getPosition();
+
+        if (!startPos) {
+            currentPositionMarker.setPosition(target);
+            currentPositionMarker.setIcon(vehicleIcon(point));
+            return;
+        }
+
+        animFromPos = { lat: startPos.lat(), lng: startPos.lng() };
+        animFromHeading = parseFloat(lastTelemetry?.heading ?? point.heading ?? 0);
+        animStartTime = performance.now();
+
+        if (markerAnimationFrame) {
+            cancelAnimationFrame(markerAnimationFrame);
+        }
+
+        const step = (now) => {
+            const t = Math.min(1, (now - animStartTime) / ANIM_DURATION_MS);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const lat = animFromPos.lat + (target.lat - animFromPos.lat) * eased;
+            const lng = animFromPos.lng + (target.lng - animFromPos.lng) * eased;
+            const heading = interpolateHeading(animFromHeading, parseFloat(point.heading || 0), eased);
+
+            currentPositionMarker.setPosition({ lat, lng });
+            currentPositionMarker.setIcon(vehicleIcon({ ...point, heading, lat, lng }));
+
+            if (followVehicle && t > 0.5) {
+                map.panTo({ lat, lng });
+            }
+
+            if (t < 1) {
+                markerAnimationFrame = requestAnimationFrame(step);
+            } else {
+                markerAnimationFrame = null;
+                currentPositionMarker.setPosition(target);
+                currentPositionMarker.setIcon(vehicleIcon(point));
+            }
+        };
+
+        markerAnimationFrame = requestAnimationFrame(step);
+    }
+
+    function createRouteSegment(from, to, speed, options) {
+        const clickable = options?.clickable !== false;
+        const path = [{ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng }];
+        const color = speedToColor(speed);
+        const weight = speed <= 0 ? 6 : speed <= mediumSpeedKmh ? 8 : speed <= overSpeedLimit ? 9 : 10;
+        const segments = [];
+
+        if (routeGlowEnabled) {
+            const glow = new google.maps.Polyline({
+                path,
+                strokeColor: color,
+                strokeOpacity: nightModeOn ? 0.35 : 0.22,
+                strokeWeight: weight + 10,
+                clickable: false,
+                map,
+                zIndex: 1,
+            });
+            routeGlowPolylines.push(glow);
+            segments.push(glow);
+        }
+
+        const line = new google.maps.Polyline({
+            path,
+            strokeColor: color,
+            strokeOpacity: 0.95,
+            strokeWeight: weight,
+            clickable,
+            map,
+            zIndex: 2,
+        });
+        segments.push(line);
+        return segments;
     }
 
     function drawRealtimeSegment(from, to, speed) {
-        const seg = new google.maps.Polyline({
-            path: [{ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng }],
-            strokeColor: speedToColor(speed),
-            strokeOpacity: 0.9,
-            strokeWeight: speed === 0 ? 2 : speed <= 40 ? 3 : speed <= 80 ? 4 : 5,
-            clickable: false,
-            map,
-        });
-        realtimePolylines.push(seg);
-        if (realtimePolylines.length > 200) {
+        const segs = createRouteSegment(from, to, speed, { clickable: false });
+        segs.forEach((seg) => realtimePolylines.push(seg));
+        while (realtimePolylines.length > 200) {
             realtimePolylines.shift().setMap(null);
         }
     }
@@ -899,7 +1273,7 @@ ${pts}
         }
         lastAppliedPositionKey = key;
 
-        updateCurrentMarker(point);
+        updateCurrentMarker(point, !lastTelemetry);
         updateTelemetryUI(point);
         evaluateAlerts(point, lastTelemetry);
 
@@ -1219,6 +1593,7 @@ ${pts}
             bindControls();
             initNavAlerts();
             initMapHudToggle();
+            initMapBackNavigation();
             updatePlaybackFab();
             initDateFilter();
             mapControlsBound = true;
@@ -1382,11 +1757,9 @@ ${pts}
 
     function bindControls() {
         document.getElementById('btnRecenter')?.addEventListener('click', () => {
-            if (currentPositionMarker) {
-                map.panTo(currentPositionMarker.getPosition());
-                map.setZoom(15);
-            }
+            centerOnVehicle();
         });
+        document.getElementById('btnCenterVehicle')?.addEventListener('click', centerOnVehicle);
         document.getElementById('btnFollow')?.addEventListener('click', () => {
             followVehicle = !followVehicle;
             document.getElementById('btnFollow')?.classList.toggle('active', followVehicle);
@@ -1425,6 +1798,16 @@ ${pts}
         document.getElementById('btnExportCsv')?.addEventListener('click', exportRouteCsv);
         document.getElementById('btnExportGpx')?.addEventListener('click', exportRouteGpx);
         document.getElementById('btnStops')?.addEventListener('click', toggleStopMarkers);
+        document.getElementById('btnEventMarkers')?.addEventListener('click', () => {
+            showsEventMarkers = !showsEventMarkers;
+            document.getElementById('btnEventMarkers')?.classList.toggle('active', showsEventMarkers);
+            if (showsEventMarkers && historyData.length) {
+                renderEventMarkers(detectRouteEvents(historyData));
+            } else {
+                clearEventMarkers();
+            }
+            showNotification(showsEventMarkers ? mi('eventsShown', 'Route events shown') : mi('eventsHidden', 'Route events hidden'), 'info');
+        });
 
         document.querySelectorAll('#layerControls [data-layer]').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -1561,11 +1944,11 @@ ${pts}
                 map,
                 title: 'Playback',
                 zIndex: 1000,
-                icon: vehicleIcon(p.speed, p.heading),
+                icon: vehicleIcon(p),
             });
         } else {
             playbackMarker.setPosition({ lat: p.lat, lng: p.lng });
-            playbackMarker.setIcon(vehicleIcon(p.speed, p.heading));
+            playbackMarker.setIcon(vehicleIcon(p));
         }
         setText('pbLiveSpeed', parseFloat(p.speed || 0).toFixed(0));
         setText('pbPointIndex', String(index + 1));
@@ -1623,6 +2006,9 @@ ${pts}
 
             polylines.forEach((p) => p.setMap(null));
             polylines = [];
+            routeGlowPolylines.forEach((p) => p.setMap(null));
+            routeGlowPolylines = [];
+            clearEventMarkers();
             markers.forEach((m) => { if (m !== currentPositionMarker) m.setMap(null); });
             markers = currentPositionMarker ? [currentPositionMarker] : [];
 
@@ -1642,20 +2028,25 @@ ${pts}
                 bounds.extend({ lat: a.lat, lng: a.lng });
                 bounds.extend({ lat: b.lat, lng: b.lng });
                 const speed = b.speed;
-                const seg = new google.maps.Polyline({
-                    path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }],
-                    strokeColor: speedToColor(speed),
-                    strokeOpacity: 1,
-                    strokeWeight: 5,
-                    clickable: true,
-                    map,
-                });
-                seg._segmentData = { start: a, end: b, speed, distance: haversineDistance(a.lat, a.lng, b.lat, b.lng), startTime: a.recorded_at, endTime: b.recorded_at };
-                google.maps.event.addListener(seg, 'click', (e) => showPolylineInfo(seg, e.latLng));
-                polylines.push(seg);
+                const segs = createRouteSegment(a, b, speed, { clickable: true });
+                const line = segs[segs.length - 1];
+                line._segmentData = {
+                    start: a,
+                    end: b,
+                    speed,
+                    distance: haversineDistance(a.lat, a.lng, b.lat, b.lng),
+                    startTime: a.recorded_at,
+                    endTime: b.recorded_at,
+                };
+                google.maps.event.addListener(line, 'click', (e) => showPolylineInfo(line, e.latLng));
+                polylines.push(...segs);
             }
 
             addStartEndMarkers(data[0], data[data.length - 1]);
+            renderEventMarkers(detectRouteEvents(data));
+            if (showsEventMarkers) {
+                document.getElementById('btnEventMarkers')?.classList.add('active');
+            }
             lastRealtimePoint = { lat: data[data.length - 1].lat, lng: data[data.length - 1].lng };
             applyLivePoint(data[data.length - 1]);
 
@@ -1710,22 +2101,37 @@ ${pts}
 
     function addStartEndMarkers(start, end) {
         startMarker?.setMap(null);
+        endMarker?.setMap(null);
+
         startMarker = new google.maps.Marker({
             position: { lat: start.lat, lng: start.lng },
             map,
-            title: 'Start',
-            icon: { url: cfg.startIcon || '/images/start.png', scaledSize: new google.maps.Size(32, 32) },
+            title: mi('routeStart', 'Route start'),
+            icon: routeMarkerIcon('start'),
             zIndex: 998,
         });
-        markers.push(startMarker);
-        updateCurrentMarker(end);
+        endMarker = new google.maps.Marker({
+            position: { lat: end.lat, lng: end.lng },
+            map,
+            title: mi('routeEnd', 'Route end'),
+            icon: routeMarkerIcon('end'),
+            zIndex: 997,
+        });
+        markers.push(startMarker, endMarker);
+        updateCurrentMarker(end, true);
     }
 
     function clearRoute() {
         polylines.forEach((p) => p.setMap(null));
         polylines = [];
+        routeGlowPolylines.forEach((p) => p.setMap(null));
+        routeGlowPolylines = [];
         realtimePolylines.forEach((p) => p.setMap(null));
         realtimePolylines = [];
+        clearEventMarkers();
+        startMarker = null;
+        endMarker = null;
+        document.getElementById('btnEventMarkers')?.classList.remove('active');
         markers.forEach((m) => { if (m !== currentPositionMarker) m.setMap(null); });
         markers = currentPositionMarker ? [currentPositionMarker] : [];
         stopPlayback();

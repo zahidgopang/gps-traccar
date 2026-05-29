@@ -96,15 +96,23 @@
 
         html {
             scroll-padding-top: var(--site-header-height, 4.5rem);
+            overflow-x: hidden;
+            max-width: 100%;
+        }
+
+        main.site-main {
+            overflow-x: hidden;
+            max-width: 100%;
         }
 
         .site-header__mobile-panel.is-open::-webkit-scrollbar {
             width: 6px;
         }
     </style>
+    @stack('styles')
 </head>
 
-<body class="font-sans bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+<body class="font-sans bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 overflow-x-hidden">
 <!-- Animated Background Elements -->
 <div class="fixed inset-0 overflow-hidden pointer-events-none z-[-1]">
     <div class="absolute top-1/4 -left-32 w-64 h-64 bg-gradient-to-r from-sky-300/20 to-blue-400/10 rounded-full blur-3xl animate-float"></div>
