@@ -2,12 +2,14 @@
     $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin');
     $isCreate = ! ($user?->exists ?? false);
     $rbac = app(\App\Services\Authorization\RbacService::class);
-    $selectedRole = old('role', $user?->role ?? \App\Enums\AppRole::EndUser->value);
+    $defaultRole = ($assignableRoles ?? [])[0] ?? \App\Enums\AppRole::EndUser->value;
+    $selectedRole = old('role', $user?->role ?? $defaultRole);
+    $endUserRole = \App\Enums\AppRole::EndUser->value;
     $showMapTrackingToggle = $panel === 'admin' && $rbac->roleSupportsMapTrackingToggle($selectedRole);
     $showClientPicker = $panel === 'admin'
         && !empty($clients)
         && $clients->count()
-        && $selectedRole === \App\Enums\AppRole::EndUser->value;
+        && $selectedRole === $endUserRole;
     $clientRoleSelected = $selectedRole === \App\Enums\AppRole::Client->value;
     $linkedClient = ($user?->exists ?? false) && $clientRoleSelected
         ? $user->clients()->first()
@@ -77,7 +79,7 @@
     @else
         <x-admin.form-col>
             <label class="admin-label" for="user-role">{{ __('app.forms.role') }}</label>
-            <select name="role" id="user-role" class="form-select form-select-sm" data-search="false">
+            <select name="role" id="user-role" class="form-select form-select-sm" data-search="false" data-end-user-role="{{ $endUserRole }}">
                 @php $r = $selectedRole; @endphp
                 @foreach(($assignableRoles ?? ['user']) as $roleValue)
                     @php $roleEnum = \App\Enums\AppRole::tryFrom($roleValue); @endphp
@@ -90,9 +92,18 @@
 
     @if($panel === 'admin' && !empty($clients) && $clients->count())
         <x-admin.form-col id="user-client-company-field" :full="true" @class(['d-none' => ! $showClientPicker])>
-            <label class="admin-label" for="user-client-id">{{ __('app.forms.client_company') }} <span class="text-danger">*</span></label>
-            <select name="client_id" id="user-client-id" class="form-select form-select-sm" data-search="false" @if($showClientPicker) required @endif>
-                <option value="" disabled @selected(!old('client_id') && !isset($user))>{{ __('app.forms.select_client') }}</option>
+            <label class="admin-label" for="user-client-id">
+                {{ __('app.forms.client_company') }}
+                <span id="user-client-required-mark" class="text-danger @if(! $showClientPicker) d-none @endif" aria-hidden="true">*</span>
+            </label>
+            <select
+                id="user-client-id"
+                class="form-select form-select-sm @if(! $showClientPicker) no-select2 @endif"
+                data-search="false"
+                @if($showClientPicker) name="client_id" required @endif
+                @if(! $showClientPicker) disabled tabindex="-1" aria-hidden="true" @endif
+            >
+                <option value="" @selected(!old('client_id') && !($user?->exists ?? false))>{{ __('app.forms.select_client') }}</option>
                 @php
                     $selectedClient = old('client_id', ($user?->exists ?? false) ? optional($user->clients()->first())->id : null);
                 @endphp
@@ -100,7 +111,7 @@
                     <option value="{{ $client->id }}" @selected((string) $selectedClient === (string) $client->id)>{{ $client->name }}</option>
                 @endforeach
             </select>
-            <p class="admin-hint">{{ __('app.forms.client_picker_hint') }}</p>
+            <p id="user-client-hint" class="admin-hint @if(! $showClientPicker) d-none @endif">{{ __('app.forms.client_picker_hint') }}</p>
             @error('client_id') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
         </x-admin.form-col>
 
@@ -152,21 +163,76 @@
             const clientPickerField = document.getElementById('user-client-company-field');
             const clientAutoField = document.getElementById('user-client-auto-company-field');
             const clientSelect = document.getElementById('user-client-id');
+            const clientRequiredMark = document.getElementById('user-client-required-mark');
+            const userForm = roleSelect.closest('form');
             if (!roleSelect) return;
 
             const trackableRoles = @json([
                 \App\Enums\AppRole::Admin->value,
                 \App\Enums\AppRole::Client->value,
             ]);
-            const clientPickerRoles = @json([
-                \App\Enums\AppRole::EndUser->value,
-            ]);
+            const endUserRole = roleSelect.getAttribute('data-end-user-role') || @json($endUserRole);
             const clientRole = @json(\App\Enums\AppRole::Client->value);
+            const clientHint = document.getElementById('user-client-hint');
+
+            function destroyClientSelect2() {
+                if (!clientSelect || typeof window.jQuery === 'undefined') {
+                    return;
+                }
+                const $el = window.jQuery(clientSelect);
+                if ($el.hasClass('select2-hidden-accessible')) {
+                    $el.select2('destroy');
+                }
+            }
+
+            function initClientSelect2() {
+                if (!clientSelect || typeof window.FormEnhancements === 'undefined') {
+                    return;
+                }
+                clientSelect.classList.remove('no-select2');
+                window.FormEnhancements.initSelect2(clientPickerField || clientSelect.parentElement);
+            }
+
+            function setClientPickerActive(isEndUser) {
+                if (clientPickerField) {
+                    clientPickerField.classList.toggle('d-none', !isEndUser);
+                }
+                if (clientRequiredMark) {
+                    clientRequiredMark.classList.toggle('d-none', !isEndUser);
+                    clientRequiredMark.setAttribute('aria-hidden', isEndUser ? 'false' : 'true');
+                }
+                if (clientHint) {
+                    clientHint.classList.toggle('d-none', !isEndUser);
+                }
+                if (!clientSelect) {
+                    return;
+                }
+
+                destroyClientSelect2();
+
+                if (isEndUser) {
+                    clientSelect.classList.remove('no-select2');
+                    clientSelect.setAttribute('name', 'client_id');
+                    clientSelect.setAttribute('required', 'required');
+                    clientSelect.removeAttribute('disabled');
+                    clientSelect.removeAttribute('tabindex');
+                    clientSelect.removeAttribute('aria-hidden');
+                    initClientSelect2();
+                } else {
+                    clientSelect.classList.add('no-select2');
+                    clientSelect.removeAttribute('name');
+                    clientSelect.removeAttribute('required');
+                    clientSelect.setAttribute('disabled', 'disabled');
+                    clientSelect.setAttribute('tabindex', '-1');
+                    clientSelect.setAttribute('aria-hidden', 'true');
+                    clientSelect.value = '';
+                }
+            }
 
             function toggleRoleFields() {
                 const role = roleSelect.value;
+                const isEndUser = role === endUserRole;
                 const showMap = trackableRoles.includes(role);
-                const showPicker = clientPickerRoles.includes(role);
                 const showClientAuto = role === clientRole;
 
                 if (mapField) {
@@ -176,26 +242,47 @@
                     }
                 }
 
-                if (clientPickerField) {
-                    clientPickerField.classList.toggle('d-none', !showPicker);
-                }
-                if (clientSelect) {
-                    clientSelect.required = showPicker;
-                    clientSelect.disabled = !showPicker;
-                    if (!showPicker) {
-                        clientSelect.value = '';
-                    }
-                }
-                if (clientRequiredMark) {
-                    clientRequiredMark.classList.toggle('d-none', !showPicker);
-                }
+                setClientPickerActive(isEndUser);
+
                 if (clientAutoField) {
                     clientAutoField.classList.toggle('d-none', !showClientAuto);
                 }
             }
 
+            if (userForm) {
+                userForm.addEventListener('submit', function (event) {
+                    if (roleSelect.value !== endUserRole) {
+                        return;
+                    }
+                    if (!clientSelect || clientSelect.disabled) {
+                        return;
+                    }
+                    if (clientSelect.value) {
+                        return;
+                    }
+                    event.preventDefault();
+                    clientSelect.focus();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: @json(__('app.forms.client_company')),
+                            text: @json(__('app.forms.client_picker_hint')),
+                        });
+                    }
+                });
+            }
+
             roleSelect.addEventListener('change', toggleRoleFields);
-            toggleRoleFields();
+
+            if (typeof window.jQuery !== 'undefined') {
+                window.jQuery(roleSelect).on('change select2:select', toggleRoleFields);
+            }
+
+            if (window.FormEnhancements) {
+                window.setTimeout(toggleRoleFields, 0);
+            } else {
+                toggleRoleFields();
+            }
 
             if (window.CountryCodeSelector && typeof window.CountryCodeSelector.init === 'function') {
                 document.querySelectorAll('[data-country-phone-row]').forEach(function (row) {

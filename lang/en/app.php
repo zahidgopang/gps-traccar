@@ -656,7 +656,7 @@ return [
         'select_user' => 'Select user…',
         'no_users_for_client' => 'No users for this client',
         'client_required_hint' => 'Every user must belong to a client company.',
-        'client_picker_hint' => 'Required for End User role only — assign the user to an existing client company.',
+        'client_picker_hint' => 'Required when role is End User — choose which client company this user belongs to.',
         'client_role_company_auto_hint' => 'A new client company will be created automatically and linked to this user as the owner.',
         'client_role_company_linked_hint' => 'This user owns this client company. The company name is kept in sync with the user name on save.',
         'device_client_first_hint' => 'Choose the client company first — only that company’s users will appear.',
