@@ -765,6 +765,8 @@ return [
         'edit_plan' => 'Edit plan',
         'plan_created' => 'Subscription plan created.',
         'plan_updated' => 'Subscription plan updated.',
+        'plan_deleted' => 'Subscription plan deleted.',
+        'delete_plan_confirm' => 'Delete this subscription plan?',
         'plan_details' => 'Plan details',
         'subscription_plan' => 'Subscription plan',
         'company_price' => 'Company price',

@@ -33,9 +33,14 @@
                     <td>{{ $plan->formattedPrice() }}</td>
                     <td><span class="badge bg-{{ $plan->status === 'active' ? 'success' : 'secondary' }}">{{ $plan->status }}</span></td>
                     <td>{{ $plan->is_public ? 'Yes' : 'No' }}</td>
-                    <td class="text-end">
+                    <td class="text-end text-nowrap">
                         @can('permission', 'billing.manage')
                             <a href="{{ route('admin.subscription-plans.edit', $plan) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
+                            <form action="{{ route('admin.subscription-plans.destroy', $plan) }}" method="POST" class="d-inline delete-form">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button" class="btn btn-sm btn-danger btn-delete">{{ __('app.common.delete') }}</button>
+                            </form>
                         @endcan
                     </td>
                 </tr>
@@ -47,3 +52,27 @@
     </div>
     {{ $plans->links() }}
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.btn-delete').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const form = this.closest('form');
+                    Swal.fire({
+                        title: @json(__('app.billing.delete_plan_confirm')),
+                        text: @json(__('app.common.cannot_undo')),
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: @json(__('app.common.delete')),
+                        cancelButtonText: @json(__('app.common.cancel')),
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+@endpush

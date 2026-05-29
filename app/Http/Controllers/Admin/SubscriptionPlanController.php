@@ -87,6 +87,24 @@ class SubscriptionPlanController extends Controller
             ->with('success', __('app.billing.plan_updated'));
     }
 
+    public function destroy(Request $request, SubscriptionPlan $subscriptionPlan)
+    {
+        $this->authorizePermission('billing.manage');
+
+        $name = $subscriptionPlan->name;
+        $subscriptionCount = $subscriptionPlan->subscriptions()->count();
+
+        $this->audit->log('deleted', "subscription plan {$name}", $subscriptionPlan, [
+            'name' => $name,
+            'subscriptions_unlinked' => $subscriptionCount,
+        ]);
+
+        $subscriptionPlan->delete();
+
+        return redirect()->to($this->panelRoute('subscription-plans.index'))
+            ->with('success', __('app.billing.plan_deleted'));
+    }
+
     private function validated(Request $request, ?SubscriptionPlan $plan = null): array
     {
         $data = $request->validate([

@@ -168,7 +168,7 @@ Route::middleware(['auth', 'panel:admin', 'can:admin'])
         Route::resource('subscriptions', AdminSubscriptionController::class);
 
         Route::resource('subscription-plans', \App\Http\Controllers\Admin\SubscriptionPlanController::class)
-            ->except(['show', 'destroy']);
+            ->except(['show']);
         Route::get('billing-invoices', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'index'])
             ->name('billing-invoices.index');
         Route::get('billing-invoices/{billingInvoice}', [\App\Http\Controllers\Admin\BillingInvoiceController::class, 'show'])
