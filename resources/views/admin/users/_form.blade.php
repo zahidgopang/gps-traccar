@@ -1,20 +1,20 @@
 @php
     $panel = $panel ?? (request()->routeIs('client.*') ? 'client' : 'admin');
-    $isCreate = empty($user) || ! $user->exists;
+    $isCreate = ! ($user?->exists ?? false);
     $rbac = app(\App\Services\Authorization\RbacService::class);
-    $selectedRole = old('role', $user->role ?? 'user');
+    $selectedRole = old('role', $user?->role ?? \App\Enums\AppRole::EndUser->value);
     $showMapTrackingToggle = $panel === 'admin' && $rbac->roleSupportsMapTrackingToggle($selectedRole);
     $showClientPicker = $panel === 'admin'
         && !empty($clients)
         && $clients->count()
         && $selectedRole === \App\Enums\AppRole::EndUser->value;
     $clientRoleSelected = $selectedRole === \App\Enums\AppRole::Client->value;
-    $linkedClient = isset($user) && $user->exists && $clientRoleSelected
+    $linkedClient = ($user?->exists ?? false) && $clientRoleSelected
         ? $user->clients()->first()
         : null;
     $canTrackMaps = (bool) old(
         'can_track_maps',
-        isset($user) && $user->exists && $rbac->roleSupportsMapTrackingToggle($user->role)
+        ($user?->exists ?? false) && $rbac->roleSupportsMapTrackingToggle($user->role)
             ? $rbac->hasPermission($user, 'maps.view')
             : false
     );
@@ -27,13 +27,13 @@
 >
     <x-admin.form-col>
         <label class="admin-label" for="user-name">{{ __('app.forms.name') }}</label>
-        <input type="text" name="name" id="user-name" value="{{ old('name', $user->name ?? '') }}" class="form-control form-control-sm" required>
+        <input type="text" name="name" id="user-name" value="{{ old('name', $user?->name ?? '') }}" class="form-control form-control-sm" required>
         @error('name') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 
     <x-admin.form-col>
         <label class="admin-label" for="user-email">{{ __('app.forms.email') }}</label>
-        <input type="email" name="email" id="user-email" value="{{ old('email', $user->email ?? '') }}" class="form-control form-control-sm admin-ltr" dir="ltr" required>
+        <input type="email" name="email" id="user-email" value="{{ old('email', $user?->email ?? '') }}" class="form-control form-control-sm admin-ltr" dir="ltr" required>
         @error('email') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 </x-admin.form-section>
@@ -60,8 +60,8 @@
     <x-admin.form-col :full="true">
         @include('partials.country-phone-input', [
             'idPrefix' => 'admin-user',
-            'countryCodeValue' => isset($user) ? $user->country_code : null,
-            'phoneValue' => isset($user) ? $user->phone : null,
+            'countryCodeValue' => old('country_code', $user?->country_code),
+            'phoneValue' => old('phone', $user?->phone),
             'grid' => true,
         ])
     </x-admin.form-col>
@@ -94,7 +94,7 @@
             <select name="client_id" id="user-client-id" class="form-select form-select-sm" data-search="false" @if($showClientPicker) required @endif>
                 <option value="" disabled @selected(!old('client_id') && !isset($user))>{{ __('app.forms.select_client') }}</option>
                 @php
-                    $selectedClient = old('client_id', isset($user) ? optional($user->clients()->first())->id : null);
+                    $selectedClient = old('client_id', ($user?->exists ?? false) ? optional($user->clients()->first())->id : null);
                 @endphp
                 @foreach($clients as $client)
                     <option value="{{ $client->id }}" @selected((string) $selectedClient === (string) $client->id)>{{ $client->name }}</option>
@@ -118,7 +118,7 @@
     <x-admin.form-col>
         <label class="admin-label" for="user-status">{{ __('app.forms.account_status') }}</label>
         <select name="status" id="user-status" class="form-select form-select-sm" data-search="false">
-            @php $st = old('status', $user->status ?? 'active'); @endphp
+            @php $st = old('status', $user?->status ?? 'active'); @endphp
             <option value="active" @selected($st === 'active')>{{ __('app.common.active') }}</option>
             <option value="inactive" @selected($st === 'inactive')>{{ __('app.common.inactive') }}</option>
         </select>
@@ -181,9 +181,13 @@
                 }
                 if (clientSelect) {
                     clientSelect.required = showPicker;
+                    clientSelect.disabled = !showPicker;
                     if (!showPicker) {
                         clientSelect.value = '';
                     }
+                }
+                if (clientRequiredMark) {
+                    clientRequiredMark.classList.toggle('d-none', !showPicker);
                 }
                 if (clientAutoField) {
                     clientAutoField.classList.toggle('d-none', !showClientAuto);
@@ -192,6 +196,19 @@
 
             roleSelect.addEventListener('change', toggleRoleFields);
             toggleRoleFields();
+
+            if (window.CountryCodeSelector && typeof window.CountryCodeSelector.init === 'function') {
+                document.querySelectorAll('[data-country-phone-row]').forEach(function (row) {
+                    if (row.dataset.countrySelectorInit === '1') {
+                        return;
+                    }
+                    window.CountryCodeSelector.init(row, {
+                        countries: window.COUNTRIES_DIAL_CODES || [],
+                        defaultCode: row.getAttribute('data-default-country-code') || '',
+                        fieldName: row.getAttribute('data-country-field') || 'country_code',
+                    });
+                });
+            }
         });
     </script>
     @endpush

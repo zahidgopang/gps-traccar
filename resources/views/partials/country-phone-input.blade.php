@@ -2,7 +2,7 @@
     $idPrefix = $idPrefix ?? 'phone';
     $countryCodeName = $countryCodeName ?? 'country_code';
     $phoneName = $phoneName ?? 'phone';
-    $countryCodeValue = old($countryCodeName, $countryCodeValue ?? config('countries.default_code', '+966'));
+    $countryCodeValue = old($countryCodeName, filled($countryCodeValue ?? null) ? $countryCodeValue : config('countries.default_code', '+966'));
     $phoneValue = old($phoneName, $phoneValue ?? '');
     $countries = config('countries.dial_codes', []);
     $matched = collect($countries)->first(fn ($c) => $c['code'] === $countryCodeValue)
