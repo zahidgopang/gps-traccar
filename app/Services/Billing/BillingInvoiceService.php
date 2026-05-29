@@ -86,6 +86,47 @@ class BillingInvoiceService
         });
     }
 
+    /**
+     * Replace all line items and recalculate totals (unpaid balance only).
+     *
+     * @param  list<array{line_type:string,description:string,quantity?:int,unit_cost:float,unit_price:float,reference_type?:string,reference_id?:int}>  $lines
+     */
+    public function replaceLines(BillingInvoice $invoice, array $lines): BillingInvoice
+    {
+        return DB::transaction(function () use ($invoice, $lines) {
+            $invoice->lines()->delete();
+
+            $subtotal = 0.0;
+            foreach ($lines as $line) {
+                $qty = (int) ($line['quantity'] ?? 1);
+                $unitPrice = (float) $line['unit_price'];
+                $lineTotal = $qty * $unitPrice;
+                $subtotal += $lineTotal;
+
+                $invoice->lines()->create([
+                    'line_type' => $line['line_type'],
+                    'description' => $line['description'],
+                    'quantity' => $qty,
+                    'unit_cost' => (float) ($line['unit_cost'] ?? 0),
+                    'unit_price' => $unitPrice,
+                    'line_total' => $lineTotal,
+                    'reference_type' => $line['reference_type'] ?? null,
+                    'reference_id' => $line['reference_id'] ?? null,
+                ]);
+            }
+
+            $amountPaid = (float) $invoice->amount_paid;
+            $invoice->subtotal = $subtotal;
+            $invoice->tax_amount = 0;
+            $invoice->total = $subtotal;
+            $invoice->balance_due = max(0, round($subtotal - $amountPaid, 2));
+            $invoice->status = $this->resolveStatus($invoice)->value;
+            $invoice->save();
+
+            return $invoice->fresh(['lines']);
+        });
+    }
+
     public function recordPayment(
         BillingInvoice $invoice,
         float $amount,

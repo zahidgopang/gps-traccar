@@ -29,7 +29,14 @@
     $clientInvoiceStatus = $subscription?->clientInvoice?->status ?? null;
     $invoicePaid = $clientInvoiceStatus === BillingInvoiceStatus::Paid->value;
     $invoiceCancelled = $clientInvoiceStatus === BillingInvoiceStatus::Cancelled->value;
+    $invoiceLocked = $invoicePaid || $invoiceCancelled
+        || ((float) ($subscription?->clientInvoice?->amount_paid ?? 0) > 0);
     $invoiceSelectValue = old('client_invoice_status', $invoicePaid ? 'paid' : 'unpaid');
+    $subscriptionType = old(
+        'subscription_type',
+        $subscription?->subscription_type ?? \App\Enums\SubscriptionType::New->value
+    );
+    $isNewSubscription = $subscriptionType === \App\Enums\SubscriptionType::New->value;
 @endphp
 
 <x-admin.form-section
@@ -75,7 +82,7 @@
         @error('device_id') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 
-    <x-admin.form-col>
+    <x-admin.form-col id="subscription-device-cost-wrap" @class(['d-none' => ! $isNewSubscription])>
         <label class="admin-label" for="subscription-device-cost">{{ __('app.billing.device_purchase_cost') }}</label>
         <input type="text"
                id="subscription-device-cost"
@@ -94,6 +101,22 @@
     icon="fas fa-calendar-check"
     :description="__('app.forms.subscription_details_hint')"
 >
+    <x-admin.form-col>
+        <label class="admin-label" for="subscription-type">{{ __('app.billing.subscription_type') }} <span class="text-danger">*</span></label>
+        <select name="subscription_type" id="subscription-type" class="form-select form-select-sm" required data-search="false" @disabled($invoiceLocked)>
+            <option value="new" @selected($subscriptionType === 'new')>{{ __('app.billing.subscription_type_new') }}</option>
+            <option value="renew" @selected($subscriptionType === 'renew')>{{ __('app.billing.subscription_type_renew') }}</option>
+        </select>
+        @if($invoiceLocked)
+            <input type="hidden" name="subscription_type" value="{{ $subscriptionType }}">
+        @endif
+        @if($invoiceLocked)
+            <p class="admin-hint mb-0">{{ __('app.billing.subscription_type_locked_hint') }}</p>
+        @else
+            <p class="admin-hint mb-0">{{ __('app.billing.subscription_type_hint') }}</p>
+        @endif
+        @error('subscription_type') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
+    </x-admin.form-col>
     <x-admin.form-col>
         <label class="admin-label" for="subscription-plan-id">{{ __('app.billing.subscription_plan') }} <span class="text-danger">*</span></label>
         <select name="subscription_plan_id" id="subscription-plan-id" class="form-select form-select-sm" required data-placeholder="{{ __('app.forms.select_plan') }}">
@@ -146,15 +169,15 @@
         <input type="text" id="subscription-profit-margin" class="form-control form-control-sm bg-light admin-ltr" dir="ltr" readonly value="—">
     </x-admin.form-col>
 
-    <x-admin.form-col>
-        <label class="admin-label" for="subscription-device-selling-price">{{ __('app.billing.device_selling_price') }}</label>
+    <x-admin.form-col id="subscription-device-selling-wrap" @class(['d-none' => ! $isNewSubscription])>
+        <label class="admin-label" for="subscription-device-selling-price">{{ __('app.billing.device_selling_price') }} <span class="text-danger subscription-type-new-required">*</span></label>
         <input type="number" name="device_selling_price" id="subscription-device-selling-price" step="0.01" min="0"
                class="form-control form-control-sm admin-ltr" dir="ltr"
                value="{{ $deviceSellingValue }}">
         @error('device_selling_price') <p class="admin-field__error text-danger">{{ $message }}</p> @enderror
     </x-admin.form-col>
 
-    <x-admin.form-col>
+    <x-admin.form-col id="subscription-device-profit-wrap" @class(['d-none' => ! $isNewSubscription])>
         <label class="admin-label" for="subscription-device-profit">{{ __('app.billing.device_profit') }}</label>
         <input type="text" id="subscription-device-profit" class="form-control form-control-sm bg-light admin-ltr" dir="ltr" readonly value="—">
     </x-admin.form-col>

@@ -17,6 +17,10 @@
         const deviceCostEl = document.getElementById('subscription-device-cost');
         const deviceSellingEl = document.getElementById('subscription-device-selling-price');
         const deviceProfitEl = document.getElementById('subscription-device-profit');
+        const subscriptionTypeEl = document.getElementById('subscription-type');
+        const deviceCostWrap = document.getElementById('subscription-device-cost-wrap');
+        const deviceSellingWrap = document.getElementById('subscription-device-selling-wrap');
+        const deviceProfitWrap = document.getElementById('subscription-device-profit-wrap');
         const totalCompanyEl = document.getElementById('subscription-total-company');
         const totalEndUserEl = document.getElementById('subscription-total-end-user');
         const totalProfitEl = document.getElementById('subscription-total-profit');
@@ -194,15 +198,43 @@
             return profit;
         }
 
+        function isNewSubscriptionType() {
+            return (subscriptionTypeEl?.value || 'new') === 'new';
+        }
+
+        function applySubscriptionTypeUi() {
+            const isNew = isNewSubscriptionType();
+
+            [deviceCostWrap, deviceSellingWrap, deviceProfitWrap].forEach(function (el) {
+                if (el) {
+                    el.classList.toggle('d-none', !isNew);
+                }
+            });
+
+            document.querySelectorAll('.subscription-type-new-required').forEach(function (el) {
+                el.classList.toggle('d-none', !isNew);
+            });
+
+            if (deviceSellingEl) {
+                deviceSellingEl.required = isNew;
+                if (!isNew) {
+                    deviceSellingEl.value = '0';
+                }
+            }
+
+            refreshTotals();
+        }
+
         function refreshTotals() {
             const company = companyPriceValue();
             const subSelling = parseFloat(sellingPriceEl?.value || 0) || 0;
-            const devSelling = parseFloat(deviceSellingEl?.value || 0) || 0;
+            const devSelling = isNewSubscriptionType()
+                ? (parseFloat(deviceSellingEl?.value || 0) || 0)
+                : 0;
 
             const subProfit = updateSubscriptionProfit();
-            const devProfit = updateDeviceProfit();
+            const devProfit = isNewSubscriptionType() ? updateDeviceProfit() : 0;
 
-            // Platform cost = plan only; device stock is invoiced separately at purchase.
             const totalCompany = company;
             const totalEndUser = subSelling + devSelling;
             const totalProfit = subProfit + devProfit;
@@ -216,7 +248,7 @@
                 totalEndUserEl.textContent = (subSelling > 0 || devSelling > 0) ? fmtMoney(totalEndUser) : '—';
             }
             if (totalProfitEl) {
-                const hasAnyPricing = hasPlan || subSelling !== 0 || devSelling !== 0 || deviceCostValue !== 0;
+                const hasAnyPricing = hasPlan || subSelling !== 0 || devSelling !== 0 || (isNewSubscriptionType() && deviceCostValue !== 0);
                 totalProfitEl.textContent = hasAnyPricing ? fmtMoney(totalProfit) : '—';
 
                 // Visual cue: green for profit, red for loss.
@@ -296,6 +328,7 @@
         if ($ && planSelect) {
             $(planSelect).on('change select2:select select2:clear', onPlanChange);
         }
+        subscriptionTypeEl?.addEventListener('change', applySubscriptionTypeUi);
         sellingPriceEl?.addEventListener('input', refreshTotals);
         deviceSellingEl?.addEventListener('input', refreshTotals);
 
@@ -318,6 +351,8 @@
         if (window.SubscriptionPaymentModal?.initForm) {
             window.SubscriptionPaymentModal.initForm();
         }
+
+        applySubscriptionTypeUi();
 
         if (selectValue(planSelect)) {
             onPlanChange();

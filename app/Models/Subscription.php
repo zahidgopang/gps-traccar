@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionType;
 use Illuminate\Database\Eloquent\Model;
 
 class Subscription extends Model
@@ -15,6 +16,7 @@ class Subscription extends Model
         'starts_at',
         'ends_at',
         'status',
+        'subscription_type',
         'company_price',
         'selling_price',
         'device_unit_cost',
@@ -75,6 +77,17 @@ class Subscription extends Model
     public function deviceProfit(): float
     {
         return max(0, (float) $this->device_selling_price - (float) $this->device_unit_cost);
+    }
+
+    public function subscriptionTypeEnum(): SubscriptionType
+    {
+        return SubscriptionType::tryFrom((string) ($this->subscription_type ?? ''))
+            ?? SubscriptionType::Renew;
+    }
+
+    public function isNewSubscriptionType(): bool
+    {
+        return $this->subscriptionTypeEnum() === SubscriptionType::New;
     }
 
     public function isEffectivelyExpired(): bool

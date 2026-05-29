@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\SubscriptionType;
 use App\Http\Controllers\Concerns\InteractsWithTenantAuthorization;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
@@ -145,6 +146,7 @@ class SubscriptionController extends Controller
         $previousStatus = $subscription->status;
 
         $subscription->update($data);
+        $this->subscriptionBilling->syncClientInvoice($subscription->fresh(['device', 'subscriptionPlan', 'clientInvoice']));
         $this->subscriptionBilling->handleStatusChange($subscription->fresh(), $previousStatus, $request->user());
         $subscription->load('clientInvoice');
 
@@ -378,7 +380,7 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * @return array{0: array<string, mixed>, 1?: array{subscription_plan_id: int, selling_price: float, device_selling_price: float, client_id: int}}
+     * @return array{0: array<string, mixed>, 1?: array{subscription_plan_id: int, selling_price: float, device_selling_price: float, client_id: int, subscription_type: string}}
      */
     private function validated(Request $request, ?Subscription $subscription = null): array
     {
@@ -389,11 +391,24 @@ class SubscriptionController extends Controller
             ],
             'starts_at' => 'required|date',
             'status' => 'required|in:active,cancelled',
+            'subscription_type' => ['required', Rule::in(array_map(fn (SubscriptionType $t) => $t->value, SubscriptionType::cases()))],
         ];
 
         $rules['subscription_plan_id'] = 'required|exists:subscription_plans,id';
         $rules['selling_price'] = 'required|numeric|min:0';
-        $rules['device_selling_price'] = 'nullable|numeric|min:0';
+
+        $subscriptionType = SubscriptionType::from(
+            (string) $request->input(
+                'subscription_type',
+                $subscription?->subscription_type ?? SubscriptionType::New->value
+            )
+        );
+
+        if ($subscriptionType === SubscriptionType::New) {
+            $rules['device_selling_price'] = 'required|numeric|min:0';
+        } else {
+            $rules['device_selling_price'] = 'nullable|numeric|min:0';
+        }
 
         if (! $this->isClientPanel()) {
             $rules['client_id'] = 'required|integer|exists:clients,id';
@@ -402,6 +417,17 @@ class SubscriptionController extends Controller
         $data = $request->validate($rules);
 
         $clientId = $this->resolveClientIdForRequest($request);
+
+        if ($subscription?->clientInvoice) {
+            $invoice = $subscription->clientInvoice;
+            $invoiceLocked = $invoice->isCancelled()
+                || $invoice->status === \App\Enums\BillingInvoiceStatus::Paid->value
+                || (float) $invoice->amount_paid > 0;
+
+            if ($invoiceLocked) {
+                $subscriptionType = $subscription->subscriptionTypeEnum();
+            }
+        }
 
         $device = Device::query()->findOrFail($data['device_id']);
 
@@ -443,8 +469,11 @@ class SubscriptionController extends Controller
             $billing = [
                 'subscription_plan_id' => (int) $data['subscription_plan_id'],
                 'selling_price' => (float) $data['selling_price'],
-                'device_selling_price' => (float) ($data['device_selling_price'] ?? 0),
+                'device_selling_price' => $subscriptionType === SubscriptionType::New
+                    ? (float) ($data['device_selling_price'] ?? 0)
+                    : 0.0,
                 'client_id' => $clientId,
+                'subscription_type' => $subscriptionType->value,
             ];
         }
 
@@ -452,10 +481,14 @@ class SubscriptionController extends Controller
             $data['subscription_plan_id'] = $plan->id;
             $data['company_price'] = (float) $plan->company_price;
             $data['selling_price'] = (float) $data['selling_price'];
-            $data['device_selling_price'] = (float) ($data['device_selling_price'] ?? 0);
+            $data['device_unit_cost'] = $this->deviceCosts->resolveForClientDevice($device, $clientId);
+            $data['device_selling_price'] = $subscriptionType === SubscriptionType::New
+                ? (float) ($data['device_selling_price'] ?? 0)
+                : 0.0;
         }
 
-        unset($data['client_id']);
+        $data['subscription_type'] = $subscriptionType->value;
+        $data['client_id'] = $clientId;
 
         if ($billing !== null) {
             unset($data['selling_price'], $data['device_selling_price']);
