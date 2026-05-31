@@ -336,7 +336,7 @@ class MapController extends Controller
 
     public function reverseGeocodeGoogle($lat, $lng)
     {
-        $apiKey = env('GOOGLE_MAPS_API_KEY');
+        $apiKey = config('services.google.maps_key');
 
         if (! $apiKey) {
             return response()->json(['address' => 'API key missing']);

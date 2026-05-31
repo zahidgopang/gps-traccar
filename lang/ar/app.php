@@ -484,6 +484,8 @@ return [
         'loading_map' => 'جاري تحميل بيانات الخريطة...',
         'loading_map_retry' => 'إعادة تحميل الخريطة (المحاولة :attempt)...',
         'loading_map_failed' => 'تعذّر تحميل الخريطة. إعادة المحاولة تلقائياً...',
+        'map_api_key_missing' => 'تعذّر تحميل خرائط Google. أضف GOOGLE_MAPS_API_KEY في .env وفعّل Maps JavaScript API.',
+        'map_referrer_denied' => 'Google Maps رفض هذا الموقع (RefererNotAllowed). في Google Cloud Console → Credentials → مفتاح Maps → HTTP referrers، أضف: :referrer — ثم انتظر دقائق وحدّث الصفحة.',
         'dash' => '—',
         'km_unit' => 'كم',
         'kmh_unit' => 'كم/س',

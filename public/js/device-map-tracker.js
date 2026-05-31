@@ -2126,6 +2126,108 @@ ${pts}
         });
     }
 
+    let mapsAuthFailed = false;
+
+    function currentMapsReferrerPattern() {
+        return `${window.location.protocol}//${window.location.host}/*`;
+    }
+
+    function buildMapsReferrerErrorMessage() {
+        const referrer = currentMapsReferrerPattern();
+        const template = mi(
+            'mapReferrerDenied',
+            'Google Maps blocked this site. Add this referrer in Google Cloud Console: :referrer'
+        );
+        return template.replace(':referrer', referrer);
+    }
+
+    function installGoogleMapsAuthFailureHandler() {
+        if (window.__deviceMapGmapsAuthHook) {
+            return;
+        }
+        window.__deviceMapGmapsAuthHook = true;
+        window.gm_authFailure = function () {
+            mapsAuthFailed = true;
+            mapBootRunning = false;
+            map = null;
+            mapReady = false;
+            showMapBootError(buildMapsReferrerErrorMessage());
+        };
+    }
+
+    function hasGoogleMapsErrorOverlay(container) {
+        if (!container) {
+            return false;
+        }
+        return !!container.querySelector('.gm-err-container, .gm-err-message, .gm-style-pbc');
+    }
+
+    function isMapBootFatalError(err) {
+        if (mapsAuthFailed) {
+            return true;
+        }
+        const msg = String(err?.message || err || '').toLowerCase();
+        return msg.includes('missing google maps api key')
+            || msg.includes('api key')
+            || msg.includes('invalidkey')
+            || msg.includes('referernotallowed')
+            || msg.includes('referer not allowed');
+    }
+
+    function mapBootFatalMessage(err) {
+        if (mapsAuthFailed || String(err?.message || '').toLowerCase().includes('referernotallowed')) {
+            return buildMapsReferrerErrorMessage();
+        }
+        return mi(
+            'mapApiKeyMissing',
+            'Google Maps API key is missing or invalid. Set GOOGLE_MAPS_API_KEY in .env.'
+        );
+    }
+
+    function showMapBootError(message) {
+        const el = document.getElementById('loadingOverlay');
+        const text = document.getElementById('loadingText');
+        if (text) {
+            text.textContent = message;
+            text.style.maxWidth = '420px';
+            text.style.lineHeight = '1.5';
+            text.style.textAlign = 'center';
+        }
+        if (el) {
+            el.classList.add('active');
+        }
+    }
+
+    function buildGoogleMapsScriptUrl(key) {
+        const params = new URLSearchParams({
+            key,
+            libraries: 'drawing,geometry,visualization,places',
+            v: 'weekly',
+        });
+        return `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+    }
+
+    function waitForGoogleMaps(maxMs = 15000) {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            (function poll() {
+                if (mapsAuthFailed) {
+                    reject(new Error('RefererNotAllowedMapError'));
+                    return;
+                }
+                if (window.google?.maps?.Map) {
+                    resolve();
+                    return;
+                }
+                if (Date.now() - start > maxMs) {
+                    reject(new Error('Google Maps API unavailable'));
+                    return;
+                }
+                setTimeout(poll, 50);
+            })();
+        });
+    }
+
     function loadGoogleMapsApi() {
         return new Promise((resolve, reject) => {
             if (window.google?.maps?.Map) {
@@ -2133,43 +2235,28 @@ ${pts}
                 return;
             }
 
-            const key = cfg.googleMapsKey;
+            const key = (cfg.googleMapsKey || '').trim();
             if (!key) {
                 reject(new Error('Missing Google Maps API key'));
                 return;
             }
 
+            installGoogleMapsAuthFailureHandler();
+
             const existing = document.querySelector('script[data-device-map-gmaps]');
             if (existing) {
-                let tries = 0;
-                (function waitExisting() {
-                    if (window.google?.maps?.Map) {
-                        resolve();
-                    } else if (++tries > 120) {
-                        reject(new Error('Google Maps API timeout'));
-                    } else {
-                        setTimeout(waitExisting, 100);
-                    }
-                })();
+                waitForGoogleMaps().then(resolve).catch(reject);
                 return;
             }
 
             const script = document.createElement('script');
             script.dataset.deviceMapGmaps = '1';
             script.async = true;
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=drawing,geometry,visualization,places&loading=async`;
+            script.defer = true;
+            script.src = buildGoogleMapsScriptUrl(key);
             script.onerror = () => reject(new Error('Google Maps script failed to load'));
             script.onload = () => {
-                let tries = 0;
-                (function waitMaps() {
-                    if (window.google?.maps?.Map) {
-                        resolve();
-                    } else if (++tries > 120) {
-                        reject(new Error('Google Maps API unavailable'));
-                    } else {
-                        setTimeout(waitMaps, 50);
-                    }
-                })();
+                waitForGoogleMaps().then(resolve).catch(reject);
             };
             document.head.appendChild(script);
         });
@@ -2200,6 +2287,10 @@ ${pts}
                 }
                 settled = true;
                 clearTimeout(timer);
+                if (mapsAuthFailed || hasGoogleMapsErrorOverlay(div)) {
+                    reject(new Error('RefererNotAllowedMapError'));
+                    return;
+                }
                 if (ok || hasGoogleMapDom(div)) {
                     resolve();
                 } else {
@@ -2233,6 +2324,9 @@ ${pts}
         resizeMap();
         if (!mapDataStarted) {
             mapDataStarted = true;
+            hydrateAlertsFromConfig();
+            loadGeofences();
+            loadHistory();
             startMapDataServices();
         }
         window.dispatchEvent(new CustomEvent('device-map-ready'));
@@ -2294,12 +2388,17 @@ ${pts}
     }
 
     function createMapInstance() {
+        const mapEl = document.getElementById('map');
+        if (!mapEl || mapEl.offsetWidth < 20 || mapEl.offsetHeight < 20) {
+            throw new Error('Map container not ready');
+        }
+
         const initial = normalizePoint(cfg.initialPoint);
         const center = initial
             ? { lat: initial.lat, lng: initial.lng }
             : { lat: cfg.defaultLat || 24.8607, lng: cfg.defaultLng || 67.0011 };
 
-        map = new google.maps.Map(document.getElementById('map'), {
+        map = new google.maps.Map(mapEl, {
             center,
             zoom: initial ? 15 : 13,
             mapTypeId: 'roadmap',
@@ -2343,21 +2442,10 @@ ${pts}
             mapControlsBound = true;
         }
 
-        hydrateAlertsFromConfig();
-        loadGeofences();
-        loadHistory();
-
         if (initial) {
             applyLivePoint(initial);
             lastRealtimePoint = { lat: initial.lat, lng: initial.lng };
         }
-
-        setTimeout(() => {
-            if (!mapDataStarted) {
-                mapDataStarted = true;
-                startMapDataServices();
-            }
-        }, 2000);
     }
 
     async function bootDeviceMap() {
@@ -2395,6 +2483,12 @@ ${pts}
             console.warn('[device-map] boot failed', mapBootAttempts, err);
             map = null;
             mapReady = false;
+
+            if (isMapBootFatalError(err)) {
+                mapBootRunning = false;
+                showMapBootError(mapBootFatalMessage(err));
+                return;
+            }
 
             if (mapBootAttempts < MAP_BOOT_MAX) {
                 await sleep(Math.min(1500 * mapBootAttempts, 6000));

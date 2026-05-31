@@ -26,7 +26,7 @@ class MapController extends Controller
 
     private function reverseGeocodeGoogle(float $lat, float $lng)
     {
-        $apiKey = config('services.google.maps_key') ?: env('GOOGLE_MAPS_API_KEY');
+        $apiKey = config('services.google.maps_key');
 
         if (! $apiKey) {
             return $this->mobileError('Google Maps API key is not configured', 503);

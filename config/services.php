@@ -44,4 +44,8 @@ return [
         'project_id' => env('FIREBASE_PROJECT_ID'),
     ],
 
+    'google' => [
+        'maps_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
 ];

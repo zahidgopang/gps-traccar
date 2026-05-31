@@ -510,6 +510,8 @@ return [
         'loading_map' => 'Loading map data...',
         'loading_map_retry' => 'Reloading map (attempt :attempt)...',
         'loading_map_failed' => 'Map failed to load. Retrying automatically...',
+        'map_api_key_missing' => 'Google Maps could not load. Set GOOGLE_MAPS_API_KEY in .env and enable Maps JavaScript API in Google Cloud.',
+        'map_referrer_denied' => 'Google Maps blocked this site (RefererNotAllowed). In Google Cloud Console → Credentials → your Maps API key → HTTP referrers, add: :referrer — then wait a few minutes and refresh.',
         'dash' => '—',
         'km_unit' => 'km',
         'kmh_unit' => 'km/h',
