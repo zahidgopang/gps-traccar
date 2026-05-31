@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Throwable;
 
 /**
  * Authenticated customer/admin — stored in tc_users (same table as Traccar).
@@ -453,5 +454,47 @@ class User extends Authenticatable
     public function getEmailForVerification(): string
     {
         return strtolower((string) $this->email);
+    }
+
+    /**
+     * Resolve a login account by email or Traccar login column.
+     */
+    public static function findForLoginByEmail(string $email): ?self
+    {
+        $email = strtolower(trim($email));
+
+        if ($email === '') {
+            return null;
+        }
+
+        $table = (new static)->getTable();
+
+        if (! TraccarSchema::hasTable($table)) {
+            return null;
+        }
+
+        try {
+            $query = static::query();
+
+            $emailCol = TraccarSchema::resolveColumn($table, 'email');
+            if ($emailCol) {
+                $user = (clone $query)->where($emailCol, $email)->first();
+                if ($user) {
+                    return $user;
+                }
+            }
+
+            $loginCol = TraccarSchema::resolveColumn($table, 'login');
+            if ($loginCol) {
+                $user = (clone $query)->where($loginCol, $email)->first();
+                if ($user) {
+                    return $user;
+                }
+            }
+
+            return static::query()->where('email', $email)->first();
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

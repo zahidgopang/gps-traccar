@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Auth\TcAwareUserProvider;
+use App\Models\User;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
@@ -15,7 +16,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(TcAwareUserProvider::class, function ($app) {
+            return new TcAwareUserProvider(
+                $app['hash'],
+                User::class,
+            );
+        });
     }
 
     /**

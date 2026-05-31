@@ -68,7 +68,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 $status = $e->getStatusCode();
             }
 
-            report($e);
+            try {
+                report($e);
+            } catch (Throwable) {
+                // Logging must not prevent a JSON error response.
+            }
 
             $message = config('app.debug')
                 ? $e->getMessage()

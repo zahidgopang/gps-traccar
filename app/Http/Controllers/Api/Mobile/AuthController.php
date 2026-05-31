@@ -5,22 +5,19 @@ namespace App\Http\Controllers\Api\Mobile;
 use App\Http\Controllers\Controller;
 use App\Http\Concerns\PresentsMobileUser;
 use App\Http\Concerns\RespondsWithMobileJson;
-use App\Models\User;
-use App\Services\Mobile\MobileDevicePresenter;
 use App\Services\Mobile\MobileEntitlementService;
-use App\Services\Tracking\DevicePositionLoader;
+use App\Services\Mobile\MobileLoginService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
+use Throwable;
+
 class AuthController extends Controller
 {
     use PresentsMobileUser;
     use RespondsWithMobileJson;
 
     public function __construct(
+        private MobileLoginService $login,
         private MobileEntitlementService $entitlement,
-        private MobileDevicePresenter $presenter,
-        private DevicePositionLoader $positionLoader,
     ) {}
 
     public function login(Request $request)
@@ -32,33 +29,32 @@ class AuthController extends Controller
             'remember' => 'sometimes|boolean',
         ]);
 
+        try {
+            return $this->attemptLogin($request);
+        } catch (Throwable $e) {
+            try {
+                report($e);
+            } catch (Throwable) {
+                // Never fail the response because logging is broken on production.
+            }
+
+            return $this->mobileError(
+                config('app.debug') ? $e->getMessage() : 'Something went wrong. Please try again.',
+                500,
+                'server_error'
+            );
+        }
+    }
+
+    private function attemptLogin(Request $request)
+    {
         $remember = $request->boolean('remember', true);
+        $email = strtolower(trim((string) $request->email));
+        $deviceName = (string) $request->input('device_name', 'mobile-app');
 
-        Log::info('mobile_login_attempt', [
-            'email' => (string) $request->email,
-            'device_name' => (string) $request->input('device_name', ''),
-            'ip' => $request->ip(),
-            'ua' => (string) $request->userAgent(),
-        ]);
-
-        $user = User::query()->where('email', $request->email)->first();
+        $user = $this->login->authenticate($email, (string) $request->password);
 
         if (! $user) {
-            Log::info('mobile_login_failed', ['reason' => 'no_user', 'email' => (string) $request->email]);
-            return $this->mobileError('Invalid credentials', 401, 'invalid_credentials');
-        }
-
-        $authPassword = $user->getAuthPassword();
-        $checked = $authPassword !== '' && Hash::check($request->password, $authPassword);
-
-        Log::info('mobile_login_password_check', [
-            'user_id' => $user->id,
-            'email' => (string) $user->email,
-            'auth_password_len' => strlen($authPassword),
-            'hash_check_ok' => $checked,
-        ]);
-
-        if (! $checked) {
             return $this->mobileError('Invalid credentials', 401, 'invalid_credentials');
         }
 
@@ -77,30 +73,11 @@ class AuthController extends Controller
             return $this->mobileError($access['message'], $status, $access['code']);
         }
 
-        $expiresAt = $remember
-            ? null
-            : now()->addHours((int) config('mobile_auth.session_hours', 12));
-
-        $tokenResult = $user->createToken(
-            $request->input('device_name', 'mobile-app'),
-            ['*'],
-            $expiresAt,
-        );
-
-        $token = $tokenResult->plainTextToken;
-
-        $devices = $this->entitlement->accessibleDevices($user);
-        $this->positionLoader->attachLatestToMany($devices);
+        $payload = $this->login->issueTokenAndPayload($user, $deviceName, $remember);
 
         return $this->mobileSuccess([
-            'token' => $token,
-            'token_type' => 'Bearer',
-            'remember' => $remember,
-            'expires_at' => $tokenResult->accessToken->expires_at?->toIso8601String(),
+            ...$payload,
             'user' => $this->mobileUserPayload($user),
-            'permissions' => $this->entitlement->permissionsFor($user),
-            'accessible_devices' => $devices->map(fn ($d) => $this->presenter->listItem($d))->values(),
-            'subscription' => $this->entitlement->subscriptionSummaryForUser($user),
         ]);
     }
 
