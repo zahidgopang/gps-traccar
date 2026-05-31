@@ -28,17 +28,21 @@ class GeofenceController extends Controller
 
         foreach ($devices as $device) {
             foreach ($this->geofenceStore->forDevice($device) as $geofence) {
-                $id = (int) $geofence->id;
-                if (isset($seen[$id])) {
-                    continue;
-                }
-                $seen[$id] = true;
+                try {
+                    $id = (int) $geofence->id;
+                    if (isset($seen[$id])) {
+                        continue;
+                    }
+                    $seen[$id] = true;
 
-                $items->push($this->formatGeofence(
-                    $geofence,
-                    (int) $device->id,
-                    (string) $device->notificationDisplayName(),
-                ));
+                    $items->push($this->formatGeofence(
+                        $geofence,
+                        (int) $device->id,
+                        (string) $device->notificationDisplayName(),
+                    ));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 
