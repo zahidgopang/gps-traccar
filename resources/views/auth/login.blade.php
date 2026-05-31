@@ -42,9 +42,9 @@
             <div class="form-options">
                 <div class="remember-me">
                     <label for="remember_me" class="premium-checkbox-label">
-                        <input id="remember_me" type="checkbox" class="premium-checkbox" name="remember">
+                        <input id="remember_me" type="checkbox" class="premium-checkbox" name="remember" value="1" @checked(old('remember', true))>
                         <span class="checkmark"></span>
-                        <span class="checkbox-text">{{ __('Remember me') }}</span>
+                        <span class="checkbox-text">{{ __('app.auth.keep_signed_in') }}</span>
                     </label>
                 </div>
 

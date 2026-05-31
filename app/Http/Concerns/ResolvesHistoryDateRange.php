@@ -2,6 +2,7 @@
 
 namespace App\Http\Concerns;
 
+use App\Support\Tracking\HistoryRangeBounds;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -9,9 +10,9 @@ trait ResolvesHistoryDateRange
 {
     /**
      * No dates → last 24 hours (no upper bound).
-     * Y-m-d from/to → full calendar days in app timezone.
+     * Y-m-d from/to → full calendar days in app timezone (inclusive).
      *
-     * @return array{from: Carbon, to: ?Carbon}
+     * @return array{from: Carbon, to: Carbon}
      */
     protected function resolveHistoryRange(Request $request): array
     {
@@ -25,14 +26,7 @@ trait ResolvesHistoryDateRange
                 ? $this->parseHistoryDate($toInput, $tz, false)
                 : $from->copy()->endOfDay();
 
-            if ($to->lessThan($from)) {
-                [$from, $to] = [
-                    $this->parseHistoryDate($toInput ?: $fromInput, $tz, true),
-                    $this->parseHistoryDate($fromInput, $tz, false),
-                ];
-            }
-
-            return ['from' => $from, 'to' => $to];
+            return HistoryRangeBounds::normalize($from, $to);
         }
 
         return [
@@ -44,9 +38,9 @@ trait ResolvesHistoryDateRange
     protected function parseHistoryDate(string $value, string $tz, bool $start): Carbon
     {
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            $date = Carbon::createFromFormat('Y-m-d', $value, $tz);
+            $date = Carbon::createFromFormat('Y-m-d', $value, $tz)->startOfDay();
 
-            return $start ? $date->startOfDay() : $date->copy()->endOfDay();
+            return $start ? $date : $date->copy()->endOfDay();
         }
 
         $parsed = Carbon::parse($value, $tz);

@@ -28,8 +28,29 @@
     const idleSpeedKmh = cfg.idleSpeedKmh ?? 0.5;
     const parkedIconSpeedKmh = cfg.parkedIconSpeedKmh ?? 0.1;
     const motionDetectKm = cfg.motionDetectKm ?? 0.004;
-    const onlineTimeoutMs = (cfg.onlineMinutes || 5) * 60 * 1000;
-    const pollIntervalMs = cfg.pollIntervalMs || 5000;
+    const recentMinutes = cfg.recentMinutes ?? 10;
+    const offlineMinutes = cfg.offlineMinutes ?? 30;
+    const recentTimeoutMs = recentMinutes * 60 * 1000;
+    const offlineTimeoutMs = offlineMinutes * 60 * 1000;
+    const onlineTimeoutMs = offlineTimeoutMs;
+    const debugGps = cfg.debugGps === true
+        || (typeof URLSearchParams !== 'undefined'
+            && new URLSearchParams(window.location.search).get('debug_gps') === '1');
+
+    function debugGpsLog(...args) {
+        if (debugGps) console.log('[GPS Debug]', ...args);
+    }
+
+    function formatGsmDisplay(value) {
+        if (value == null || value === '') return dash();
+        const n = parseInt(value, 10);
+        if (Number.isNaN(n)) return dash();
+        if (n === 0) return mi('gsmNoSignal', 'No signal');
+        if (n <= 5) return `${n}/5`;
+        if (n <= 33) return `${n}% (${mi('gsmWeak', 'Weak')})`;
+        if (n <= 66) return `${n}% (${mi('gsmGood', 'Good')})`;
+        return `${n}% (${mi('gsmExcellent', 'Excellent')})`;
+    }
 
     let map, drawingManager, trafficLayer, customInfoWindow;
     let geofences = [];
@@ -41,9 +62,11 @@
     let currentDrawing = null;
     let playbackPoints = [];
     let playbackTimer, playbackIndex = 0, isPlaying = false, playbackSpeed = 1;
+    let playbackAnimFrame = null;
     let playbackMarker = null;
     let followVehicle = true;
-    let flatpickrInstance;
+    let flatpickrFrom;
+    let flatpickrTo;
     let historyData = [];
     let lastRealtimePoint = null;
     let lastTelemetry = null;
@@ -74,12 +97,15 @@
     let mapHealthTimer = null;
     let mapResizeObserver = null;
     let lastAppliedPositionKey = '';
+    let vehiclePopupPinned = false;
+    let livePopupAddress = '';
     let livePollTimer = null;
     let alertsPollTimer = null;
     let markerAnimationFrame = null;
     let animFromPos = null;
     let animFromHeading = 0;
     let animStartTime = 0;
+    let vehiclePulseOverlay = null;
     let endMarker = null;
     let eventMarkers = [];
     let routeGlowPolylines = [];
@@ -91,11 +117,104 @@
     const VEHICLE_STATE_COLORS = {
         moving: '#22c55e',
         idle: '#f97316',
+        stopped: '#ef4444',
         parked: '#3b82f6',
-        offline: '#ef4444',
+        offline: '#94a3b8',
+        delayed: '#eab308',
         alert: '#ef4444',
-        stopped: '#f97316',
     };
+
+    function getVehiclePulseOverlayClass() {
+        if (typeof google === 'undefined' || !google.maps?.OverlayView) {
+            return null;
+        }
+        if (getVehiclePulseOverlayClass._cls) {
+            return getVehiclePulseOverlayClass._cls;
+        }
+        getVehiclePulseOverlayClass._cls = class extends google.maps.OverlayView {
+            constructor() {
+                super();
+                this.position = null;
+                this.color = VEHICLE_STATE_COLORS.moving;
+                this.container = null;
+            }
+
+            onAdd() {
+                const div = document.createElement('div');
+                div.className = 'vehicle-live-pulse-wrap';
+                div.innerHTML = [
+                    '<div class="vehicle-live-pulse-glow"></div>',
+                    '<div class="vehicle-live-pulse-ring"></div>',
+                    '<div class="vehicle-live-pulse-ring vehicle-live-pulse-ring--delay"></div>',
+                    '<div class="vehicle-live-pulse-ring vehicle-live-pulse-ring--delay2"></div>',
+                    '<div class="vehicle-live-pulse-core"></div>',
+                ].join('');
+                this.container = div;
+                const pane = this.getPanes().floatPane || this.getPanes().overlayMouseTarget;
+                pane.appendChild(div);
+            }
+
+            onRemove() {
+                if (this.container?.parentNode) {
+                    this.container.parentNode.removeChild(this.container);
+                }
+                this.container = null;
+            }
+
+            draw() {
+                if (!this.container || !this.position) return;
+                const projection = this.getProjection();
+                if (!projection) return;
+                const point = projection.fromLatLngToDivPixel(
+                    new google.maps.LatLng(this.position.lat, this.position.lng)
+                );
+                if (!point) return;
+                this.container.style.left = `${point.x}px`;
+                this.container.style.top = `${point.y}px`;
+                this.container.style.setProperty('--pulse-color', this.color);
+            }
+
+            setPosition(lat, lng) {
+                this.position = { lat, lng };
+                this.draw();
+            }
+
+            setColor(color) {
+                this.color = color || VEHICLE_STATE_COLORS.moving;
+                if (this.container) {
+                    this.container.style.setProperty('--pulse-color', this.color);
+                }
+            }
+        };
+        return getVehiclePulseOverlayClass._cls;
+    }
+
+    function ensureVehiclePulseOverlay() {
+        if (!map) return null;
+        const Cls = getVehiclePulseOverlayClass();
+        if (!Cls) return null;
+        if (!vehiclePulseOverlay) {
+            vehiclePulseOverlay = new Cls();
+            vehiclePulseOverlay.setMap(map);
+            map.addListener('bounds_changed', () => vehiclePulseOverlay?.draw());
+        }
+        return vehiclePulseOverlay;
+    }
+
+    function updateVehiclePulseOverlay(point) {
+        if (!point || hasNoGpsData(point)) {
+            if (vehiclePulseOverlay) {
+                vehiclePulseOverlay.setMap(null);
+                vehiclePulseOverlay = null;
+            }
+            return;
+        }
+        const overlay = ensureVehiclePulseOverlay();
+        if (!overlay) return;
+        const state = vehicleStateKey(point);
+        overlay.setColor(vehicleStateColor(state));
+        overlay.setPosition(point.lat, point.lng);
+    }
 
     const NIGHT_MAP_STYLES = [
         { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
@@ -115,13 +234,33 @@
         { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#475569' }] },
     ];
 
+    function parseRouteTimestampMs(ts) {
+        if (window.AppDateTime?.parseTimestampMs) {
+            return window.AppDateTime.parseTimestampMs(ts);
+        }
+        if (!ts) return null;
+        const parsed = Date.parse(String(ts));
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    function resolvePointTimestamp(raw) {
+        for (const key of ['recorded_at', 'time', 'timestamp', 'fixtime', 'deviceTime', 'device_time']) {
+            const value = raw[key];
+            if (value != null && String(value).trim() !== '') {
+                return String(value).trim();
+            }
+        }
+        return null;
+    }
+
     function normalizePoint(raw) {
         if (!raw) return null;
         const lat = parseFloat(raw.lat ?? raw.latitude ?? 0);
         const lng = parseFloat(raw.lng ?? raw.longitude ?? 0);
         if (!lat || !lng || Number.isNaN(lat) || Number.isNaN(lng)) return null;
 
-        const ts = raw.recorded_at || raw.timestamp || null;
+        const ts = resolvePointTimestamp(raw);
+        const tsMs = parseRouteTimestampMs(ts);
 
         return {
             lat,
@@ -138,10 +277,127 @@
             power_cut: raw.power_cut === true || raw.power_cut === 1,
             panic: raw.panic === true || raw.panic === 1,
             recorded_at: ts,
+            recorded_at_ms: tsMs,
             position_id: raw.position_id != null ? Number(raw.position_id) : null,
             status: raw.status ?? null,
             status_key: raw.status_key ?? null,
+            connectivity_tier: raw.connectivity_tier ?? null,
+            last_known_status: raw.last_known_status ?? null,
+            last_known_status_key: raw.last_known_status_key ?? null,
+            last_known_speed: raw.last_known_speed != null ? parseFloat(raw.last_known_speed) : null,
+            last_known_ignition: raw.last_known_ignition === true || raw.last_known_ignition === 1 || raw.last_known_ignition === '1'
+                ? true
+                : (raw.last_known_ignition === false || raw.last_known_ignition === 0 || raw.last_known_ignition === '0'
+                    ? false
+                    : null),
             is_online: raw.is_online,
+        };
+    }
+
+    function sortHistoryPoints(data) {
+        return [...data].sort((a, b) => {
+            const ta = a.recorded_at_ms ?? parseRouteTimestampMs(a.recorded_at) ?? 0;
+            const tb = b.recorded_at_ms ?? parseRouteTimestampMs(b.recorded_at) ?? 0;
+            if (ta !== tb) return ta - tb;
+            return (a.position_id || 0) - (b.position_id || 0);
+        });
+    }
+
+    function routeTimeBounds(data) {
+        let minMs = null;
+        let maxMs = null;
+        let startTs = null;
+        let endTs = null;
+
+        for (const point of data) {
+            const ms = point.recorded_at_ms ?? parseRouteTimestampMs(point.recorded_at);
+            if (ms == null) continue;
+            if (minMs == null || ms < minMs) {
+                minMs = ms;
+                startTs = point.recorded_at;
+            }
+            if (maxMs == null || ms > maxMs) {
+                maxMs = ms;
+                endTs = point.recorded_at;
+            }
+        }
+
+        const totalSec = minMs != null && maxMs != null && maxMs > minMs
+            ? (maxMs - minMs) / 1000
+            : 0;
+
+        return { startTs, endTs, totalSec, minMs, maxMs };
+    }
+
+    function sumSegmentDurationSeconds(data) {
+        let total = 0;
+        for (let i = 1; i < data.length; i++) {
+            const t0 = data[i - 1].recorded_at_ms ?? parseRouteTimestampMs(data[i - 1].recorded_at);
+            const t1 = data[i].recorded_at_ms ?? parseRouteTimestampMs(data[i].recorded_at);
+            if (t0 != null && t1 != null && t1 > t0) {
+                total += (t1 - t0) / 1000;
+            }
+        }
+        return total;
+    }
+
+    /** Estimate trip duration from distance/speed when timestamps are missing or identical. */
+    function estimateDurationFromMotion(data) {
+        let totalSec = 0;
+        for (let i = 1; i < data.length; i++) {
+            const a = data[i - 1];
+            const b = data[i];
+            const distKm = haversineDistance(a.lat, a.lng, b.lat, b.lng);
+            if (distKm < 0.00001) continue;
+            const spd = Math.max(parseFloat(a.speed || 0), parseFloat(b.speed || 0), movingSpeedKmh);
+            totalSec += (distKm / spd) * 3600;
+        }
+        return totalSec;
+    }
+
+    function enrichRouteStats(data, stats) {
+        const bounds = routeTimeBounds(data);
+        let startTs = bounds.startTs ?? data[0]?.recorded_at ?? null;
+        let endTs = bounds.endTs ?? data[data.length - 1]?.recorded_at ?? null;
+        let totalSec = bounds.totalSec > 0 ? bounds.totalSec : stats.totalSec;
+
+        if (totalSec <= 0) {
+            const segmentSec = sumSegmentDurationSeconds(data);
+            if (segmentSec > 0) totalSec = segmentSec;
+        }
+
+        if (totalSec <= 0 && stats.dist > 0 && data.length >= 2) {
+            totalSec = estimateDurationFromMotion(data);
+        }
+
+        let avgSpeed = 0;
+        if (totalSec > 0 && stats.dist > 0) {
+            avgSpeed = stats.dist / (totalSec / 3600);
+        } else if (stats.movingSec > 0 && stats.dist > 0) {
+            avgSpeed = stats.dist / (stats.movingSec / 3600);
+        } else if (stats.dist > 0 && data.length >= 2) {
+            const speeds = data.map((p) => parseFloat(p.speed || 0)).filter((s) => s > 0);
+            if (speeds.length) {
+                avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+            }
+        }
+
+        if (stats.dist > 0 && totalSec <= 0) {
+            debugGpsLog('route summary: distance without duration', {
+                points: data.length,
+                dist: stats.dist,
+                first: data[0]?.recorded_at,
+                last: data[data.length - 1]?.recorded_at,
+                bounds,
+            });
+        }
+
+        return {
+            ...stats,
+            startTs,
+            endTs,
+            totalSec,
+            avgSpeed,
         };
     }
 
@@ -153,6 +409,123 @@
             return `id:${point.position_id}`;
         }
         return `${point.recorded_at || ''}|${point.lat}|${point.lng}`;
+    }
+
+    function hasSignificantPositionChange(point, prev) {
+        if (!prev) {
+            return true;
+        }
+        if (point.position_id && prev.position_id && point.position_id !== prev.position_id) {
+            return true;
+        }
+        if ((point.recorded_at || '') !== (prev.recorded_at || '')) {
+            return true;
+        }
+        return haversineDistance(prev.lat, prev.lng, point.lat, point.lng) * 1000 >= 2;
+    }
+
+    function markerIdentityFromConfig(point) {
+        return markerIdentityForPoint(point || {});
+    }
+
+    function formatIgnitionLabel(point) {
+        if (point?.ignition == null) return dash();
+        return point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF');
+    }
+
+    function buildLiveVehiclePopupHtml(point) {
+        const identity = markerIdentityForPoint(point);
+        const status = resolveVehicleStatus(point);
+        const speed = parseFloat(point.speed || 0).toFixed(0);
+        const updated = point.recorded_at
+            ? (window.AppDateTime?.formatDateTime(point.recorded_at) ?? new Date(point.recorded_at).toLocaleString())
+            : dash();
+
+        const plateRow = identity.plate
+            ? `<div class="vehicle-map-popup__row"><strong>${mi('vehicleNumber', 'Vehicle Number')}</strong><span>${escapeHtml(identity.plate)}</span></div>`
+            : '';
+
+        return `<div class="vehicle-map-popup">
+            <div class="vehicle-map-popup__head">
+                <div>
+                    <div class="vehicle-map-popup__title">${escapeHtml(identity.title)}</div>
+                </div>
+                <button type="button" class="vehicle-map-popup__close" id="liveVehiclePopupClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="vehicle-map-popup__body">
+                ${plateRow}
+                <div class="vehicle-map-popup__row vehicle-map-popup__row--status"><strong>${mi('currentStatus', 'Status')}</strong><span class="map-status-chip ${status.cls}">${escapeHtml(status.label)}</span></div>
+                <div class="vehicle-map-popup__row"><strong>${mi('speed', 'Speed')}</strong><span>${speed} ${mi('kmh', 'km/h')}</span></div>
+                <div class="vehicle-map-popup__row"><strong>${mi('ignition', 'Ignition')}</strong><span>${escapeHtml(formatIgnitionLabel(point))}</span></div>
+                <div class="vehicle-map-popup__row"><strong>${mi('updated', 'Updated')}</strong><span>${escapeHtml(updated)}</span></div>
+            </div>
+        </div>`;
+    }
+
+    function updateRouteSummaryLive(point) {
+        if (!point) return;
+
+        const status = resolveVehicleStatus(point);
+        const identity = markerIdentityForPoint(point);
+        const speedLabel = `${parseFloat(point.speed || 0).toFixed(0)} ${mi('kmh', 'km/h')}`;
+        const updated = formatRouteTimestamp(point.recorded_at);
+
+        setText('rssCollapsedName', identity.title || 'Vehicle');
+        const collapsedPlate = document.getElementById('rssCollapsedPlate');
+        if (collapsedPlate) {
+            if (identity.plate) {
+                collapsedPlate.textContent = identity.plate;
+                collapsedPlate.hidden = false;
+            } else {
+                collapsedPlate.hidden = true;
+            }
+        }
+
+        const collapsedStatus = document.getElementById('rssCollapsedStatus');
+        if (collapsedStatus) {
+            collapsedStatus.innerHTML = `<span class="map-status-chip ${status.cls}">${escapeHtml(status.label)}</span>`;
+        }
+        setText('rssCollapsedSpeed', speedLabel);
+
+        const statusEl = document.getElementById('rssCurrentStatus');
+        if (statusEl) {
+            statusEl.innerHTML = `<span class="map-status-chip ${status.cls}">${escapeHtml(status.label)}</span>`;
+        }
+
+        setText('rssCurrentSpeed', speedLabel);
+        setText('rssIgnition', formatIgnitionLabel(point));
+        setText('rssLastUpdate', updated);
+    }
+
+    function updateLiveVehiclePopup(point) {
+        if (!vehiclePopupPinned || !customInfoWindow || !currentPositionMarker || !point) {
+            return;
+        }
+        customInfoWindow.setContent(buildLiveVehiclePopupHtml(point));
+        const pos = currentPositionMarker.getPosition();
+        if (pos) {
+            customInfoWindow.setPosition(pos);
+        }
+        if (!customInfoWindow.getMap()) {
+            customInfoWindow.open(map);
+        }
+    }
+
+    function closeLiveVehiclePopup() {
+        vehiclePopupPinned = false;
+        customInfoWindow?.close();
+        if (lastTelemetry) {
+            updateVehiclePulseOverlay(lastTelemetry);
+        }
+    }
+
+    function openLiveVehiclePopup(point) {
+        if (!customInfoWindow || !currentPositionMarker || !point) {
+            return;
+        }
+        vehiclePopupPinned = true;
+        updateLiveVehiclePopup(point);
+        updateVehiclePulseOverlay(point);
     }
 
     function normalizeResponse(j) {
@@ -192,18 +565,44 @@
         return '#ef4444';
     }
 
-    /** True when there is no GPS fix to derive status from (matches mobile API). */
+    /** Age of last GPS fix in milliseconds, or null when unknown. */
+    function gpsAgeMs(point) {
+        if (!point?.recorded_at) {
+            return null;
+        }
+        return Date.now() - new Date(point.recorded_at).getTime();
+    }
+
+    function connectivityTier(point) {
+        if (point?.connectivity_tier) {
+            return point.connectivity_tier;
+        }
+        const age = gpsAgeMs(point);
+        if (age == null) {
+            return 'offline';
+        }
+        if (age > offlineTimeoutMs) {
+            return 'offline';
+        }
+        if (age > recentTimeoutMs) {
+            return 'delayed';
+        }
+        return 'recent';
+    }
+
+    /** True when there is no GPS fix. */
     function hasNoGpsData(point) {
         return !point || !point.recorded_at;
     }
 
-    /** Connectivity staleness — used for alerts only, not status badge. */
+    /** Offline tier — >30 min or missing GPS. */
+    function isVehicleOffline(point) {
+        return connectivityTier(point) === 'offline';
+    }
+
+    /** @deprecated use isVehicleOffline */
     function isConnectivityStale(point) {
-        if (!point?.recorded_at) {
-            return true;
-        }
-        const age = Date.now() - new Date(point.recorded_at).getTime();
-        return age > onlineTimeoutMs;
+        return isVehicleOffline(point);
     }
 
     /** @deprecated use hasNoGpsData — kept for minimal diff in call sites */
@@ -218,6 +617,7 @@
             parked: mi('statusParked', 'Parked'),
             stopped: mi('statusStopped', 'Stopped'),
             offline: mi('statusOffline', 'Offline'),
+            delayed: mi('statusDelayed', 'Delayed / No Recent Data'),
             alert: point?.panic
                 ? mi('statusSos', 'SOS')
                 : (point?.power_cut ? mi('statusPowerCut', 'Power cut') : mi('statusOverspeed', 'Overspeed')),
@@ -246,17 +646,22 @@
             return 'alert';
         }
         const speed = parseFloat(point.speed || 0);
-        if (speed > movingSpeedKmh) {
+        if (speed > 0) {
             return 'moving';
         }
-        if (speed > idleSpeedKmh) {
+        if (point.ignition === true) {
             return 'idle';
         }
-        if (point.ignition === true) {
-            return 'stopped';
+
+        return 'stopped';
+    }
+
+    function normalizeVehicleStateKey(key) {
+        if (key === 'parked' || key === 'running') {
+            return key === 'running' ? 'moving' : 'stopped';
         }
 
-        return 'parked';
+        return key;
     }
 
     function vehicleStateKey(point) {
@@ -264,11 +669,56 @@
             return 'offline';
         }
 
-        if (point.status_key) {
-            return point.status_key;
+        const tier = connectivityTier(point);
+        if (tier === 'offline') {
+            return 'offline';
+        }
+        if (tier === 'delayed') {
+            return 'delayed';
+        }
+
+        if (point.status_key && !['offline', 'delayed'].includes(point.status_key)) {
+            return normalizeVehicleStateKey(point.status_key);
         }
 
         return vehicleStateKeyFromMetrics(point);
+    }
+
+    function lastKnownMotionKey(point) {
+        if (point?.last_known_status_key) {
+            return normalizeVehicleStateKey(point.last_known_status_key);
+        }
+        return vehicleStateKeyFromMetrics(point);
+    }
+
+    function lastKnownMotionLabel(point) {
+        if (point?.last_known_status) {
+            return point.last_known_status;
+        }
+        return statusLabelForKey(lastKnownMotionKey(point), point);
+    }
+
+    function lastKnownSpeed(point) {
+        if (point?.last_known_speed != null && !Number.isNaN(parseFloat(point.last_known_speed))) {
+            return parseFloat(point.last_known_speed);
+        }
+        return parseFloat(point?.speed || 0);
+    }
+
+    function lastKnownIgnition(point) {
+        if (point?.last_known_ignition != null) {
+            return point.last_known_ignition === true;
+        }
+        return point?.ignition === true;
+    }
+
+    function formatLastSeen(point) {
+        if (!point?.recorded_at) {
+            return dash();
+        }
+        return window.AppDateTime?.formatDateTime
+            ? window.AppDateTime.formatDateTime(point.recorded_at)
+            : new Date(point.recorded_at).toLocaleString();
     }
 
     function vehicleStateColor(state) {
@@ -279,7 +729,6 @@
         const rotation = showDirection ? (parseFloat(heading || 0)) : 0;
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
             <g transform="rotate(${rotation} 26 26)">
-                <ellipse cx="26" cy="26" rx="22" ry="22" fill="${color}" opacity="0.18"/>
                 <path d="M26 8 L34 36 L30 42 L22 42 L18 36 Z" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
                 <rect x="22" y="16" width="8" height="7" rx="1.5" fill="#ffffff" opacity="0.9"/>
             </g>
@@ -287,17 +736,122 @@
         return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
     }
 
+    function truncateMarkerText(text, maxLen) {
+        const t = String(text || '').trim();
+        if (!t) {
+            return '';
+        }
+        const limit = maxLen || 16;
+        return t.length > limit ? t.slice(0, limit - 1) + '…' : t;
+    }
+
+    function markerIdentityForPoint(point) {
+        const rawName = String(point?.vehicle_name || cfg.vehicleName || '').trim();
+        const rawPlate = String(
+            point?.markerPlate || point?.vehicle_number || cfg.markerPlate || cfg.vehicleNumber || ''
+        ).trim();
+
+        let title = rawName || truncateMarkerText(
+            point?.markerTitle || point?.markerLabel || cfg.markerTitle || cfg.markerLabel,
+            22
+        );
+        let plate = null;
+
+        if (!title && rawPlate) {
+            title = truncateMarkerText(rawPlate, 22);
+        } else if (rawName && rawPlate) {
+            plate = rawPlate;
+        } else if (title && rawPlate && title !== rawPlate) {
+            plate = rawPlate;
+        }
+
+        if (!title) {
+            title = truncateMarkerText(cfg.mapDisplayTitle, 22) || 'Vehicle';
+        }
+
+        return { title, plate };
+    }
+
+    function labeledVehicleSvgDataUrl(identity, color, heading, showDirection) {
+        const title = identity.title || 'Vehicle';
+        const plate = identity.plate || '';
+        const esc = (s) => String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/"/g, '&quot;');
+
+        const titleLen = title.length * 6.8;
+        const plateLen = plate ? plate.length * 5.8 : 0;
+        const pillW = Math.max(48, Math.min(148, Math.max(titleLen, plateLen) + 16));
+        const titleLineH = 13;
+        const plateLineH = plate ? 11 : 0;
+        const innerGap = plate ? 2 : 0;
+        const pillPadY = 5;
+        const pillH = pillPadY + titleLineH + innerGap + plateLineH + pillPadY;
+        const labelGap = 6;
+        const pinSize = 44;
+        const totalW = Math.max(pillW + 6, pinSize);
+        const totalH = pillH + labelGap + pinSize;
+        const cx = totalW / 2;
+        const pillX = (totalW - pillW) / 2;
+        const titleY = pillPadY + titleLineH - 3;
+        const plateY = titleY + innerGap + plateLineH;
+        const pinTop = pillH + labelGap;
+        const rotation = showDirection ? (parseFloat(heading || 0)) : 0;
+        const pinScale = pinSize / 52;
+        const pinCx = 26 * pinScale;
+        const pinCy = 26 * pinScale;
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}">
+            <defs>
+                <filter id="badgeShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#000000" flood-opacity="0.45"/>
+                </filter>
+            </defs>
+            <g filter="url(#badgeShadow)">
+                <rect x="${pillX}" y="0" width="${pillW}" height="${pillH}" rx="${Math.min(12, pillH / 2)}" fill="rgba(15,23,42,0.94)" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
+            </g>
+            <text x="${cx}" y="${titleY}" text-anchor="middle" fill="#ffffff" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="700">${esc(title)}</text>
+            ${plate ? `<text x="${cx}" y="${plateY}" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="9.5" font-weight="500">${esc(plate)}</text>` : ''}
+            <g transform="translate(${cx - pinCx}, ${pinTop}) scale(${pinScale}) rotate(${rotation} 26 26)">
+                <circle cx="26" cy="26" r="21" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.35"/>
+                <path d="M26 7 L33 34 L29 40 L23 40 L19 34 Z" fill="${color}" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>
+                <rect x="22.5" y="15" width="7" height="6" rx="1.5" fill="#ffffff" opacity="0.92"/>
+            </g>
+        </svg>`;
+
+        return {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+            width: totalW,
+            height: totalH,
+        };
+    }
+
     function vehicleIcon(point) {
         const state = vehicleStateKey(point);
         const color = vehicleStateColor(state);
         const heading = parseFloat(point?.heading || 0);
-        const showDirection = state === 'moving' || state === 'idle' || state === 'alert';
+        const showDirection = state === 'moving' || state === 'idle' || state === 'stopped' || state === 'alert';
+        const identity = markerIdentityForPoint(point);
+        const cacheKey = `${identity.title}|${identity.plate || ''}|${color}|${Math.round(heading / 5)}|${showDirection ? 1 : 0}`;
+        if (!vehicleIcon._cache) {
+            vehicleIcon._cache = {};
+        }
+        if (vehicleIcon._cache[cacheKey]) {
+            return vehicleIcon._cache[cacheKey];
+        }
 
-        return {
-            url: vehicleSvgDataUrl(color, heading, showDirection),
-            scaledSize: new google.maps.Size(48, 48),
-            anchor: new google.maps.Point(24, 24),
+        const sized = labeledVehicleSvgDataUrl(identity, color, heading, showDirection);
+        const scale = Math.min(1, 152 / sized.width);
+        const w = Math.round(sized.width * scale);
+        const h = Math.round(sized.height * scale);
+        const icon = {
+            url: sized.url,
+            scaledSize: new google.maps.Size(w, h),
+            anchor: new google.maps.Point(w / 2, h),
         };
+        vehicleIcon._cache[cacheKey] = icon;
+        return icon;
     }
 
     function routeMarkerIcon(type) {
@@ -346,8 +900,10 @@
         const s = Math.max(0, Math.floor(seconds));
         const h = Math.floor(s / 3600);
         const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
         if (h > 0) return `${h}h ${m}m`;
-        return `${m}m`;
+        if (m > 0) return `${m}m`;
+        return `${sec}s`;
     }
 
     function effectiveSpeedKmh(point, previous) {
@@ -357,7 +913,7 @@
         }
 
         const distKm = haversineDistance(previous.lat, previous.lng, point.lat, point.lng);
-        const elapsedMs = new Date(point.recorded_at).getTime() - new Date(previous.recorded_at).getTime();
+        const elapsedMs = (parseRouteTimestampMs(point.recorded_at) ?? 0) - (parseRouteTimestampMs(previous.recorded_at) ?? 0);
         if (elapsedMs <= 0) {
             return reported;
         }
@@ -389,7 +945,7 @@
                 { lat: previous.lat, lng: previous.lng },
                 { lat: point.lat, lng: point.lng }
             );
-            if (!Number.isFinite(heading) || heading === 0 || speed <= idleSpeedKmh) {
+            if (!Number.isFinite(heading)) {
                 heading = travelBearing;
             }
         }
@@ -402,12 +958,8 @@
     }
 
     function resolveVehicleStatus(point) {
-        if (hasNoGpsData(point)) {
-            return { key: 'offline', label: mi('statusOffline', 'Offline'), cls: 'map-status-chip--offline' };
-        }
-
         const key = vehicleStateKey(point);
-        const label = (point.status && String(point.status).trim())
+        const label = (point?.status && String(point.status).trim() && ['offline', 'delayed'].includes(key))
             ? String(point.status).trim()
             : statusLabelForKey(key, point);
 
@@ -415,6 +967,7 @@
             key,
             label,
             cls: statusClassForKey(key),
+            tier: connectivityTier(point),
         };
     }
 
@@ -522,45 +1075,78 @@
 
     function updateMapHud(point) {
         if (!point) return;
-        const speed = parseFloat(point.speed || 0);
-        const speedText = speed.toFixed(0) + ' ' + mi('kmh', 'km/h');
         const status = resolveVehicleStatus(point);
+        const tier = status.tier;
+        const isRecent = tier === 'recent';
+        const isDelayed = tier === 'delayed';
+        const isOffline = tier === 'offline';
+        const speed = isRecent ? parseFloat(point.speed || 0) : lastKnownSpeed(point);
+        const speedText = speed.toFixed(0) + ' ' + mi('kmh', 'km/h');
+        const lastSeenText = formatLastSeen(point);
 
         setText('hudSpeed', speedText);
-        setText('livePanelSpeed', speedText);
-        setText('hudMiniSpeed', speedText);
+        setText('hudMiniSpeed', isRecent ? speedText : lastSeenText);
         setText('hudHeading', (point.heading ?? 0) + '°');
         const updatedText = point.recorded_at
             ? (window.AppDateTime?.formatTime(point.recorded_at) ?? new Date(point.recorded_at).toLocaleTimeString())
             : dash();
         setText('hudUpdated', updatedText);
-        setText('livePanelUpdated', updatedText);
-        setText('hudCoords', point.lat.toFixed(5) + ', ' + point.lng.toFixed(5));
 
-        const ignitionText = point.ignition != null
-            ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF'))
+        const ignitionVal = isRecent ? point.ignition : lastKnownIgnition(point);
+        const ignitionText = ignitionVal != null
+            ? (ignitionVal ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF'))
             : dash();
-        setText('livePanelIgnition', ignitionText);
+        setText('hudIgnition', ignitionText);
 
         const gpsText = point.gps_signal != null
             ? point.gps_signal + '%'
-            : (point.satellites != null ? point.satellites + ' sats' : dash());
-        setText('livePanelGps', gpsText);
+            : dash();
+        setText('hudGps', gpsText);
 
-        setText('livePanelGsm', point.gsm_signal != null ? point.gsm_signal + '%' : dash());
+        setText('hudGsm', formatGsmDisplay(point.gsm_signal));
+
+        setText('hudSatellites', point.satellites != null ? String(point.satellites) : dash());
 
         const battery = point.battery != null ? parseInt(point.battery, 10) : null;
-        setText('livePanelBattery', battery != null ? battery + '%' : dash());
+        setText('hudBattery', battery != null ? battery + '%' : dash());
 
-        const statusChip = document.getElementById('liveStatusChip');
-        if (statusChip) {
-            statusChip.textContent = status.label;
-            statusChip.className = 'map-status-chip ' + status.cls;
-        }
+        const statusChipHtml = `<span class="map-status-chip ${status.cls}">${escapeHtml(status.label)}</span>`;
+        const miniStatus = document.getElementById('hudMiniStatus');
+        if (miniStatus) miniStatus.innerHTML = statusChipHtml;
 
         const dot = document.getElementById('hudStatusDot');
         if (dot) {
             dot.className = 'map-hud__status-dot is-' + status.key;
+        }
+
+        const delayedSection = document.getElementById('hudDelayedInfo');
+        if (delayedSection) {
+            delayedSection.hidden = !isDelayed;
+        }
+        if (isDelayed) {
+            setText('hudDelayedLastSeen', lastSeenText);
+        }
+
+        const lastKnownSection = document.getElementById('hudLastKnown');
+        if (lastKnownSection) {
+            lastKnownSection.hidden = !isOffline;
+        }
+        if (isOffline) {
+            setText('hudLastSeen', lastSeenText);
+            setText('hudLastKnownStatus', lastKnownMotionLabel(point));
+            setText('hudLastKnownSpeed', speedText);
+            const lkIgnition = lastKnownIgnition(point);
+            setText(
+                'hudLastKnownIgnition',
+                lkIgnition != null
+                    ? (lkIgnition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF'))
+                    : dash()
+            );
+        }
+
+        const telemetryGrid = document.getElementById('hudTelemetryGrid');
+        if (telemetryGrid) {
+            telemetryGrid.hidden = !isRecent;
         }
 
         scheduleAddressLookup(point.lat, point.lng);
@@ -582,6 +1168,10 @@
             const addr = data.address || 'Address unavailable';
             setText('hudAddress', addr);
             setText('addressBox', addr);
+            livePopupAddress = addr;
+            if (vehiclePopupPinned && lastTelemetry) {
+                updateLiveVehiclePopup(lastTelemetry);
+            }
         } catch (e) {
             setText('hudAddress', 'Could not load address');
         }
@@ -637,9 +1227,9 @@
 
         const flushStop = () => {
             if (stopRun.length < 2) { stopRun = []; return; }
-            const t0 = new Date(stopRun[0].recorded_at).getTime();
-            const t1 = new Date(stopRun[stopRun.length - 1].recorded_at).getTime();
-            const dur = (t1 - t0) / 1000;
+            const t0 = parseRouteTimestampMs(stopRun[0].recorded_at);
+            const t1 = parseRouteTimestampMs(stopRun[stopRun.length - 1].recorded_at);
+            const dur = t0 != null && t1 != null && t1 > t0 ? (t1 - t0) / 1000 : 0;
             if (dur >= stopMinSec) {
                 const mid = stopRun[Math.floor(stopRun.length / 2)];
                 stops.push({
@@ -657,9 +1247,9 @@
             if (spd > maxSpeed) maxSpeed = spd;
             if (spd > overSpeedLimit) overspeedEvents++;
 
-            const t0 = a.recorded_at ? new Date(a.recorded_at).getTime() : null;
-            const t1 = b.recorded_at ? new Date(b.recorded_at).getTime() : null;
-            const dt = t0 && t1 && t1 > t0 ? (t1 - t0) / 1000 : 0;
+            const t0 = parseRouteTimestampMs(a.recorded_at);
+            const t1 = parseRouteTimestampMs(b.recorded_at);
+            const dt = t0 != null && t1 != null && t1 > t0 ? (t1 - t0) / 1000 : 0;
 
             if (spd < 2) {
                 stoppedSec += dt;
@@ -671,9 +1261,8 @@
         }
         flushStop();
 
-        const tStart = data[0].recorded_at ? new Date(data[0].recorded_at).getTime() : null;
-        const tEnd = data[data.length - 1].recorded_at ? new Date(data[data.length - 1].recorded_at).getTime() : null;
-        const totalSec = tStart && tEnd && tEnd > tStart ? (tEnd - tStart) / 1000 : 0;
+        const bounds = routeTimeBounds(data);
+        const totalSec = bounds.totalSec;
 
         return { dist, maxSpeed, overspeedEvents, movingSec, stoppedSec, totalSec, stops };
     }
@@ -996,14 +1585,15 @@ ${pts}
         setText('telemetryHeading', point.heading != null && point.heading !== '' ? point.heading + '°' : dash());
         setText('telemetryBattery', battery != null ? battery + '%' : dash());
         setText('telemetryIgnition', point.ignition != null ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF')) : dash());
-        setText('telemetryGsm', point.gsm_signal != null ? point.gsm_signal + '%' : dash());
+        setText('telemetryGsm', formatGsmDisplay(point.gsm_signal));
         setText('telemetrySatellites', point.satellites != null ? String(point.satellites) : dash());
         setText('telemetryOdometer', point.odometer != null ? Number(point.odometer).toLocaleString() + ' ' + mi('km', 'km') : dash());
 
         const statusEl = document.getElementById('curStatus');
         if (statusEl) {
             const status = resolveVehicleStatus(point);
-            statusEl.innerHTML = `<span class="map-status-chip ${status.cls}">${status.label}</span>`;
+            statusEl.className = 'map-status-chip ' + status.cls;
+            statusEl.textContent = status.label;
         }
 
         const navStatus = document.getElementById('navLiveStatus');
@@ -1012,6 +1602,7 @@ ${pts}
         }
 
         updateMapHud(point);
+        updateRouteSummaryLive(point);
     }
 
     let mapAccessDeniedHandled = false;
@@ -1118,7 +1709,8 @@ ${pts}
             const coords = a.lat && a.lng
                 ? `<span class="nav-alert-detail text-muted">${Number(a.lat).toFixed(5)}, ${Number(a.lng).toFixed(5)}</span>`
                 : '';
-            return `<div class="nav-alert-item nav-alert-item--${escapeHtml(a.type || 'info')}${isGeofence ? ' nav-alert-item--geofence' : ''}">
+            const clickable = a.lat && a.lng ? ' nav-alert-item--clickable' : '';
+            return `<div class="nav-alert-item nav-alert-item--${escapeHtml(a.type || 'info')}${isGeofence ? ' nav-alert-item--geofence' : ''}${clickable}" data-alert-lat="${a.lat || ''}" data-alert-lng="${a.lng || ''}">
                 <strong>${escapeHtml(a.title || 'Alert')}</strong>
                 <span>${escapeHtml(a.message || '')}</span>
                 ${detail}
@@ -1126,6 +1718,17 @@ ${pts}
                 <small>${escapeHtml(time)}</small>
             </div>`;
         }).join('');
+        list.querySelectorAll('.nav-alert-item--clickable').forEach((el) => {
+            el.addEventListener('click', () => {
+                const lat = parseFloat(el.getAttribute('data-alert-lat'));
+                const lng = parseFloat(el.getAttribute('data-alert-lng'));
+                if (!map || Number.isNaN(lat) || Number.isNaN(lng)) return;
+                followVehicle = true;
+                document.getElementById('btnFollow')?.classList.add('active');
+                map.panTo({ lat, lng });
+                if ((map.getZoom() || 0) < 15) map.setZoom(15);
+            });
+        });
     }
 
     function pushNavAlert(title, message, type, options = {}) {
@@ -1252,20 +1855,30 @@ ${pts}
             currentPositionMarker = new google.maps.Marker({
                 position,
                 map,
-                title: cfg.deviceName || cfg.mapDisplayTitle || 'Vehicle',
+                title: markerIdentityFromConfig(point).title,
                 icon,
                 zIndex: 999,
             });
+            currentPositionMarker.addListener('click', () => {
+                if (lastTelemetry) {
+                    openLiveVehiclePopup(lastTelemetry);
+                }
+            });
             markers.push(currentPositionMarker);
             if (followVehicle) map.panTo(position);
+            updateVehiclePulseOverlay(point);
             return;
         }
 
         if (skipAnimation) {
             currentPositionMarker.setPosition(position);
             currentPositionMarker.setIcon(icon);
-            currentPositionMarker.setTitle(cfg.deviceName || cfg.mapDisplayTitle || 'Vehicle');
+            currentPositionMarker.setTitle(markerIdentityFromConfig(point).title);
             if (followVehicle) map.panTo(position);
+            updateVehiclePulseOverlay(point);
+            if (vehiclePopupPinned && lastTelemetry) {
+                updateLiveVehiclePopup(lastTelemetry);
+            }
             return;
         }
 
@@ -1299,6 +1912,7 @@ ${pts}
 
             currentPositionMarker.setPosition({ lat, lng });
             currentPositionMarker.setIcon(vehicleIcon({ ...point, heading, lat, lng }));
+            updateVehiclePulseOverlay({ ...point, lat, lng, heading });
 
             if (followVehicle && t > 0.5) {
                 map.panTo({ lat, lng });
@@ -1310,6 +1924,10 @@ ${pts}
                 markerAnimationFrame = null;
                 currentPositionMarker.setPosition(target);
                 currentPositionMarker.setIcon(vehicleIcon(point));
+                updateVehiclePulseOverlay(point);
+                if (vehiclePopupPinned) {
+                    updateLiveVehiclePopup(point);
+                }
             }
         };
 
@@ -1363,20 +1981,32 @@ ${pts}
         if (!point) return;
 
         point = enrichPointWithMotion(point, lastTelemetry);
+        debugGpsLog('live point', {
+            gsm: point.gsm_signal,
+            satellites: point.satellites,
+            battery: point.battery,
+            recorded_at: point.recorded_at,
+        });
 
+        const prev = lastTelemetry;
+        const positionChanged = hasSignificantPositionChange(point, prev);
         const key = positionKey(point);
-        if (key && key === lastAppliedPositionKey) {
-            return;
+
+        if (positionChanged) {
+            lastAppliedPositionKey = key;
+            updateCurrentMarker(point, !prev);
+            if (prev && lastRealtimePoint) {
+                drawRealtimeSegment(lastRealtimePoint, point, point.speed);
+            }
+            lastRealtimePoint = { lat: point.lat, lng: point.lng };
+        } else if (currentPositionMarker) {
+            currentPositionMarker.setIcon(vehicleIcon(point));
+            updateVehiclePulseOverlay(point);
         }
-        lastAppliedPositionKey = key;
 
-        updateCurrentMarker(point, !lastTelemetry);
         updateTelemetryUI(point);
-        evaluateAlerts(point, lastTelemetry);
-
-        if (lastRealtimePoint) drawRealtimeSegment(lastRealtimePoint, point, point.speed);
-
-        lastRealtimePoint = { lat: point.lat, lng: point.lng };
+        updateLiveVehiclePopup(point);
+        evaluateAlerts(point, prev);
         lastTelemetry = point;
     }
 
@@ -1450,13 +2080,13 @@ ${pts}
                         applyLivePoint(payload.location || payload);
                         pollNewAlerts();
                     });
+                console.info('[device-map] Live updates via Pusher + polling every', pollIntervalMs, 'ms');
             } catch (err) {
                 console.warn('[device-map] Echo subscribe failed — using polling only', err);
             }
-            return;
+        } else {
+            console.info('[device-map] Live updates via polling every', pollIntervalMs, 'ms');
         }
-
-        console.info('[device-map] Live updates via polling every', pollIntervalMs, 'ms');
     }
 
     function showLoading(msg) {
@@ -1684,13 +2314,29 @@ ${pts}
         drawingManager = new google.maps.drawing.DrawingManager({ drawingControl: false });
         drawingManager.setMap(map);
         trafficLayer = new google.maps.TrafficLayer();
-        customInfoWindow = new google.maps.InfoWindow({ maxWidth: 360 });
+        customInfoWindow = new google.maps.InfoWindow({ maxWidth: 320, pixelOffset: new google.maps.Size(0, -8) });
+        customInfoWindow.addListener('closeclick', () => {
+            closeLiveVehiclePopup();
+        });
+        map.addListener('click', () => {
+            if (vehiclePopupPinned) {
+                closeLiveVehiclePopup();
+            }
+        });
+        google.maps.event.addListener(customInfoWindow, 'domready', () => {
+            document.getElementById('liveVehiclePopupClose')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeLiveVehiclePopup();
+            });
+        });
 
         if (!mapControlsBound) {
             bindControls();
             initNavAlerts();
             initMapHudToggle();
             initMapLivePanelToggle();
+            initHudRouteSummary();
             initMapBackNavigation();
             updatePlaybackFab();
             initDateFilter();
@@ -1705,6 +2351,13 @@ ${pts}
             applyLivePoint(initial);
             lastRealtimePoint = { lat: initial.lat, lng: initial.lng };
         }
+
+        setTimeout(() => {
+            if (!mapDataStarted) {
+                mapDataStarted = true;
+                startMapDataServices();
+            }
+        }, 2000);
     }
 
     async function bootDeviceMap() {
@@ -1838,8 +2491,8 @@ ${pts}
             if (lastAlertEventId > 0) {
                 items.forEach((e) => {
                     ingestAlertPayload(e, {
-                        notify: isGeofenceAlert(e),
-                        countAsUnread: isGeofenceAlert(e),
+                        notify: true,
+                        countAsUnread: true,
                     });
                 });
             } else {
@@ -1866,13 +2519,18 @@ ${pts}
         document.getElementById('btnTraffic')?.addEventListener('click', () => {
             trafficLayer.setMap(trafficLayer.getMap() ? null : map);
         });
-        document.getElementById('playbackFab')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!playbackPoints.length) {
-                showNotification('Load route history first', 'info');
-                return;
-            }
-            setPlaybackPanelOpen(true);
+        document.querySelectorAll('[data-playback-fab]').forEach((el) => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!playbackPoints.length) {
+                    showNotification('Load route history first', 'info');
+                    return;
+                }
+                setPlaybackPanelOpen(true);
+                if (!isPlaying) {
+                    startPlayback();
+                }
+            });
         });
         document.getElementById('btnGeofence')?.addEventListener('click', () => {
             document.getElementById('geofencePanel')?.classList.toggle('active');
@@ -1943,7 +2601,19 @@ ${pts}
 
         document.getElementById('pbPlayPause')?.addEventListener('click', togglePlayPause);
         document.getElementById('pbStop')?.addEventListener('click', stopPlayback);
+        document.getElementById('pbStepBack')?.addEventListener('click', () => {
+            if (!playbackPoints.length) return;
+            pausePlayback();
+            playbackIndex = Math.max(0, playbackIndex - 1);
+            updatePlaybackAtIndex(playbackIndex);
+        });
         document.getElementById('pbRewind')?.addEventListener('click', rewindPlayback);
+        document.getElementById('pbStepForward')?.addEventListener('click', () => {
+            if (!playbackPoints.length) return;
+            pausePlayback();
+            playbackIndex = Math.min(playbackPoints.length - 1, playbackIndex + 1);
+            updatePlaybackAtIndex(playbackIndex);
+        });
         document.getElementById('playbackProgress')?.addEventListener('click', scrubPlayback);
         document.querySelectorAll('.speed-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -1955,21 +2625,24 @@ ${pts}
         });
     }
 
+    function getPlaybackFabEls() {
+        return document.querySelectorAll('[data-playback-fab]');
+    }
+
     function updatePlaybackFab() {
-        const fab = document.getElementById('playbackFab');
-        if (!fab) return;
         const hasRoute = playbackPoints.length > 0;
-        fab.disabled = !hasRoute;
+        getPlaybackFabEls().forEach((fab) => {
+            fab.disabled = !hasRoute;
+        });
     }
 
     function setPlaybackPanelOpen(open) {
         const panel = document.getElementById('playbackPanel');
         const mapArea = document.getElementById('mapArea');
-        const fab = document.getElementById('playbackFab');
         if (!panel) return;
         panel.classList.toggle('active', open);
         mapArea?.classList.toggle('playback-open', open);
-        fab?.classList.toggle('map-live-panel__playback--hidden', open);
+        getPlaybackFabEls().forEach((fab) => fab.classList.toggle('smart-btn--hidden', open));
         if (open) setTimeout(resizeMap, 400);
     }
 
@@ -2035,7 +2708,7 @@ ${pts}
         updatePlaybackAtIndex(playbackIndex);
     }
 
-    function updatePlaybackAtIndex(index) {
+    function updatePlaybackAtIndex(index, skipAnimation) {
         const p = playbackPoints[index];
         if (!p) return;
         if (!playbackMarker) {
@@ -2049,14 +2722,150 @@ ${pts}
             playbackMarker.setPosition({ lat: p.lat, lng: p.lng });
             playbackMarker.setIcon(vehicleIcon(p));
         }
+        updateVehiclePulseOverlay(p);
         setText('pbLiveSpeed', parseFloat(p.speed || 0).toFixed(0));
         setText('pbPointIndex', String(index + 1));
         updatePlaybackProgress();
         if (followVehicle) map.panTo({ lat: p.lat, lng: p.lng });
     }
 
-    /** Calendar date in local timezone (Y-m-d), not UTC ISO. */
-    function formatLocalDate(d) {
+    function animatePlaybackToIndex(nextIndex, onDone) {
+        const from = playbackPoints[playbackIndex];
+        const to = playbackPoints[nextIndex];
+        if (!from || !to || playbackIndex === nextIndex) {
+            updatePlaybackAtIndex(nextIndex, true);
+            onDone?.();
+            return;
+        }
+        if (playbackAnimFrame) cancelAnimationFrame(playbackAnimFrame);
+        const start = performance.now();
+        const duration = Math.max(200, 1000 / playbackSpeed);
+        const fromH = parseFloat(from.heading || 0);
+        const toH = parseFloat(to.heading || 0);
+
+        const step = (now) => {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const lat = from.lat + (to.lat - from.lat) * eased;
+            const lng = from.lng + (to.lng - from.lng) * eased;
+            const heading = interpolateHeading(fromH, toH, eased);
+            const point = { ...to, lat, lng, heading };
+
+            if (!playbackMarker) {
+                playbackMarker = new google.maps.Marker({
+                    map,
+                    title: 'Playback',
+                    zIndex: 1000,
+                    icon: vehicleIcon(point),
+                });
+            } else {
+                playbackMarker.setPosition({ lat, lng });
+                playbackMarker.setIcon(vehicleIcon(point));
+            }
+            updateVehiclePulseOverlay(point);
+            setText('pbLiveSpeed', parseFloat(point.speed || 0).toFixed(0));
+            if (followVehicle) map.panTo({ lat, lng });
+
+            if (t < 1) {
+                playbackAnimFrame = requestAnimationFrame(step);
+            } else {
+                playbackAnimFrame = null;
+                playbackIndex = nextIndex;
+                updatePlaybackAtIndex(nextIndex, true);
+                onDone?.();
+            }
+        };
+        playbackAnimFrame = requestAnimationFrame(step);
+    }
+
+    function advancePlaybackStep() {
+        if (!isPlaying) return;
+        if (playbackIndex >= playbackPoints.length - 1) {
+            stopPlayback();
+            showNotification('Playback finished', 'success');
+            return;
+        }
+        const nextIndex = playbackIndex + 1;
+        animatePlaybackToIndex(nextIndex, () => {
+            if (isPlaying) {
+                playbackTimer = setTimeout(advancePlaybackStep, 80);
+            }
+        });
+    }
+
+    /** History search button loading state. */
+    function setHistorySearchLoading(loading) {
+        const btn = document.getElementById('applyFilter');
+        if (!btn) return;
+        btn.disabled = loading;
+        btn.classList.toggle('is-loading', loading);
+        const spinner = btn.querySelector('.search-btn__spinner');
+        const label = btn.querySelector('.search-btn__label');
+        if (spinner) spinner.hidden = !loading;
+        if (label) label.style.visibility = loading ? 'hidden' : '';
+    }
+
+    function setActiveDatePreset(preset) {
+        document.querySelectorAll('[data-date-preset]').forEach((btn) => {
+            btn.classList.toggle('is-active', preset && btn.getAttribute('data-date-preset') === preset);
+        });
+    }
+
+    function clearActiveDatePreset() {
+        setActiveDatePreset(null);
+    }
+
+    function formatAppDateYmd(d) {
+        if (window.AppDateTime?.formatDateYmd) {
+            return window.AppDateTime.formatDateYmd(d);
+        }
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function appTodayYmd() {
+        return window.AppDateTime?.todayYmd?.() ?? formatAppDateYmd(new Date());
+    }
+
+    function shiftAppYmd(ymd, deltaDays) {
+        if (window.AppDateTime?.shiftYmd) {
+            return window.AppDateTime.shiftYmd(ymd, deltaDays);
+        }
+        const d = new Date(ymd);
+        d.setDate(d.getDate() + deltaDays);
+        return formatAppDateYmd(d);
+    }
+
+    function getFlatpickrYmd(fp) {
+        if (!fp?.selectedDates?.length) {
+            return (fp?.input?.value || '').trim();
+        }
+        return fp.formatDate(fp.selectedDates[0], 'Y-m-d');
+    }
+
+    function normalizeDateRange(from, to) {
+        if (!from) return null;
+        const start = ensureYmdDate(from);
+        const end = ensureYmdDate(to || from);
+        if (!start || !end) return null;
+        if (start <= end) {
+            return { from: start, to: end };
+        }
+        return { from: end, to: start };
+    }
+
+    function ensureYmdDate(value) {
+        if (!value) return null;
+        const s = String(value).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        const ms = parseRouteTimestampMs(s);
+        if (ms == null) return null;
+        if (window.AppDateTime?.formatDateYmd) {
+            return window.AppDateTime.formatDateYmd(new Date(ms));
+        }
+        const d = new Date(ms);
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
@@ -2076,32 +2885,95 @@ ${pts}
     }
 
     function resolveFilterDates() {
-        const dates = flatpickrInstance?.selectedDates || [];
-        if (dates.length >= 2) {
-            return { from: formatLocalDate(dates[0]), to: formatLocalDate(dates[1]) };
+        const from = getFlatpickrYmd(flatpickrFrom);
+        const to = getFlatpickrYmd(flatpickrTo);
+        return normalizeDateRange(from, to);
+    }
+
+    function isLast24HoursPresetActive() {
+        return document.querySelector('[data-date-preset="24h"]')?.classList.contains('is-active') === true;
+    }
+
+    function applyDatePreset(preset, triggerSearch = false) {
+        const today = appTodayYmd();
+        let from = today;
+        let to = today;
+
+        switch (preset) {
+            case '24h':
+                if (flatpickrFrom) flatpickrFrom.clear();
+                if (flatpickrTo) flatpickrTo.clear();
+                setActiveDatePreset('24h');
+                if (triggerSearch) loadHistory();
+                return;
+            case 'today':
+                break;
+            case 'yesterday':
+                from = shiftAppYmd(today, -1);
+                to = from;
+                break;
+            case '7d':
+                from = shiftAppYmd(today, -6);
+                break;
+            case '30d':
+                from = shiftAppYmd(today, -29);
+                break;
+            default:
+                return;
         }
-        if (dates.length === 1) {
-            const d = formatLocalDate(dates[0]);
-            return { from: d, to: d };
+
+        if (flatpickrFrom) flatpickrFrom.setDate(from, false);
+        if (flatpickrTo) flatpickrTo.setDate(to, false);
+        setActiveDatePreset(preset);
+
+        if (triggerSearch) {
+            loadHistory(from, to);
         }
-        return parseDateRangeInput();
     }
 
     async function loadHistory(from = null, to = null) {
-        const useLast24Hours = !from && !to;
+        const explicitRange = !!(from && (to || from));
+        const range = explicitRange ? normalizeDateRange(from, to || from) : null;
+        const fromParam = range?.from ?? null;
+        const toParam = range?.to ?? null;
+        const useLast24Hours = !fromParam && !toParam;
+
+        debugGpsLog('loadHistory', {
+            from: fromParam,
+            to: toParam,
+            useLast24Hours,
+            explicitRange,
+        });
+        setHistorySearchLoading(true);
         showLoading(useLast24Hours ? 'Loading last 24 hours...' : 'Loading route history...');
         try {
             let url = historyUrl;
-            if (from) {
-                const end = to || from;
-                url += `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(end)}`;
+            if (fromParam) {
+                url += `?from=${encodeURIComponent(fromParam)}&to=${encodeURIComponent(toParam || fromParam)}`;
+                if (debugGps) {
+                    url += '&debug_gps=1';
+                }
             }
+            debugGpsLog('history request', { url, from: fromParam, to: toParam });
             const response = await fetch(url);
             const json = await parseJsonResponse(response);
             if (handleMapAccessDenied(response, json)) return;
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const historyFallback = response.headers.get('X-History-Fallback') || '';
-            const data = normalizeResponse(json).map(normalizePoint).filter(Boolean);
+            const data = sortHistoryPoints(
+                normalizeResponse(json).map(normalizePoint).filter(Boolean)
+            );
+            debugGpsLog('history response', {
+                points: data.length,
+                fallback: historyFallback,
+                countHeader: response.headers.get('X-History-Count'),
+                fromBound: response.headers.get('X-History-From-Bound'),
+                toBound: response.headers.get('X-History-To-Bound'),
+                first: data[0]?.recorded_at,
+                last: data[data.length - 1]?.recorded_at,
+                gsm: data[data.length - 1]?.gsm_signal,
+                satellites: data[data.length - 1]?.satellites,
+            });
 
             polylines.forEach((p) => p.setMap(null));
             polylines = [];
@@ -2112,10 +2984,16 @@ ${pts}
             markers = currentPositionMarker ? [currentPositionMarker] : [];
 
             if (!data.length) {
-                showNotification(
-                    useLast24Hours ? mi('noGps24h', 'No GPS data in the last 24 hours') : 'No history for selected period',
-                    'info'
-                );
+                if (explicitRange) {
+                    clearRoute();
+                }
+                const emptyMsg = historyFallback === 'selected_period_empty' || explicitRange
+                    ? mi('historyFallbackSelectedPeriod', 'No GPS data for the selected date range')
+                    : (useLast24Hours ? mi('noGps24h', 'No GPS data in the last 24 hours') : 'No history for selected period');
+                showNotification(emptyMsg, 'info');
+                if (useLast24Hours && lastTelemetry) {
+                    applyLivePoint(lastTelemetry);
+                }
                 return;
             }
 
@@ -2164,6 +3042,7 @@ ${pts}
                     last_known_activity: 'historyFallbackLastKnownActivity',
                     last_activity_day: 'historyFallbackLastActivityDay',
                     '30_days': 'historyFallback30Days',
+                    selected_period_empty: 'historyFallbackSelectedPeriod',
                 };
                 const i18nKey = fallbackKeys[historyFallback] || 'historyFallbackLastKnownActivity';
                 const fallbackMsg = mi(i18nKey, `Loaded ${data.length} GPS points from last known activity`);
@@ -2179,6 +3058,7 @@ ${pts}
         } catch (err) {
             showNotification('Failed to load history: ' + err.message, 'error');
         } finally {
+            setHistorySearchLoading(false);
             hideLoading();
         }
     }
@@ -2244,6 +3124,7 @@ ${pts}
         showsStops = false;
         document.getElementById('btnStops')?.classList.remove('active');
         setPlaybackPanelOpen(false);
+        setRouteSummarySheetVisible(false);
         updatePlaybackMeta();
         updatePlaybackFab();
         renderTripEvents([], 0);
@@ -2257,19 +3138,16 @@ ${pts}
         setPlayPauseUi(true);
         updatePlaybackMeta();
         clearInterval(playbackTimer);
-        playbackTimer = setInterval(() => {
-            if (playbackIndex >= playbackPoints.length) {
-                stopPlayback();
-                showNotification('Playback finished', 'success');
-                return;
-            }
-            updatePlaybackAtIndex(playbackIndex);
-            playbackIndex++;
-        }, 1000 / playbackSpeed);
+        clearTimeout(playbackTimer);
+        if (playbackAnimFrame) cancelAnimationFrame(playbackAnimFrame);
+        advancePlaybackStep();
     }
 
     function pausePlayback() {
         clearInterval(playbackTimer);
+        clearTimeout(playbackTimer);
+        if (playbackAnimFrame) cancelAnimationFrame(playbackAnimFrame);
+        playbackAnimFrame = null;
         isPlaying = false;
         setPlayPauseUi(false);
         updatePlaybackMeta();
@@ -2277,6 +3155,9 @@ ${pts}
 
     function stopPlayback() {
         clearInterval(playbackTimer);
+        clearTimeout(playbackTimer);
+        if (playbackAnimFrame) cancelAnimationFrame(playbackAnimFrame);
+        playbackAnimFrame = null;
         isPlaying = false;
         playbackIndex = 0;
         setPlayPauseUi(false);
@@ -2286,6 +3167,9 @@ ${pts}
         setText('pbPointIndex', '0');
         updatePlaybackProgress();
         updatePlaybackMeta();
+        if (lastTelemetry) {
+            updateVehiclePulseOverlay(lastTelemetry);
+        }
     }
 
     function updatePlaybackProgress() {
@@ -2314,24 +3198,157 @@ ${pts}
         setText('pbPointTotal', String(total));
     }
 
+    function setRouteSummarySheetExpanded(expanded) {
+        const sheet = document.getElementById('routeSummarySheet');
+        const toggle = document.getElementById('routeSummaryToggle');
+        if (!sheet) return;
+        sheet.classList.toggle('is-expanded', expanded);
+        toggle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    function setRouteSummarySheetVisible(visible) {
+        const sheet = document.getElementById('routeSummarySheet');
+        if (!sheet) return;
+        sheet.hidden = !visible;
+        sheet.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        sheet.classList.toggle('is-visible', visible);
+        if (!visible) {
+            setRouteSummarySheetExpanded(false);
+        }
+    }
+
+    function setHudRouteExpanded(expanded) {
+        const section = document.getElementById('hudRouteSection');
+        const toggle = document.getElementById('hudRouteToggle');
+        if (!section) return;
+        section.classList.toggle('is-expanded', expanded);
+        toggle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        const chevron = toggle?.querySelector('.map-hud__chevron');
+        if (chevron) {
+            chevron.className = 'fas ' + (expanded ? 'fa-chevron-up' : 'fa-chevron-down') + ' map-hud__chevron';
+        }
+    }
+
+    function setHudRouteVisible(visible) {
+        const section = document.getElementById('hudRouteSection');
+        if (!section) return;
+        section.hidden = !visible;
+        if (!visible) setHudRouteExpanded(false);
+    }
+
+    function initHudRouteSummary() {
+        const toggle = document.getElementById('hudRouteToggle');
+        toggle?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const section = document.getElementById('hudRouteSection');
+            setHudRouteExpanded(!section?.classList.contains('is-expanded'));
+        });
+    }
+
+    function initRouteSummarySheet() {
+        const sheet = document.getElementById('routeSummarySheet');
+        const toggle = document.getElementById('routeSummaryToggle');
+        const handle = document.getElementById('routeSummaryHandle');
+        const header = document.getElementById('routeSummaryHeader');
+        if (!sheet) return;
+
+        setRouteSummarySheetExpanded(false);
+
+        const flip = (e) => {
+            e?.preventDefault();
+            e?.stopPropagation();
+            setRouteSummarySheetExpanded(!sheet.classList.contains('is-expanded'));
+        };
+
+        toggle?.addEventListener('click', flip);
+        handle?.addEventListener('click', flip);
+        header?.addEventListener('click', (e) => {
+            if (e.target.closest('#routeSummaryToggle')) return;
+            flip(e);
+        });
+
+        let dragStartY = null;
+        handle?.addEventListener('pointerdown', (e) => {
+            dragStartY = e.clientY;
+            handle.setPointerCapture?.(e.pointerId);
+        });
+        handle?.addEventListener('pointerup', (e) => {
+            if (dragStartY == null) return;
+            const delta = dragStartY - e.clientY;
+            dragStartY = null;
+            if (Math.abs(delta) < 24) return;
+            setRouteSummarySheetExpanded(delta > 0);
+        });
+    }
+
+    function formatRouteTimestamp(ts) {
+        if (!ts) return dash();
+        return window.AppDateTime?.formatDateTime(ts) ?? new Date(ts).toLocaleString();
+    }
+
     function updateRouteSummary(data) {
-        if (!data.length) return;
-        const stats = analyzeRoute(data);
-        if (!stats) return;
+        if (!data.length) {
+            setHudRouteVisible(false);
+            setRouteSummarySheetVisible(false);
+            return;
+        }
+        const baseStats = analyzeRoute(data);
+        if (!baseStats) return;
+        const stats = enrichRouteStats(data, baseStats);
 
         routeStops = stats.stops;
-        const dur = stats.totalSec || 0;
-        const avg = dur > 0 ? (stats.dist / (dur / 3600)).toFixed(1) : '0';
+        const startTs = stats.startTs;
+        const endTs = stats.endTs;
+        const dur = stats.totalSec;
+        const avg = stats.avgSpeed > 0 ? stats.avgSpeed.toFixed(1) : '0';
 
-        setText('totalDistance', stats.dist.toFixed(2) + ' km');
-        setText('routeDuration', formatDurationLong(dur));
-        setText('avgSpeed', avg + ' km/h');
-        setText('maxSpeed', stats.maxSpeed.toFixed(1) + ' km/h');
+        const startLabel = formatRouteTimestamp(startTs);
+        const endLabel = formatRouteTimestamp(endTs);
+        const distLabel = stats.dist.toFixed(2) + ' km';
+        const durLabel = formatDurationLong(dur);
+        const avgLabel = avg + ' km/h';
+        const maxLabel = stats.maxSpeed.toFixed(1) + ' km/h';
+        const startPt = `${Number(data[0].lat).toFixed(5)}, ${Number(data[0].lng).toFixed(5)}`;
+        const endPt = `${Number(data[data.length - 1].lat).toFixed(5)}, ${Number(data[data.length - 1].lng).toFixed(5)}`;
+        const stopCount = String(stats.stops.length);
+        const peek = distLabel;
+
+        setText('totalDistance', distLabel);
+        setText('routeStartTime', startLabel);
+        setText('routeEndTime', endLabel);
+        setText('routeDuration', durLabel);
+        setText('avgSpeed', avgLabel);
+        setText('maxSpeed', maxLabel);
         setText('movingTime', formatDurationLong(stats.movingSec));
         setText('stoppedTime', formatDurationLong(stats.stoppedSec));
         setText('overspeedCount', String(stats.overspeedEvents));
-        setText('idleCount', String(stats.stops.length));
+        setText('idleCount', stopCount);
         setText('idleTotal', formatDurationLong(stats.stoppedSec));
+
+        setText('rssStartTime', startLabel);
+        setText('rssEndTime', endLabel);
+        setText('rssDistance', distLabel);
+        setText('rssDuration', durLabel);
+        setText('rssAvgSpeed', avgLabel);
+        setText('rssMaxSpeed', maxLabel);
+        setText('rssStartPoint', startPt);
+        setText('rssEndPoint', endPt);
+        setText('rssStopCount', stopCount);
+
+        setText('hudRouteStart', startLabel);
+        setText('hudRouteEnd', endLabel);
+        setText('hudRouteDistance', distLabel);
+        setText('hudRouteMaxSpeed', maxLabel);
+        setText('hudRouteAvgSpeed', avgLabel);
+        setText('hudRouteDuration', durLabel);
+        setText('hudRoutePeek', peek);
+
+        updateRouteSummaryLive(data[data.length - 1] || lastTelemetry);
+
+        setHudRouteVisible(true);
+        setHudRouteExpanded(false);
+        setRouteSummarySheetVisible(false);
 
         renderTripEvents(stats.stops, stats.overspeedEvents);
         if (showsStops) renderStopMarkers(routeStops);
@@ -2339,25 +3356,62 @@ ${pts}
 
     function initDateFilter() {
         try {
-            flatpickrInstance = flatpickr('#dateRange', { mode: 'range', dateFormat: 'Y-m-d', allowInput: true, maxDate: 'today' });
+            const onFromChange = () => {
+                clearActiveDatePreset();
+                const fromDate = flatpickrFrom?.selectedDates?.[0];
+                if (fromDate && flatpickrTo) {
+                    flatpickrTo.set('minDate', fromDate);
+                    const toDate = flatpickrTo.selectedDates[0];
+                    if (toDate && toDate < fromDate) {
+                        flatpickrTo.setDate(fromDate, false);
+                    }
+                }
+            };
+            const onToChange = () => clearActiveDatePreset();
+
+            const baseOpts = {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'j M Y',
+                allowInput: false,
+                maxDate: 'today',
+                disableMobile: true,
+                altInputClass: 'date-field__input date-field__input--display',
+            };
+
+            flatpickrFrom = flatpickr('#dateFrom', { ...baseOpts, onChange: onFromChange });
+            flatpickrTo = flatpickr('#dateTo', { ...baseOpts, onChange: onToChange });
+
+            document.querySelectorAll('[data-date-preset]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    applyDatePreset(btn.getAttribute('data-date-preset'), true);
+                });
+            });
+            applyDatePreset('24h', false);
         } catch (e) { /* flatpickr optional */ }
     }
 
     function applyDateFilter() {
+        if (isLast24HoursPresetActive()) {
+            loadHistory();
+            return;
+        }
         const range = resolveFilterDates();
         if (range) {
             loadHistory(range.from, range.to);
-        } else {
-            loadHistory();
+            return;
         }
+        clearActiveDatePreset();
+        loadHistory();
     }
 
     function reverseGeocode() {
-        if (!currentPositionMarker) return showNotification('No vehicle position', 'error');
-        const pos = currentPositionMarker.getPosition();
-        fetch(`${reverseGeocodeUrl}?lat=${pos.lat()}&lng=${pos.lng()}`)
+        const pos = getLivePosition();
+        if (!pos) return showNotification('No vehicle position', 'error');
+        setText('addressBox', mi('addressLoading', 'Loading address…'));
+        fetch(`${reverseGeocodeUrl}?lat=${pos.lat}&lng=${pos.lng}`, { credentials: 'same-origin' })
             .then((r) => r.json())
-            .then((data) => setText('addressBox', data.address || 'Not found'))
+            .then((data) => setText('addressBox', data.address || 'Address not found'))
             .catch(() => setText('addressBox', 'Error loading address'));
     }
 
@@ -2374,17 +3428,30 @@ ${pts}
             <div class="geofence-list-item" data-geofence-id="${g.id}">
                 <div class="geofence-list-item__info">
                     <strong>${name}</strong>
-                    <small class="text-muted">${type}</small>
+                    <small>${type}</small>
                 </div>
                 <div class="geofence-list-item__actions">
-                    <button type="button" class="btn btn-sm btn-outline-secondary geofence-zoom-btn" data-id="${g.id}" title="Zoom to zone">
+                    <button type="button" class="geofence-action-btn geofence-zoom-btn" data-id="${g.id}" title="Zoom to zone" aria-label="Zoom to zone">
                         <i class="fas fa-search-plus"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger geofence-delete-btn" data-id="${g.id}" title="Remove geofence">
+                    <button type="button" class="geofence-action-btn geofence-action-btn--danger geofence-delete-btn" data-id="${g.id}" title="Remove geofence" aria-label="Remove geofence">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
             </div>`;
+    }
+
+    function removeGeofenceFromUi(id) {
+        const layer = findGeofenceLayer(id);
+        if (layer) {
+            layer.setMap?.(null);
+            geofences = geofences.filter((item) => item._geofenceId !== id);
+        }
+        document.querySelector(`#geofenceList [data-geofence-id="${id}"]`)?.remove();
+        const listEl = document.getElementById('geofenceList');
+        if (listEl && !listEl.querySelector('[data-geofence-id]')) {
+            listEl.innerHTML = '<div class="geofence-list-empty">No geofences yet. Draw one on the map.</div>';
+        }
     }
 
     function findGeofenceLayer(id) {
@@ -2400,20 +3467,34 @@ ${pts}
     };
 
     window.deleteGeofence = async function (id) {
-        const meta = findGeofenceLayer(id)?._geofenceMeta;
+        const numericId = parseInt(id, 10);
+        if (!numericId) return;
+
+        const meta = findGeofenceLayer(numericId)?._geofenceMeta;
         const label = meta?.name ? `"${meta.name}"` : 'this geofence';
         if (!confirm(`Remove ${label}? This cannot be undone.`)) return;
+
         showLoading('Removing geofence...');
         try {
-            const res = await fetch(`${geofenceDestroyBase}/${id}`, {
+            const res = await fetch(`${geofenceDestroyBase}/${numericId}`, {
                 method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': csrfToken, Accept: 'application/json' },
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
             });
             const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(json.message || 'Delete failed');
+            if (!res.ok) {
+                throw new Error(json.message || json.error || `Delete failed (${res.status})`);
+            }
+
             customInfoWindow?.close();
+            removeGeofenceFromUi(numericId);
+            showNotification(json.message || 'Geofence removed', 'success');
+
             await loadGeofences();
-            showNotification('Geofence removed', 'success');
         } catch (e) {
             showNotification(e.message || 'Failed to remove geofence', 'error');
         } finally {
@@ -2438,30 +3519,34 @@ ${pts}
     }
 
     function bindGeofenceListActions() {
-        ['geofenceList', 'geofenceManageList'].forEach((id) => {
-            const el = document.getElementById(id);
-            if (!el || el.dataset.bound) return;
-            el.dataset.bound = '1';
-            el.addEventListener('click', (e) => {
-                const deleteBtn = e.target.closest('.geofence-delete-btn');
-                const zoomBtn = e.target.closest('.geofence-zoom-btn');
-                if (deleteBtn) window.deleteGeofence(parseInt(deleteBtn.dataset.id, 10));
-                if (zoomBtn) window.zoomToGeofence(parseInt(zoomBtn.dataset.id, 10));
-            });
+        const el = document.getElementById('geofenceList');
+        if (!el || el.dataset.bound) return;
+        el.dataset.bound = '1';
+        el.addEventListener('click', (e) => {
+            const deleteBtn = e.target.closest('.geofence-delete-btn');
+            const zoomBtn = e.target.closest('.geofence-zoom-btn');
+            if (deleteBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.deleteGeofence(parseInt(deleteBtn.dataset.id, 10));
+            }
+            if (zoomBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.zoomToGeofence(parseInt(zoomBtn.dataset.id, 10));
+            }
         });
     }
 
     async function loadGeofences() {
         try {
-            const res = await fetch(geofencesUrl);
+            const res = await fetch(geofencesUrl, { credentials: 'same-origin' });
             const list = await parseJsonResponse(res);
             if (handleMapAccessDenied(res, list)) return;
             geofences.forEach((g) => g.setMap?.(null));
             geofences = [];
             const listEl = document.getElementById('geofenceList');
-            const manageEl = document.getElementById('geofenceManageList');
             if (listEl) listEl.innerHTML = '';
-            if (manageEl) manageEl.innerHTML = '';
             const items = Array.isArray(list) ? list : [];
             items.forEach((g) => {
                 let layer = null;
@@ -2483,10 +3568,9 @@ ${pts}
                     geofences.push(layer);
                 }
                 if (listEl) listEl.insertAdjacentHTML('beforeend', geofenceListItemHtml(g));
-                if (manageEl) manageEl.insertAdjacentHTML('beforeend', geofenceListItemHtml(g));
             });
             if (listEl && !items.length) {
-                listEl.innerHTML = '<div class="text-muted small text-center py-2">No geofences yet. Draw one on the map.</div>';
+                listEl.innerHTML = '<div class="geofence-list-empty">No geofences yet. Draw one on the map.</div>';
             }
             bindGeofenceListActions();
         } catch (e) {

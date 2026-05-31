@@ -9,7 +9,9 @@ use App\Http\Concerns\ResolvesMapDevice;
 use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\VehicleEvent;
+use App\Support\DateTime\AppDateTime;
 use App\Services\Mobile\MobileMapStatusResolver;
+use App\Services\Tracking\DeviceHistoryFetcher;
 use App\Services\VehicleEventService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,6 +27,7 @@ class MapController extends Controller
         private EventReaderInterface $events,
         private GeofenceStoreInterface $geofences,
         private MobileMapStatusResolver $mapStatus,
+        private DeviceHistoryFetcher $historyFetcher,
     ) {}
 
     public function map(Request $request, string $token)
@@ -99,8 +102,12 @@ class MapController extends Controller
             'odometer' => $location->odometer,
             'power_cut' => (bool) $location->power_cut,
             'panic' => (bool) $location->panic,
-            'recorded_at' => $location->recorded_at?->toIso8601String(),
-            'timestamp' => $location->recorded_at?->toDateTimeString(),
+            'gps_fix' => $location->gps_fix,
+            'recorded_at' => AppDateTime::toApi($location->recorded_at),
+            'time' => AppDateTime::toApi($location->recorded_at),
+            'timestamp' => $location->recorded_at
+                ? AppDateTime::format($location->recorded_at, 'log')
+                : null,
             'position_id' => (int) ($location->id ?? 0),
         ];
     }
@@ -123,8 +130,17 @@ class MapController extends Controller
         return array_merge($formatted, [
             'status' => $map['label'],
             'status_key' => $map['key'],
+            'connectivity_tier' => $map['connectivity_tier'],
+            'last_known_status' => $map['last_known_status'],
+            'last_known_status_key' => $map['last_known_status_key'],
+            'last_known_speed' => $map['last_known_speed'],
+            'last_known_ignition' => $map['last_known_ignition'],
             'is_online' => $this->mapStatus->isRecentlyOnline($location),
             'online' => $this->mapStatus->isRecentlyOnline($location),
+            'vehicle_name' => $device->vehicle_name,
+            'vehicle_number' => $device->vehicle_number,
+            'map_marker_title' => $device->mapMarkerTitle(),
+            'map_marker_plate' => $device->mapMarkerPlateLine(),
         ]);
     }
 
@@ -132,9 +148,20 @@ class MapController extends Controller
     {
         $device = $this->findMapDevice($token);
 
-        $result = $this->fetchDeviceHistoryPoints($device, $request);
+        $range = $this->resolveHistoryRange($request);
+        $result = $this->fetchDeviceHistoryPoints($device, $request, $range);
 
         $response = response()->json($result['points']);
+
+        if ($request->boolean('debug_gps') || $request->query('debug_gps') === '1') {
+            $response->header('X-History-Count', (string) count($result['points']));
+            $response->header('X-History-From', (string) $request->query('from', ''));
+            $response->header('X-History-To', (string) $request->query('to', ''));
+            if ($range['to'] !== null) {
+                $response->header('X-History-From-Bound', $range['from']->toIso8601String());
+                $response->header('X-History-To-Bound', $range['to']->toIso8601String());
+            }
+        }
 
         if ($result['used_fallback'] && $result['fallback_reason']) {
             $response->header('X-History-Fallback', $result['fallback_reason']);
@@ -148,79 +175,22 @@ class MapController extends Controller
      *
      * @return array{points: array<int, array>, used_fallback: bool, fallback_reason: ?string}
      */
-    private function fetchDeviceHistoryPoints(Device $device, Request $request): array
+    private function fetchDeviceHistoryPoints(Device $device, Request $request, ?array $range = null): array
     {
-        $range = $this->resolveHistoryRange($request);
+        $range ??= $this->resolveHistoryRange($request);
         $explicitRange = trim((string) ($request->query('from', $request->input('from', '')))) !== '';
 
-        $locations = $this->positions->historyForDevice(
+        $result = $this->historyFetcher->fetch(
             $device,
             $range['from'],
             $range['to'],
-            'asc'
+            $explicitRange
         );
 
-        $points = $this->formatLocationsCollection($locations);
-
-        if (! $explicitRange && $points === []) {
-            $fallback = $this->fallbackHistoryWhenDefaultRangeEmpty($device);
-
-            if ($fallback !== null) {
-                return $fallback;
-            }
-        }
-
         return [
-            'points' => $points,
-            'used_fallback' => false,
-            'fallback_reason' => null,
-        ];
-    }
-
-    /**
-     * @return array{points: array<int, array>, used_fallback: bool, fallback_reason: string}|null
-     */
-    private function fallbackHistoryWhenDefaultRangeEmpty(Device $device): ?array
-    {
-        $latest = $this->positions->latestForDevice($device);
-
-        if ($latest?->recorded_at) {
-            $end = $latest->recorded_at->copy();
-            $from = $end->copy()->subHours(24);
-
-            $locations = $this->positions->historyForDevice($device, $from, $end, 'asc');
-
-            if ($locations->isNotEmpty()) {
-                return $this->historyPointsResult($locations, 'last_known_activity');
-            }
-
-            $from = $end->copy()->startOfDay();
-            $to = $end->copy()->endOfDay();
-            $locations = $this->positions->historyForDevice($device, $from, $to, 'asc');
-
-            if ($locations->isNotEmpty()) {
-                return $this->historyPointsResult($locations, 'last_activity_day');
-            }
-        }
-
-        $locations = $this->positions->historyForDevice($device, now()->subDays(30), null, 'asc');
-
-        if ($locations->isEmpty()) {
-            return null;
-        }
-
-        return $this->historyPointsResult($locations, '30_days');
-    }
-
-    /**
-     * @return array{points: array<int, array>, used_fallback: bool, fallback_reason: string}
-     */
-    private function historyPointsResult(Collection $locations, string $reason): array
-    {
-        return [
-            'points' => $this->formatLocationsCollection($locations),
-            'used_fallback' => true,
-            'fallback_reason' => $reason,
+            'points' => $this->formatLocationsCollection($result['locations']),
+            'used_fallback' => $result['used_fallback'],
+            'fallback_reason' => $result['fallback_reason'],
         ];
     }
 
@@ -311,9 +281,18 @@ class MapController extends Controller
 
         $priority = static function (VehicleEvent $event): int {
             return match ($event->type) {
-                VehicleEvent::TYPE_PANIC, VehicleEvent::TYPE_POWER_CUT => 90,
-                VehicleEvent::TYPE_OVERSPEED, VehicleEvent::TYPE_IGNITION => 80,
-                VehicleEvent::TYPE_LOW_BATTERY => 70,
+                VehicleEvent::TYPE_PANIC,
+                VehicleEvent::TYPE_POWER_CUT,
+                VehicleEvent::TYPE_COMM_LOST_MOVING,
+                VehicleEvent::TYPE_TAMPERING => 95,
+                VehicleEvent::TYPE_OVERSPEED,
+                VehicleEvent::TYPE_IGNITION => 80,
+                VehicleEvent::TYPE_COMM_LOST_IGNITION,
+                VehicleEvent::TYPE_OFFLINE => 75,
+                VehicleEvent::TYPE_LOW_BATTERY,
+                VehicleEvent::TYPE_GSM_WEAK,
+                VehicleEvent::TYPE_GPS_WEAK => 70,
+                VehicleEvent::TYPE_DELAYED => 60,
                 default => 10,
             };
         };

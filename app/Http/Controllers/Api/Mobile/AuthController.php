@@ -29,7 +29,10 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|string',
             'device_name' => 'nullable|string|max:255',
+            'remember' => 'sometimes|boolean',
         ]);
+
+        $remember = $request->boolean('remember', true);
 
         Log::info('mobile_login_attempt', [
             'email' => (string) $request->email,
@@ -74,7 +77,17 @@ class AuthController extends Controller
             return $this->mobileError($access['message'], $status, $access['code']);
         }
 
-        $token = $user->createToken($request->input('device_name', 'mobile-app'))->plainTextToken;
+        $expiresAt = $remember
+            ? null
+            : now()->addHours((int) config('mobile_auth.session_hours', 12));
+
+        $tokenResult = $user->createToken(
+            $request->input('device_name', 'mobile-app'),
+            ['*'],
+            $expiresAt,
+        );
+
+        $token = $tokenResult->plainTextToken;
 
         $devices = $this->entitlement->accessibleDevices($user);
         $this->positionLoader->attachLatestToMany($devices);
@@ -82,6 +95,8 @@ class AuthController extends Controller
         return $this->mobileSuccess([
             'token' => $token,
             'token_type' => 'Bearer',
+            'remember' => $remember,
+            'expires_at' => $tokenResult->accessToken->expires_at?->toIso8601String(),
             'user' => $this->mobileUserPayload($user),
             'permissions' => $this->entitlement->permissionsFor($user),
             'accessible_devices' => $devices->map(fn ($d) => $this->presenter->listItem($d))->values(),

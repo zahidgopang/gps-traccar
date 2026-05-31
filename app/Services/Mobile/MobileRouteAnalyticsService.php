@@ -117,13 +117,20 @@ class MobileRouteAnalyticsService
 
         $flushStop();
 
-        $tStart = $this->pointTime($data[0]);
-        $tEnd = $this->pointTime($data[count($data) - 1]);
-        $totalSec = ($tStart && $tEnd && $tEnd->greaterThan($tStart))
-            ? $tEnd->diffInSeconds($tStart)
-            : 0;
+        $bounds = $this->routeTimeBounds($data);
+        $totalSec = $bounds['total_sec'];
 
-        $avgSpeed = $movingSec > 0 ? ($dist / ($movingSec / 3600)) : 0;
+        if ($totalSec <= 0) {
+            $totalSec = $this->sumSegmentDurationSeconds($data);
+        }
+
+        if ($totalSec <= 0 && $dist > 0 && count($data) >= 2) {
+            $totalSec = $this->estimateDurationFromMotion($data);
+        }
+
+        $avgSpeed = $totalSec > 0
+            ? round($dist / ($totalSec / 3600), 1)
+            : ($movingSec > 0 ? round($dist / ($movingSec / 3600), 1) : 0);
 
         return [
             'total_distance_km' => round($dist, 2),
@@ -131,13 +138,97 @@ class MobileRouteAnalyticsService
             'stopped_time_seconds' => $stoppedSec,
             'idle_time_seconds' => $stoppedSec,
             'max_speed_kmh' => round($maxSpeed, 1),
-            'average_speed_kmh' => round($avgSpeed, 1),
+            'average_speed_kmh' => $avgSpeed,
             'overspeed_events' => $overspeedEvents,
             'total_duration_seconds' => $totalSec,
+            'start_time' => $bounds['start'] ? app_datetime_api($bounds['start']) : null,
+            'end_time' => $bounds['end'] ? app_datetime_api($bounds['end']) : null,
             'stops' => $stops,
+            'stop_count' => count($stops),
             'moving_points' => $movingPoints,
             'idle_points' => $idlePoints,
         ];
+    }
+
+    /**
+     * @param  array<int, object>  $data
+     * @return array{start: ?Carbon, end: ?Carbon, total_sec: int}
+     */
+    private function routeTimeBounds(array $data): array
+    {
+        $min = null;
+        $max = null;
+        $start = null;
+        $end = null;
+
+        foreach ($data as $point) {
+            $at = $this->pointTime($point);
+            if (! $at) {
+                continue;
+            }
+
+            if ($min === null || $at->lessThan($min)) {
+                $min = $at;
+                $start = $at;
+            }
+
+            if ($max === null || $at->greaterThan($max)) {
+                $max = $at;
+                $end = $at;
+            }
+        }
+
+        $totalSec = ($min && $max && $max->greaterThan($min))
+            ? $max->diffInSeconds($min)
+            : 0;
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'total_sec' => $totalSec,
+        ];
+    }
+
+    /**
+     * @param  array<int, object>  $data
+     */
+    private function sumSegmentDurationSeconds(array $data): int
+    {
+        $total = 0;
+
+        for ($i = 1, $n = count($data); $i < $n; $i++) {
+            $t0 = $this->pointTime($data[$i - 1]);
+            $t1 = $this->pointTime($data[$i]);
+
+            if ($t0 && $t1 && $t1->greaterThan($t0)) {
+                $total += $t1->diffInSeconds($t0);
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * @param  array<int, object>  $data
+     */
+    private function estimateDurationFromMotion(array $data): int
+    {
+        $total = 0.0;
+
+        for ($i = 1, $n = count($data); $i < $n; $i++) {
+            $a = $data[$i - 1];
+            $b = $data[$i];
+            $dist = $this->haversineKm((float) $a->lat, (float) $a->lng, (float) $b->lat, (float) $b->lng);
+
+            if ($dist < 0.00001) {
+                continue;
+            }
+
+            $spd = max((float) ($a->speed ?? 0), (float) ($b->speed ?? 0), UserDashboardService::MOVING_SPEED_KMH);
+            $total += ($dist / $spd) * 3600;
+        }
+
+        return (int) round($total);
     }
 
     /**
@@ -155,6 +246,7 @@ class MobileRouteAnalyticsService
             'overspeed_events' => 0,
             'total_duration_seconds' => 0,
             'stops' => [],
+            'stop_count' => 0,
             'moving_points' => [],
             'idle_points' => [],
         ];

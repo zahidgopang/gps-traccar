@@ -62,9 +62,23 @@ final class TraccarAttributes
             'battery_level' => $attributes['battery'] ?? $attributes['batteryLevel'] ?? null,
             'ignition' => (bool) ($attributes['ignition'] ?? false),
             'acc' => (bool) ($attributes['acc'] ?? false),
-            'gsm_signal' => $attributes['gsm'] ?? $attributes['gsmSignal'] ?? null,
-            'gps_signal' => $attributes['gps'] ?? null,
-            'satellites' => $attributes['sat'] ?? $attributes['satellites'] ?? null,
+            'gsm_signal' => $attributes['gsm']
+                ?? $attributes['gsmSignal']
+                ?? $attributes['rssi']
+                ?? $attributes['signal']
+                ?? $attributes['signalStrength']
+                ?? $attributes['cellSignal']
+                ?? null,
+            'gps_signal' => $attributes['gps']
+                ?? $attributes['gpsSignal']
+                ?? $attributes['hdop']
+                ?? null,
+            'satellites' => $attributes['sat']
+                ?? $attributes['satellites']
+                ?? $attributes['satellite']
+                ?? $attributes['satInView']
+                ?? $attributes['satVisible']
+                ?? null,
             'odometer' => $attributes['odometer'] ?? null,
             'power_cut' => (bool) ($attributes['powerCut'] ?? false),
             'panic' => ($attributes['alarm'] ?? null) === 'sos',

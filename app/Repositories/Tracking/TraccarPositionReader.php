@@ -9,6 +9,7 @@ use App\Models\TraccarEntityMap;
 use App\Services\Traccar\TraccarIdMap;
 use App\Services\Traccar\TraccarPositionMapper;
 use App\Services\Traccar\TraccarSyncService;
+use App\Support\Tracking\HistoryRangeBounds;
 use App\Support\Traccar\TraccarSchema;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -63,11 +64,18 @@ class TraccarPositionReader implements PositionReaderInterface
             ->where('deviceid', $traccarDeviceId);
 
         if ($from) {
-            $query->where('fixtime', '>=', $from);
+            $fromBound = HistoryRangeBounds::isCalendarDayStart($from)
+                ? HistoryRangeBounds::traccarFromUtc($from)
+                : HistoryRangeBounds::traccarInstantUtc($from);
+            $query->where('fixtime', '>=', $fromBound);
         }
 
         if ($to) {
-            $query->where('fixtime', '<=', $to);
+            if (HistoryRangeBounds::isCalendarDayEnd($to)) {
+                $query->where('fixtime', '<', HistoryRangeBounds::traccarToExclusiveUtc($to));
+            } else {
+                $query->where('fixtime', '<=', HistoryRangeBounds::traccarInstantUtc($to));
+            }
         }
 
         $direction = strtolower($order) === 'desc' ? 'desc' : 'asc';

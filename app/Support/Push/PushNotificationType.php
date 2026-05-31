@@ -2,6 +2,8 @@
 
 namespace App\Support\Push;
 
+use App\Models\VehicleEvent;
+
 /**
  * FCM data.type values consumed by the Flutter app.
  */
@@ -25,6 +27,26 @@ final class PushNotificationType
 
     public const DEVICE_ONLINE = 'device_online';
 
+    public const DELAYED_DATA = 'delayed_data';
+
+    public const COMM_LOST_MOVING = 'comm_lost_moving';
+
+    public const COMM_LOST_IGNITION = 'comm_lost_ignition';
+
+    public const TAMPERING_SUSPECTED = 'tampering_suspected';
+
+    public const POWER_CUT = 'power_cut';
+
+    public const PANIC = 'panic';
+
+    public const LOW_BATTERY = 'low_battery';
+
+    public const IGNITION_OFF_MOVING = 'ignition_off_moving';
+
+    public const GSM_WEAK = 'gsm_weak';
+
+    public const GPS_WEAK = 'gps_weak';
+
     /** @return array<int, string> */
     public static function all(): array
     {
@@ -38,6 +60,16 @@ final class PushNotificationType
             self::OVERSPEED,
             self::DEVICE_OFFLINE,
             self::DEVICE_ONLINE,
+            self::DELAYED_DATA,
+            self::COMM_LOST_MOVING,
+            self::COMM_LOST_IGNITION,
+            self::TAMPERING_SUSPECTED,
+            self::POWER_CUT,
+            self::PANIC,
+            self::LOW_BATTERY,
+            self::IGNITION_OFF_MOVING,
+            self::GSM_WEAK,
+            self::GPS_WEAK,
         ];
     }
 
@@ -53,7 +85,37 @@ final class PushNotificationType
             self::OVERSPEED => 'Overspeed',
             self::DEVICE_OFFLINE => 'Device offline',
             self::DEVICE_ONLINE => 'Device online',
+            self::DELAYED_DATA => 'Delayed data',
+            self::COMM_LOST_MOVING => 'Communication lost while moving',
+            self::COMM_LOST_IGNITION => 'Communication lost (ignition ON)',
+            self::TAMPERING_SUSPECTED => 'Tampering suspected',
+            self::POWER_CUT => 'Power cut',
+            self::PANIC => 'SOS / Panic',
+            self::LOW_BATTERY => 'Low battery',
+            self::IGNITION_OFF_MOVING => 'Ignition off while moving',
+            self::GSM_WEAK => 'GSM signal weak',
+            self::GPS_WEAK => 'GPS signal weak',
             default => 'Fleet alert',
+        };
+    }
+
+    public static function severity(string $type): string
+    {
+        return match ($type) {
+            self::PANIC,
+            self::POWER_CUT,
+            self::COMM_LOST_MOVING,
+            self::TAMPERING_SUSPECTED,
+            self::OVERSPEED => 'critical',
+            self::DELAYED_DATA,
+            self::COMM_LOST_IGNITION,
+            self::GSM_WEAK,
+            self::GPS_WEAK,
+            self::LOW_BATTERY,
+            self::IGNITION_OFF_MOVING,
+            self::DEVICE_OFFLINE,
+            self::GEOFENCE_EXIT => 'warning',
+            default => 'info',
         };
     }
 }

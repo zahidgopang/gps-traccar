@@ -33,7 +33,7 @@ class TraccarEventMapper
         if ($title === '' || $message === '') {
             [$defaultTitle, $defaultMessage] = $this->defaultCopy(
                 $laravelType,
-                $device?->name ?? 'Vehicle',
+                $device?->notificationDisplayName() ?? 'Vehicle',
                 $geofence?->name,
                 isset($attrs['speed']) ? (float) $attrs['speed'] : null,
                 (float) ($attrs['latitude'] ?? $data['latitude'] ?? 0),

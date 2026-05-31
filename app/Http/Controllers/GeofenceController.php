@@ -10,6 +10,9 @@ use App\Services\DeviceAccessService;
 use App\Services\Traccar\TraccarGeofenceManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use App\Support\Traccar\TraccarSchema;
 
 class GeofenceController extends Controller
 {
@@ -38,19 +41,52 @@ class GeofenceController extends Controller
         return $device;
     }
 
+    private function resolveGeofence(int $id): Geofence
+    {
+        $geofence = Geofence::query()->find($id);
+        if ($geofence instanceof Geofence) {
+            return $geofence;
+        }
+
+        // Back-compat: older map payloads may still send laravel_geofence_id from attributes.
+        $table = config('traccar.tables.geofences', 'tc_geofences');
+        if (Schema::hasTable($table) && TraccarSchema::hasColumn($table, 'attributes')) {
+            $matchId = DB::table($table)
+                ->where(function ($query) use ($id) {
+                    $query->whereRaw(
+                        "JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.laravel_geofence_id')) = ?",
+                        [(string) $id]
+                    )->orWhereRaw(
+                        "JSON_EXTRACT(attributes, '$.laravel_geofence_id') = ?",
+                        [$id]
+                    );
+                })
+                ->value('id');
+
+            if ($matchId) {
+                return Geofence::query()->findOrFail((int) $matchId);
+            }
+        }
+
+        abort(404, 'Geofence not found.');
+    }
+
     private function authorizeGeofence(int $id): Geofence
     {
-        $geofence = Geofence::with(['device.subscription', 'device.user'])->findOrFail($id);
+        $geofence = $this->resolveGeofence($id);
+        $deviceId = $geofence->device_id;
+
+        if (! $deviceId) {
+            abort(404, 'Geofence is not linked to a device.');
+        }
+
+        $device = Device::query()->findOrFail($deviceId);
 
         if ($this->isAdminMapRequest()) {
             return $geofence;
         }
 
-        if ($geofence->device?->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-
-        $check = $this->access->evaluate(Auth::user(), $geofence->device);
+        $check = $this->access->evaluate(Auth::user(), $device);
 
         if (! $check['allowed']) {
             abort(403, $check['message']);

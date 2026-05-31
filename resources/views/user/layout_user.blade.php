@@ -48,6 +48,24 @@
             min-height: 100vh;
         }
 
+        .vehicle-list-identity { min-width: 0; }
+        .vehicle-list-name {
+            display: block;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+        .vehicle-list-plate {
+            display: block;
+            margin-top: 2px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+            line-height: 1.25;
+        }
+
         .content-wrap {
             width: 100%;
             margin: 0;

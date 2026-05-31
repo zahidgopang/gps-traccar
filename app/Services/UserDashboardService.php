@@ -27,7 +27,7 @@ class UserDashboardService
         private MobileMapStatusResolver $mapStatus,
     ) {}
 
-    public const ONLINE_MINUTES = 5;
+    public const ONLINE_MINUTES = 10;
 
     public const MOVING_SPEED_KMH = 5;
 
@@ -50,7 +50,7 @@ class UserDashboardService
             : $this->events->countForDevices(
                 $deviceIds,
                 now()->subDays(7),
-                [VehicleEvent::TYPE_GEOFENCE_EXIT, VehicleEvent::TYPE_OVERSPEED, VehicleEvent::TYPE_PANIC]
+                VehicleEvent::dashboardAlertTypes(),
             );
         $onlineNow = $this->countOnlineDevices($devices);
 
@@ -139,13 +139,22 @@ class UserDashboardService
                 'description' => $event->message,
                 'time' => $event->occurred_at,
                 'icon' => match ($event->type) {
-                    VehicleEvent::TYPE_GEOFENCE_EXIT, VehicleEvent::TYPE_PANIC, VehicleEvent::TYPE_OVERSPEED => 'fa-exclamation-triangle',
+                    VehicleEvent::TYPE_GEOFENCE_EXIT,
+                    VehicleEvent::TYPE_PANIC,
+                    VehicleEvent::TYPE_OVERSPEED,
+                    VehicleEvent::TYPE_POWER_CUT,
+                    VehicleEvent::TYPE_COMM_LOST_MOVING,
+                    VehicleEvent::TYPE_TAMPERING => 'fa-exclamation-triangle',
+                    VehicleEvent::TYPE_DELAYED,
+                    VehicleEvent::TYPE_GSM_WEAK,
+                    VehicleEvent::TYPE_GPS_WEAK,
+                    VehicleEvent::TYPE_COMM_LOST_IGNITION => 'fa-exclamation-circle',
                     VehicleEvent::TYPE_GEOFENCE_ENTER => 'fa-draw-polygon',
                     VehicleEvent::TYPE_STOPPED => 'fa-parking',
                     default => 'fa-car',
                 },
                 'gradient' => match ($event->severity()) {
-                    'error' => 'linear-gradient(135deg, #EF4444, #DC2626)',
+                    'critical' => 'linear-gradient(135deg, #EF4444, #DC2626)',
                     'warning' => 'linear-gradient(135deg, #F59E0B, #D97706)',
                     default => 'linear-gradient(135deg, var(--primary-blue), var(--secondary-blue))',
                 },
@@ -181,19 +190,22 @@ class UserDashboardService
             return collect();
         }
 
-        $alertIds = collect();
+        $criticalTypes = [
+            VehicleEvent::TYPE_GEOFENCE_EXIT,
+            VehicleEvent::TYPE_PANIC,
+            VehicleEvent::TYPE_POWER_CUT,
+            VehicleEvent::TYPE_COMM_LOST_MOVING,
+            VehicleEvent::TYPE_TAMPERING,
+            VehicleEvent::TYPE_OVERSPEED,
+        ];
 
-        foreach ($devices as $device) {
-            $hasExit = $this->events
-                ->forDevice($device, now()->subHours($hours), null, [VehicleEvent::TYPE_GEOFENCE_EXIT], 1)
-                ->isNotEmpty();
-
-            if ($hasExit) {
-                $alertIds->push($device->id);
-            }
-        }
-
-        return $alertIds;
+        return $this->events
+            ->recentForDevices($ids, 200)
+            ->filter(fn (VehicleEvent $e) => in_array($e->type, $criticalTypes, true)
+                && $e->occurred_at >= now()->subHours($hours))
+            ->pluck('device_id')
+            ->unique()
+            ->values();
     }
 
     /**
@@ -280,6 +292,8 @@ class UserDashboardService
             'idle' => ['class' => 'bg-warning', 'dot' => 'bg-warning'],
             'stopped' => ['class' => 'bg-warning', 'dot' => 'bg-warning'],
             'parked' => ['class' => 'bg-info', 'dot' => 'bg-info'],
+            'delayed' => ['class' => 'bg-warning text-dark', 'dot' => 'bg-warning'],
+            'offline' => ['class' => 'bg-secondary', 'dot' => 'bg-secondary'],
             'alert' => ['class' => 'bg-danger', 'dot' => 'bg-danger'],
             'blocked' => ['class' => 'bg-dark', 'dot' => 'bg-dark'],
             default => ['class' => 'bg-secondary', 'dot' => 'bg-secondary'],

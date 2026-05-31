@@ -17,6 +17,21 @@ class TraccarPositionMapper
         $fields = TraccarAttributes::toPositionFields($attrs);
         $fixtime = $data['fixtime'] ?? $data['devicetime'] ?? $data['servertime'] ?? now();
 
+        $satellites = $fields['satellites'];
+        if ($satellites === null && isset($data['satellites'])) {
+            $satellites = is_numeric($data['satellites']) ? (int) $data['satellites'] : null;
+        }
+
+        $gsmSignal = $fields['gsm_signal'];
+        if ($gsmSignal === null && isset($data['gsm_signal'])) {
+            $gsmSignal = is_numeric($data['gsm_signal']) ? (int) $data['gsm_signal'] : null;
+        }
+
+        $gpsSignal = $fields['gps_signal'];
+        if ($gpsSignal === null && isset($data['gps_signal'])) {
+            $gpsSignal = is_numeric($data['gps_signal']) ? (int) $data['gps_signal'] : null;
+        }
+
         $location = new DeviceLocation([
             'device_id' => $laravelDeviceId,
             'lat' => (float) ($data['latitude'] ?? 0),
@@ -28,9 +43,9 @@ class TraccarPositionMapper
             'recorded_at' => Carbon::parse($fixtime),
             'ignition' => $fields['ignition'],
             'acc' => $fields['acc'],
-            'gsm_signal' => $fields['gsm_signal'],
-            'gps_signal' => $fields['gps_signal'],
-            'satellites' => $fields['satellites'],
+            'gsm_signal' => $gsmSignal,
+            'gps_signal' => $gpsSignal,
+            'satellites' => $satellites,
             'odometer' => $fields['odometer'],
             'power_cut' => $fields['power_cut'],
             'panic' => $fields['panic'],

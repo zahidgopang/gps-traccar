@@ -37,7 +37,7 @@ class GeofenceController extends Controller
                 $items->push($this->formatGeofence(
                     $geofence,
                     (int) $device->id,
-                    (string) $device->name,
+                    (string) $device->notificationDisplayName(),
                 ));
             }
         }

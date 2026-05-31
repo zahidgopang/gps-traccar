@@ -45,10 +45,6 @@ class TraccarGeofenceStore implements GeofenceStoreInterface
             ->get()
             ->map(function ($row) {
                 $attrs = TraccarAttributes::decode($row->attributes ?? null);
-                $laravelId = (int) ($attrs['laravel_geofence_id']
-                    ?? $this->idMap->laravelId(TraccarEntityMap::TYPE_GEOFENCE, (int) $row->id)
-                    ?? $row->id);
-
                 $type = (string) TraccarAppFields::get(
                     is_string($row->attributes ?? null) ? $row->attributes : null,
                     TraccarAppFields::KEY_GEOFENCE_TYPE,
@@ -56,7 +52,8 @@ class TraccarGeofenceStore implements GeofenceStoreInterface
                 );
 
                 return (object) [
-                    'id' => $laravelId,
+                    // Always expose the tc_geofences primary key — destroy/update use Geofence::find().
+                    'id' => (int) $row->id,
                     'name' => (string) $row->name,
                     'type' => $type,
                     'area' => isset($row->area) ? (string) $row->area : null,

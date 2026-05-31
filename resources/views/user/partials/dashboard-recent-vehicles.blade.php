@@ -19,7 +19,12 @@
                 <div class="vehicle-icon me-2">
                     <i class="fas {{ $iconClass }} {{ $iconColor }}"></i>
                 </div>
-                <span>{{ $device->mapDisplayTitle() }}</span>
+                <div class="vehicle-list-identity">
+                    <span class="vehicle-list-name">{{ $device->listPrimaryLabel() }}</span>
+                    @if($plate = $device->listSecondaryLabel())
+                        <span class="vehicle-list-plate"><x-admin.ltr>{{ $plate }}</x-admin.ltr></span>
+                    @endif
+                </div>
             </div>
         </td>
         <td>

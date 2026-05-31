@@ -5,6 +5,7 @@ namespace App\Repositories\Tracking;
 use App\Contracts\Tracking\PositionReaderInterface;
 use App\Models\Device;
 use App\Models\DeviceLocation;
+use App\Support\Tracking\DeviceLocationTelemetryMerger;
 use App\Support\Traccar\TraccarMode;
 use App\Support\Traccar\TraccarSchema;
 use Carbon\Carbon;
@@ -19,15 +20,21 @@ class DelegatingPositionReader implements PositionReaderInterface
 
     public function latestForDevice(Device $device): ?DeviceLocation
     {
+        $legacyLatest = $this->legacy->latestForDevice($device);
+
         if ($this->shouldReadTraccar()) {
             $latest = $this->traccar->latestForDevice($device);
 
-            if ($latest || TraccarMode::isSingleSource()) {
-                return $latest;
+            if ($latest) {
+                return DeviceLocationTelemetryMerger::merge($latest, $legacyLatest);
+            }
+
+            if (TraccarMode::isSingleSource()) {
+                return $legacyLatest;
             }
         }
 
-        return $this->legacy->latestForDevice($device);
+        return $legacyLatest;
     }
 
     public function historyForDevice(
@@ -39,7 +46,7 @@ class DelegatingPositionReader implements PositionReaderInterface
         if ($this->shouldReadTraccar()) {
             $history = $this->traccar->historyForDevice($device, $from, $to, $order);
 
-            if ($history->isNotEmpty() || TraccarMode::isSingleSource()) {
+            if ($history->isNotEmpty()) {
                 return $history;
             }
         }

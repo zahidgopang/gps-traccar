@@ -27,6 +27,56 @@ class VehicleEvent extends Model
 
     public const TYPE_IGNITION = 'ignition_off_moving';
 
+    public const TYPE_DELAYED = 'delayed_data';
+
+    public const TYPE_OFFLINE = 'device_offline';
+
+    public const TYPE_COMM_LOST_MOVING = 'comm_lost_moving';
+
+    public const TYPE_COMM_LOST_IGNITION = 'comm_lost_ignition';
+
+    public const TYPE_TAMPERING = 'tampering_suspected';
+
+    public const TYPE_GSM_WEAK = 'gsm_weak';
+
+    public const TYPE_GPS_WEAK = 'gps_weak';
+
+    /** @return list<string> */
+    public static function criticalTypes(): array
+    {
+        return [
+            self::TYPE_PANIC,
+            self::TYPE_POWER_CUT,
+            self::TYPE_COMM_LOST_MOVING,
+            self::TYPE_TAMPERING,
+            self::TYPE_OVERSPEED,
+            self::TYPE_GEOFENCE_EXIT,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function warningTypes(): array
+    {
+        return [
+            self::TYPE_DELAYED,
+            self::TYPE_COMM_LOST_IGNITION,
+            self::TYPE_GSM_WEAK,
+            self::TYPE_GPS_WEAK,
+            self::TYPE_LOW_BATTERY,
+            self::TYPE_IGNITION,
+            self::TYPE_OFFLINE,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function dashboardAlertTypes(): array
+    {
+        return array_values(array_unique(array_merge(
+            self::criticalTypes(),
+            self::warningTypes(),
+        )));
+    }
+
     protected $fillable = [
         'device_id',
         'geofence_id',
@@ -61,8 +111,19 @@ class VehicleEvent extends Model
     public function severity(): string
     {
         return match ($this->type) {
-            self::TYPE_PANIC, self::TYPE_POWER_CUT => 'error',
-            self::TYPE_OVERSPEED, self::TYPE_GEOFENCE_EXIT, self::TYPE_LOW_BATTERY, self::TYPE_IGNITION => 'warning',
+            self::TYPE_PANIC,
+            self::TYPE_POWER_CUT,
+            self::TYPE_COMM_LOST_MOVING,
+            self::TYPE_TAMPERING => 'critical',
+            self::TYPE_OVERSPEED,
+            self::TYPE_GEOFENCE_EXIT,
+            self::TYPE_LOW_BATTERY,
+            self::TYPE_IGNITION,
+            self::TYPE_DELAYED,
+            self::TYPE_COMM_LOST_IGNITION,
+            self::TYPE_GSM_WEAK,
+            self::TYPE_GPS_WEAK,
+            self::TYPE_OFFLINE => 'warning',
             default => 'info',
         };
     }
@@ -80,6 +141,13 @@ class VehicleEvent extends Model
             self::TYPE_POWER_CUT => 'Power cut',
             self::TYPE_PANIC => 'SOS / Panic',
             self::TYPE_IGNITION => 'Ignition alert',
+            self::TYPE_DELAYED => 'Delayed data',
+            self::TYPE_OFFLINE => 'Device offline',
+            self::TYPE_COMM_LOST_MOVING => 'Communication lost while moving',
+            self::TYPE_COMM_LOST_IGNITION => 'Communication lost (ignition ON)',
+            self::TYPE_TAMPERING => 'Tampering suspected',
+            self::TYPE_GSM_WEAK => 'GSM signal weak',
+            self::TYPE_GPS_WEAK => 'GPS signal weak',
             default => ucfirst(str_replace('_', ' ', $this->type)),
         };
     }

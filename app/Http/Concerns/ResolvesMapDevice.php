@@ -36,8 +36,8 @@ trait ResolvesMapDevice
                 'reverseGeocode' => route($panel . '.device.reverse.geocode', $token),
                 'geofences' => route($panel . '.device.geofences.json', $token),
                 'geofencesSave' => route($panel . '.device.geofences.save', $token),
-                'geofenceDestroy' => url('/' . $panel . '/geofence'),
-                'geofenceUpdate' => url('/' . $panel . '/geofence'),
+                'geofenceDestroy' => rtrim(route($panel . '.geofence.destroy', ['id' => 0]), '/0'),
+                'geofenceUpdate' => rtrim(route($panel . '.geofence.update', ['id' => 0]), '/0'),
                 'accessDeniedRedirect' => route($panel . '.locations.index'),
             ];
         }
@@ -50,8 +50,8 @@ trait ResolvesMapDevice
             'reverseGeocode' => route('user.device.reverse.geocode', $token),
             'geofences' => route('user.device.geofences.json', $token),
             'geofencesSave' => route('user.device.geofences.save', $token),
-            'geofenceDestroy' => url('/user/geofence'),
-            'geofenceUpdate' => url('/user/geofence'),
+            'geofenceDestroy' => rtrim(route('user.geofence.destroy', ['id' => 0]), '/0'),
+            'geofenceUpdate' => rtrim(route('user.geofence.update', ['id' => 0]), '/0'),
             'accessDeniedRedirect' => route('user.devices.index'),
         ];
     }

@@ -45,6 +45,17 @@ class PushNotificationDispatcher
         $title = PushNotificationType::title($pushType);
         $this->send($device, $pushType, $title, $message, [
             'occurred_at' => \App\Support\DateTime\AppDateTime::now()->toIso8601String(),
+            'severity' => PushNotificationType::severity($pushType),
+        ], requireEventFlag: true);
+    }
+
+    public function forSmartAlert(Device $device, VehicleEvent $event, string $pushType): void
+    {
+        $this->send($device, $pushType, $event->title, $event->message, [
+            'event_id' => (string) $event->id,
+            'event_type' => $event->type,
+            'occurred_at' => $event->occurred_at?->toIso8601String() ?? '',
+            'severity' => $event->severity(),
         ], requireEventFlag: true);
     }
 
@@ -147,9 +158,10 @@ class PushNotificationDispatcher
             'type' => $pushType,
             'screen' => $this->screenForType($pushType),
             'device_id' => (string) $device->id,
-            'device_name' => (string) $device->name,
+            'device_name' => (string) $device->notificationDisplayName(),
             'time' => \App\Support\DateTime\AppDateTime::toApi($occurredAt),
             'time_display' => $timeDisplay ?? '',
+            'severity' => $extra['severity'] ?? PushNotificationType::severity($pushType),
         ], $extra);
 
         $this->fcm->sendToUsers($userIds, $displayTitle, $bodyWithTime, $data);

@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\VehicleEvent;
 use App\Services\Push\PushNotificationDispatcher;
+use App\Services\SmartFleetAlertService;
 use App\Support\Traccar\GeofenceWkt;
 use Carbon\Carbon;
 
@@ -16,6 +17,7 @@ class VehicleEventService
     public function __construct(
         private EventWriterInterface $events,
         private GeofenceStoreInterface $geofences,
+        private SmartFleetAlertService $smartAlerts,
     ) {}
     public function processLocation(Device $device, DeviceLocation $location, ?DeviceLocation $previous = null): void
     {
@@ -24,6 +26,7 @@ class VehicleEventService
         $lng = (float) $location->lng;
         $at = $location->recorded_at ?? now();
 
+        $this->smartAlerts->onPositionReceived($device, $location);
         $this->processMotionState($device, $speed, $lat, $lng, $at);
         $this->processGeofenceFromLocation($device, $lat, $lng, $at);
         $this->processSignals($device, $location, $speed, $lat, $lng, $at, $previous);
@@ -63,21 +66,21 @@ class VehicleEventService
         [$title, $message] = match ($state) {
             VehicleEvent::TYPE_STOPPED => [
                 'Vehicle stopped',
-                sprintf('%s has stopped (speed %.0f km/h).', $device->name, $speed),
+                sprintf('%s has stopped (speed %.0f km/h).', $device->notificationDisplayName(), $speed),
             ],
             VehicleEvent::TYPE_RUNNING => [
                 'Vehicle running',
-                sprintf('%s is moving at %.0f km/h.', $device->name, $speed),
+                sprintf('%s is moving at %.0f km/h.', $device->notificationDisplayName(), $speed),
             ],
             VehicleEvent::TYPE_SLOW_SPEED => [
                 'Slow speed',
-                sprintf('%s is moving slowly at %.0f km/h.', $device->name, $speed),
+                sprintf('%s is moving slowly at %.0f km/h.', $device->notificationDisplayName(), $speed),
             ],
             VehicleEvent::TYPE_OVERSPEED => [
                 'Overspeed',
-                sprintf('%s exceeded %.0f km/h limit (current %.0f km/h).', $device->name, $overspeed, $speed),
+                sprintf('%s exceeded %.0f km/h limit (current %.0f km/h).', $device->notificationDisplayName(), $overspeed, $speed),
             ],
-            default => ['Vehicle update', "{$device->name} motion state changed."],
+            default => ['Vehicle update', "{$device->notificationDisplayName()} motion state changed."],
         };
 
         $event = $this->record($device, $state, $title, $message, $speed, $lat, $lng, $at);
@@ -141,8 +144,8 @@ class VehicleEventService
         $isEnter = $eventType === VehicleEvent::TYPE_GEOFENCE_ENTER;
         $recordTitle = $isEnter ? 'Entered geofence' : 'Left geofence';
         $message = $isEnter
-            ? sprintf('%s entered geofence "%s".', $device->name, $zoneName)
-            : sprintf('%s exited geofence "%s".', $device->name, $zoneName);
+            ? sprintf('%s entered geofence "%s".', $device->notificationDisplayName(), $zoneName)
+            : sprintf('%s exited geofence "%s".', $device->notificationDisplayName(), $zoneName);
 
         $event = $this->record(
             $device,
@@ -188,16 +191,19 @@ class VehicleEventService
             $this->recordOnce(
                 "device.{$device->id}.event.panic",
                 $cooldown,
-                fn () => $this->record(
-                    $device,
-                    VehicleEvent::TYPE_PANIC,
-                    'SOS / Panic',
-                    sprintf('Emergency panic activated on %s.', $device->name),
-                    $speed,
-                    $lat,
-                    $lng,
-                    $at
-                )
+                function () use ($device, $speed, $lat, $lng, $at) {
+                    $event = $this->record(
+                        $device,
+                        VehicleEvent::TYPE_PANIC,
+                        'SOS / Panic',
+                        sprintf('Emergency panic activated on %s.', $device->notificationDisplayName()),
+                        $speed,
+                        $lat,
+                        $lng,
+                        $at
+                    );
+                    $this->smartAlerts->notifySecurityEvent($device, $event);
+                }
             );
         }
 
@@ -205,16 +211,19 @@ class VehicleEventService
             $this->recordOnce(
                 "device.{$device->id}.event.power",
                 $cooldown,
-                fn () => $this->record(
-                    $device,
-                    VehicleEvent::TYPE_POWER_CUT,
-                    'Power cut',
-                    sprintf('External power cut detected on %s.', $device->name),
-                    $speed,
-                    $lat,
-                    $lng,
-                    $at
-                )
+                function () use ($device, $speed, $lat, $lng, $at) {
+                    $event = $this->record(
+                        $device,
+                        VehicleEvent::TYPE_POWER_CUT,
+                        'Power cut',
+                        sprintf('External power cut detected on %s.', $device->notificationDisplayName()),
+                        $speed,
+                        $lat,
+                        $lng,
+                        $at
+                    );
+                    $this->smartAlerts->notifySecurityEvent($device, $event);
+                }
             );
         }
 
@@ -223,18 +232,21 @@ class VehicleEventService
             $this->recordOnce(
                 "device.{$device->id}.event.battery",
                 $cooldown * 2,
-                fn () => $this->record(
-                    $device,
-                    VehicleEvent::TYPE_LOW_BATTERY,
-                    'Low battery',
-                    sprintf('%s battery at %s%%.', $device->name, $location->battery_level),
-                    $speed,
-                    $lat,
-                    $lng,
-                    $at,
-                    null,
-                    ['battery' => $location->battery_level]
-                )
+                function () use ($device, $location, $speed, $lat, $lng, $at, $lowBattery) {
+                    $event = $this->record(
+                        $device,
+                        VehicleEvent::TYPE_LOW_BATTERY,
+                        'Low battery',
+                        sprintf('%s battery at %s%%.', $device->notificationDisplayName(), $location->battery_level),
+                        $speed,
+                        $lat,
+                        $lng,
+                        $at,
+                        null,
+                        ['battery' => $location->battery_level]
+                    );
+                    $this->smartAlerts->notifySecurityEvent($device, $event);
+                }
             );
         }
 
@@ -242,16 +254,19 @@ class VehicleEventService
             $this->recordOnce(
                 "device.{$device->id}.event.ignition",
                 $cooldown,
-                fn () => $this->record(
-                    $device,
-                    VehicleEvent::TYPE_IGNITION,
-                    'Ignition alert',
-                    sprintf('%s is moving at %.0f km/h with ignition OFF.', $device->name, $speed),
-                    $speed,
-                    $lat,
-                    $lng,
-                    $at
-                )
+                function () use ($device, $speed, $lat, $lng, $at) {
+                    $event = $this->record(
+                        $device,
+                        VehicleEvent::TYPE_IGNITION,
+                        'Ignition alert',
+                        sprintf('%s is moving at %.0f km/h with ignition OFF.', $device->notificationDisplayName(), $speed),
+                        $speed,
+                        $lat,
+                        $lng,
+                        $at
+                    );
+                    $this->smartAlerts->notifySecurityEvent($device, $event);
+                }
             );
         }
     }
@@ -263,7 +278,7 @@ class VehicleEventService
         }
 
         $callback();
-        cache()->put($cacheKey, true, $seconds);
+        cache()->put($cacheKey, true, now()->addSeconds($seconds));
     }
 
     private function record(

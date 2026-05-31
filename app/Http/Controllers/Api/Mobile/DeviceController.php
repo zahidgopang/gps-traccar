@@ -11,6 +11,7 @@ use App\Http\Concerns\RespondsWithMobileJson;
 use App\Models\VehicleEvent;
 use App\Services\Mobile\MobileDevicePresenter;
 use App\Services\Mobile\MobileRouteAnalyticsService;
+use App\Services\Tracking\DeviceHistoryFetcher;
 use App\Services\Tracking\DevicePositionLoader;
 use App\Services\UserDashboardService;
 use App\Services\VehicleEventService;
@@ -29,6 +30,7 @@ class DeviceController extends Controller
         private MobileRouteAnalyticsService $routeAnalytics,
         private EventReaderInterface $events,
         private UserDashboardService $dashboard,
+        private DeviceHistoryFetcher $historyFetcher,
     ) {}
 
     public function index(Request $request)
@@ -80,13 +82,16 @@ class DeviceController extends Controller
     {
         $device = $this->findMobileDevice($request->user(), $id);
         $range = $this->resolveHistoryRange($request);
+        $explicitRange = trim((string) ($request->query('from', $request->input('from', '')))) !== '';
 
-        $locations = $this->positions->historyForDevice(
+        $result = $this->historyFetcher->fetch(
             $device,
             $range['from'],
             $range['to'],
-            'asc'
+            $explicitRange
         );
+
+        $locations = $result['locations'];
 
         $points = $locations->map(fn ($loc) => [
             'lat' => (float) $loc->lat,
@@ -95,7 +100,14 @@ class DeviceController extends Controller
             'heading' => (float) ($loc->heading ?? 0),
             'ignition' => (bool) $loc->ignition,
             'battery' => $loc->battery_level,
+            'battery_level' => $loc->battery_level,
+            'gsm_signal' => $loc->gsm_signal,
+            'gps_signal' => $loc->gps_signal,
+            'satellites' => $loc->satellites,
+            'odometer' => $loc->odometer,
+            'gps_fix' => $loc->gps_fix,
             'recorded_at' => app_datetime_api($loc->recorded_at),
+            'timestamp' => app_datetime_format($loc->recorded_at, 'log'),
             'recorded_at_display' => app_datetime_format($loc->recorded_at),
         ])->values();
 
@@ -108,6 +120,8 @@ class DeviceController extends Controller
             'idle_points' => $stats['idle_points'],
             'from' => app_datetime_api($range['from']),
             'to' => app_datetime_api($range['to']),
+            'history_fallback' => $result['used_fallback'] ? $result['fallback_reason'] : null,
+            'used_fallback' => $result['used_fallback'],
         ]);
     }
 
@@ -115,15 +129,26 @@ class DeviceController extends Controller
     {
         $device = $this->findMobileDevice($request->user(), $id);
         $range = $this->resolveHistoryRange($request);
+        $explicitRange = trim((string) ($request->query('from', $request->input('from', '')))) !== '';
 
-        $locations = $this->positions->historyForDevice(
+        $result = $this->historyFetcher->fetch(
             $device,
             $range['from'],
             $range['to'],
-            'asc'
+            $explicitRange
         );
 
+        $locations = $result['locations'];
         $stats = $this->routeAnalytics->analyze($locations);
+
+        $startTime = $stats['start_time'] ?? null;
+        $endTime = $stats['end_time'] ?? null;
+        if (! $startTime && $locations->isNotEmpty()) {
+            $startTime = app_datetime_api($locations->first()->recorded_at);
+        }
+        if (! $endTime && $locations->isNotEmpty()) {
+            $endTime = app_datetime_api($locations->last()->recorded_at);
+        }
 
         return $this->mobileSuccess([
             'total_distance_km' => $stats['total_distance_km'],
@@ -132,6 +157,12 @@ class DeviceController extends Controller
             'max_speed_kmh' => $stats['max_speed_kmh'],
             'average_speed_kmh' => $stats['average_speed_kmh'],
             'idle_time_seconds' => $stats['idle_time_seconds'],
+            'total_duration_seconds' => $stats['total_duration_seconds'],
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'stop_count' => $stats['stop_count'] ?? count($stats['stops'] ?? []),
+            'history_fallback' => $result['used_fallback'] ? $result['fallback_reason'] : null,
+            'used_fallback' => $result['used_fallback'],
         ]);
     }
 

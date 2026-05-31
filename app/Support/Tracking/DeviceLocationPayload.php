@@ -26,6 +26,7 @@ final class DeviceLocationPayload
             'power_cut' => (bool) $location->power_cut,
             'panic' => (bool) $location->panic,
             'recorded_at' => $location->recorded_at?->toIso8601String(),
+            'last_update' => app_datetime_api($location->recorded_at),
             'timestamp' => $location->recorded_at?->toDateTimeString(),
             'position_id' => (int) ($location->id ?? 0),
         ];
@@ -35,6 +36,11 @@ final class DeviceLocationPayload
             $map = $resolver->resolve($location, $device);
             $payload['status'] = $map['label'];
             $payload['status_key'] = $map['key'];
+            $payload['connectivity_tier'] = $map['connectivity_tier'];
+            $payload['last_known_status'] = $map['last_known_status'];
+            $payload['last_known_status_key'] = $map['last_known_status_key'];
+            $payload['last_known_speed'] = $map['last_known_speed'];
+            $payload['last_known_ignition'] = $map['last_known_ignition'];
             $payload['is_online'] = $resolver->isRecentlyOnline($location);
             $payload['online'] = $payload['is_online'];
         } else {

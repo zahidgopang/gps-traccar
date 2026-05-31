@@ -15,10 +15,13 @@ class EnsureMapAccess
 
     public function handle(Request $request, Closure $next): Response
     {
-        $token = $request->route('token');
-
-        if (! $token || ! $request->user()) {
+        if (! $request->user()) {
             abort(404);
+        }
+
+        $token = $request->route('token');
+        if (! $token) {
+            return $next($request);
         }
 
         if ($request->routeIs('user.device.map', 'admin.device.map', 'client.device.map')) {

@@ -27,12 +27,22 @@
         .smart-controls {
             position: absolute;
             top: max(12px, env(safe-area-inset-top));
-            right: max(12px, env(safe-area-inset-right));
+            inset-inline-end: max(12px, env(safe-area-inset-right));
             display: flex;
             flex-direction: column;
             gap: 8px;
             z-index: 1000;
             transition: bottom 0.35s ease, top 0.35s ease;
+        }
+        html[dir="rtl"] .map-hud {
+            inset-inline-start: max(12px, env(safe-area-inset-left));
+            inset-inline-end: auto;
+        }
+        .nav-alert-item--clickable {
+            cursor: pointer;
+        }
+        .nav-alert-item--clickable:hover {
+            background: rgba(37, 99, 235, 0.08);
         }
         .control-group {
             background: var(--map-ui-bg);
@@ -396,9 +406,19 @@
             font-size: 0.82rem;
             color: var(--map-accent);
             font-variant-numeric: tabular-nums;
-            display: none;
         }
-        .map-hud.is-collapsed .map-hud__mini { display: block; }
+        .map-hud__mini-group {
+            display: none;
+            flex-shrink: 0;
+            align-items: center;
+            gap: 6px;
+        }
+        .map-hud.is-collapsed .map-hud__mini-group { display: flex; }
+        .map-hud__mini-status .map-status-chip {
+            padding: 2px 8px;
+            font-size: 0.62rem;
+            line-height: 1.2;
+        }
         .map-hud__body {
             overflow: hidden;
             max-height: 400px;
@@ -423,8 +443,9 @@
         .map-hud__status-dot.is-moving { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); }
         .map-hud__status-dot.is-idle { background: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25); }
         .map-hud__status-dot.is-parked { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
-        .map-hud__status-dot.is-offline { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
-        .map-hud__status-dot.is-stopped { background: #f97316; }
+        .map-hud__status-dot.is-offline { background: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.28); }
+        .map-hud__status-dot.is-delayed { background: #eab308; box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.28); }
+        .map-hud__status-dot.is-stopped { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
         .map-hud__status-dot.is-alert { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
 
         /* Bottom live vehicle panel */
@@ -552,13 +573,158 @@
             font-weight: 700;
             letter-spacing: 0.02em;
             flex-shrink: 0;
+            line-height: 1.2;
+            border: 1px solid transparent;
         }
-        .map-status-chip--moving { background: rgba(34,197,94,0.14); color: #15803d; }
-        .map-status-chip--idle { background: rgba(249,115,22,0.14); color: #c2410c; }
-        .map-status-chip--parked { background: rgba(59,130,246,0.14); color: #1d4ed8; }
-        .map-status-chip--stopped { background: rgba(249,115,22,0.12); color: #9a3412; }
-        .map-status-chip--offline { background: rgba(239,68,68,0.14); color: #b91c1c; }
-        .map-status-chip--alert { background: rgba(239,68,68,0.18); color: #991b1b; }
+        .map-status-chip--moving { background: #16a34a; color: #fff; border-color: #15803d; }
+        .map-status-chip--idle { background: #ea580c; color: #fff; border-color: #c2410c; }
+        .map-status-chip--parked { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+        .map-status-chip--stopped { background: #dc2626; color: #fff; border-color: #b91c1c; }
+        .map-status-chip--offline { background: #64748b; color: #fff; border-color: #475569; }
+        .map-status-chip--delayed { background: #eab308; color: #422006; border-color: #ca8a04; }
+        .map-status-chip--alert { background: #b91c1c; color: #fff; border-color: #991b1b; }
+        body.map-night-mode .map-status-chip--moving { background: #22c55e; color: #052e16; border-color: #16a34a; }
+        body.map-night-mode .map-status-chip--idle { background: #fb923c; color: #431407; border-color: #ea580c; }
+        body.map-night-mode .map-status-chip--stopped { background: #f87171; color: #450a0a; border-color: #dc2626; }
+        body.map-night-mode .map-status-chip--offline { background: #94a3b8; color: #0f172a; border-color: #64748b; }
+
+        /* Vehicle marker popup */
+        .vehicle-map-popup {
+            padding: 0;
+            min-width: 240px;
+            max-width: 300px;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+        .vehicle-map-popup__head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px 10px;
+            background: linear-gradient(135deg, #f8fafc, #fff);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .vehicle-map-popup__title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #0f172a;
+            line-height: 1.25;
+        }
+        .vehicle-map-popup__plate {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .vehicle-map-popup__close {
+            border: none;
+            background: #f1f5f9;
+            color: #64748b;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        .vehicle-map-popup__body {
+            padding: 10px 14px 12px;
+            display: grid;
+            gap: 8px;
+        }
+        .vehicle-map-popup__row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.78rem;
+            color: #334155;
+        }
+        .vehicle-map-popup__row strong {
+            color: #64748b;
+            font-weight: 600;
+        }
+        .vehicle-map-popup__row span:last-child {
+            font-weight: 700;
+            color: #0f172a;
+            text-align: end;
+        }
+        .vehicle-map-popup__row--status span:last-child {
+            text-align: end;
+        }
+        .gm-style-iw-chr { display: none !important; }
+        .gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
+        .gm-style-iw-c { padding: 0 !important; border-radius: 14px !important; box-shadow: 0 12px 40px rgba(15,23,42,0.18) !important; }
+
+        /* Live vehicle pulse — fleet tracking style */
+        .vehicle-live-pulse-wrap {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            margin-left: -70px;
+            margin-top: -96px;
+            pointer-events: none;
+            z-index: 999;
+            --pulse-color: #22c55e;
+        }
+        .vehicle-live-pulse-glow {
+            position: absolute;
+            inset: 24px;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle,
+                color-mix(in srgb, var(--pulse-color) 42%, transparent) 0%,
+                color-mix(in srgb, var(--pulse-color) 18%, transparent) 45%,
+                transparent 72%
+            );
+            animation: vehicle-live-glow-breathe 1.5s ease-in-out infinite;
+        }
+        @keyframes vehicle-live-glow-breathe {
+            0%, 100% { opacity: 0.65; transform: scale(0.88); }
+            50% { opacity: 1; transform: scale(1.08); }
+        }
+        .vehicle-live-pulse-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 3.5px solid var(--pulse-color);
+            opacity: 0;
+            will-change: transform, opacity;
+            animation: vehicle-live-pulse 1.5s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+        }
+        .vehicle-live-pulse-ring--delay {
+            animation-delay: 0.75s;
+        }
+        .vehicle-live-pulse-ring--delay2 {
+            animation-delay: 1.125s;
+        }
+        .vehicle-live-pulse-core {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 14px;
+            height: 14px;
+            margin: -7px 0 0 -7px;
+            border-radius: 50%;
+            background: var(--pulse-color);
+            opacity: 0.9;
+            box-shadow:
+                0 0 12px color-mix(in srgb, var(--pulse-color) 70%, transparent),
+                0 0 24px color-mix(in srgb, var(--pulse-color) 40%, transparent);
+        }
+        @keyframes vehicle-live-pulse {
+            0% {
+                transform: scale(0.25);
+                opacity: 0.75;
+            }
+            60% {
+                opacity: 0.2;
+            }
+            100% {
+                transform: scale(1.35);
+                opacity: 0;
+            }
+        }
         .map-live-panel__toggle {
             flex-shrink: 0;
             width: 34px;
@@ -592,9 +758,207 @@
             margin-top: 12px;
             overflow: visible;
         }
+
+        /* Route summary bottom sheet (history mode) */
+        .route-summary-sheet {
+            position: absolute;
+            left: 50%;
+            bottom: max(78px, calc(62px + env(safe-area-inset-bottom)));
+            transform: translateX(-50%) translateY(calc(100% + 24px));
+            width: min(640px, calc(100% - 24px));
+            z-index: 1035;
+            background: var(--map-ui-bg);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--map-ui-border);
+            border-radius: 16px;
+            box-shadow: var(--map-ui-shadow);
+            padding: 6px 14px 10px;
+            pointer-events: auto;
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), max-height 0.35s ease;
+            max-height: 92px;
+            overflow: hidden;
+        }
+        .route-summary-sheet.is-visible {
+            transform: translateX(-50%) translateY(0);
+        }
+        .route-summary-sheet.is-expanded {
+            max-height: min(280px, 38vh);
+            padding-bottom: 12px;
+        }
+        #mapArea.playback-open .route-summary-sheet {
+            bottom: calc(210px + env(safe-area-inset-bottom));
+        }
+        .route-summary-sheet__handle {
+            width: 44px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(100, 116, 139, 0.35);
+            margin: 0 auto 8px;
+            cursor: grab;
+            touch-action: none;
+        }
+        .route-summary-sheet__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+            min-height: 68px;
+        }
+        .route-summary-sheet__collapsed-primary {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .route-summary-sheet__vehicle-head {
+            min-width: 0;
+        }
+        .route-summary-sheet__vehicle-head strong {
+            display: block;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .route-summary-sheet__vehicle-plate {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--map-ui-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .route-summary-sheet__collapsed-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .route-summary-sheet__collapsed-meta strong {
+            font-size: 0.88rem;
+            font-weight: 800;
+        }
+        .route-summary-sheet__title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .route-summary-sheet__title strong {
+            font-size: 0.92rem;
+            white-space: nowrap;
+        }
+        .route-summary-sheet__peek {
+            font-size: 0.72rem;
+            color: var(--map-ui-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 52vw;
+        }
+        .route-summary-sheet__toggle {
+            border: none;
+            background: transparent;
+            color: var(--map-ui-muted);
+            padding: 4px;
+        }
+        .route-summary-sheet__body {
+            margin-top: 10px;
+            max-height: 0;
+            opacity: 0;
+            overflow-y: auto;
+            transition: max-height 0.3s ease, opacity 0.25s ease;
+        }
+        .route-summary-sheet.is-expanded .route-summary-sheet__body {
+            max-height: min(260px, 34vh);
+            opacity: 1;
+        }
+        .route-summary-sheet.is-expanded .route-summary-sheet__peek,
+        .route-summary-sheet.is-expanded .route-summary-sheet__title--legacy {
+            display: none;
+        }
+        .route-summary-sheet.is-expanded .route-summary-sheet__toggle i {
+            transform: rotate(180deg);
+        }
+        .route-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 14px;
+        }
+        .route-summary-vehicle {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--map-ui-border);
+        }
+        .route-summary-vehicle__heading {
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--map-ui-muted);
+            margin-bottom: 8px;
+        }
+        .route-summary-section-title {
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--map-ui-muted);
+            margin: 0 0 8px;
+        }
+        .route-summary-vehicle__meta strong {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.25;
+        }
+        .route-summary-vehicle__plate {
+            display: block;
+            margin-top: 2px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.02em;
+        }
+        .route-summary-live {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 14px;
+            margin-top: 10px;
+        }
+        .route-summary-live .info-row {
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(248, 250, 252, 0.9);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+        .route-summary-live .info-value .map-status-chip {
+            font-size: 0.62rem;
+            padding: 3px 8px;
+        }
+        @media (max-width: 640px) {
+            .route-summary-live { grid-template-columns: 1fr; }
+        }
+        .route-summary-grid .info-row {
+            margin: 0;
+        }
+        .route-summary-grid .info-label {
+            font-size: 0.68rem;
+            color: var(--map-ui-muted);
+        }
+        .route-summary-grid .info-value {
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
         .map-live-panel__grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
         }
         .map-info-chip {
@@ -663,7 +1027,8 @@
             border-color: rgba(148,163,184,0.12);
         }
         body.map-night-mode .map-live-panel__vehicle span,
-        body.map-night-mode .map-live-panel__vehicle-type {
+        body.map-night-mode .map-live-panel__vehicle-type,
+        body.map-night-mode .map-hud__plate {
             color: #94a3b8;
         }
         body.map-night-mode .map-live-panel__toggle {
@@ -671,7 +1036,14 @@
             border-color: rgba(148,163,184,0.15);
             color: #94a3b8;
         }
-        .map-hud__name { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+        .map-hud__name { font-weight: 700; font-size: 0.95rem; color: #0f172a; display: block; }
+        .map-hud__plate {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.02em;
+        }
         .map-hud__grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -707,6 +1079,71 @@
             cursor: pointer;
         }
         .map-hud__actions button:hover { border-color: var(--map-accent); color: var(--map-accent); }
+
+        .map-hud__route {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--map-ui-border);
+        }
+        .map-hud__route-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 6px 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            color: inherit;
+            font: inherit;
+        }
+        .map-hud__route-toggle i:first-child { color: var(--map-accent); font-size: 0.85rem; }
+        .map-hud__route-toggle strong {
+            flex: 1;
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .map-hud__route-toggle span {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            font-variant-numeric: tabular-nums;
+        }
+        .map-hud__route-toggle .map-hud__chevron { font-size: 0.7rem; }
+        .map-hud__route-body {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.25s ease, opacity 0.2s ease;
+        }
+        .map-hud__route.is-expanded .map-hud__route-body {
+            max-height: 220px;
+            opacity: 1;
+            margin-top: 4px;
+        }
+        .map-hud__route-rows { font-size: 0.75rem; }
+        .map-hud__route-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 3px 0;
+        }
+        .map-hud__route-row span { color: #94a3b8; font-weight: 600; }
+        .map-hud__route-row strong { color: #0f172a; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+        /* Legacy bottom panels — replaced by compact top HUD */
+        #mapLivePanel,
+        #routeSummarySheet { display: none !important; }
+
+        .smart-btn--playback {
+            background: linear-gradient(135deg, var(--map-accent), #2563eb);
+            color: #fff;
+        }
+        .smart-btn--playback:hover:not(:disabled) { color: #fff; }
+        .smart-btn--playback:disabled { opacity: 0.45; cursor: not-allowed; }
+        .smart-btn--playback.smart-btn--hidden { display: none; }
 
         .heatmap-legend {
             position: absolute;
@@ -1375,9 +1812,10 @@
                     <div class="map-live-panel__left map-live-panel__header-main">
                         <img class="map-live-panel__brand" src="{{ asset(config('branding.logo_icon')) }}" alt="">
                         <div class="map-live-panel__vehicle">
-                            <strong id="liveVehicleName">{{ $device->mapDisplayTitle() }}</strong>
-                            <span id="liveVehicleNumber">{{ $device->vehicle_number ?: $device->imei }}</span>
-                            <span class="map-live-panel__vehicle-type" id="liveVehicleType">{{ $device->deviceTypeLabel() }}</span>
+                            <strong id="liveVehicleName">{{ $device->mapMarkerTitle() }}</strong>
+                            @if($device->mapMarkerPlateLine())
+                                <span id="liveVehicleNumber">{{ $device->mapMarkerPlateLine() }}</span>
+                            @endif
                         </div>
                     </div>
                     <div class="map-live-panel__center">
@@ -1396,8 +1834,8 @@
                     </div>
                     <div class="map-live-panel__right">
                         <button type="button"
-                                class="map-live-panel__playback"
-                                id="playbackFab"
+                                class="map-live-panel__playback js-playback-fab"
+                                data-playback-fab
                                 disabled
                                 aria-label="{{ __('app.map.open_playback') }}">
                             <i class="fas fa-play" aria-hidden="true"></i>
@@ -1432,6 +1870,10 @@
                             <span class="map-info-chip__value" id="livePanelGsm">{{ __('app.map.dash') }}</span>
                         </div>
                         <div class="map-info-chip">
+                            <span class="map-info-chip__label">{{ __('app.map.satellites') }}</span>
+                            <span class="map-info-chip__value" id="livePanelSatellites">{{ __('app.map.dash') }}</span>
+                        </div>
+                        <div class="map-info-chip">
                             <span class="map-info-chip__label">{{ __('app.map.battery') }}</span>
                             <span class="map-info-chip__value" id="livePanelBattery">{{ __('app.map.dash') }}</span>
                         </div>
@@ -1443,29 +1885,160 @@
                 </div>
             </div>
 
+            <!-- Route summary (collapsible, shown after history load) -->
+            <div class="route-summary-sheet" id="routeSummarySheet" hidden aria-hidden="true">
+                <div class="route-summary-sheet__handle" id="routeSummaryHandle" aria-hidden="true"></div>
+                <div class="route-summary-sheet__header" id="routeSummaryHeader">
+                    <div class="route-summary-sheet__collapsed-primary">
+                        <div class="route-summary-sheet__vehicle-head">
+                            <strong id="rssCollapsedName">{{ $device->listPrimaryLabel() }}</strong>
+                            @if($plate = $device->listSecondaryLabel())
+                                <span class="route-summary-sheet__vehicle-plate" id="rssCollapsedPlate"><x-admin.ltr>{{ $plate }}</x-admin.ltr></span>
+                            @else
+                                <span class="route-summary-sheet__vehicle-plate" id="rssCollapsedPlate" hidden></span>
+                            @endif
+                        </div>
+                        <div class="route-summary-sheet__collapsed-meta">
+                            <span id="rssCollapsedStatus">{{ __('app.map.dash') }}</span>
+                            <strong id="rssCollapsedSpeed">{{ __('app.map.dash') }}</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="route-summary-sheet__toggle" id="routeSummaryToggle" aria-expanded="false">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                </div>
+                <div class="route-summary-sheet__body" id="routeSummaryBody">
+                    <div class="route-summary-vehicle" id="routeSummaryVehicle">
+                        <div class="route-summary-vehicle__heading">{{ __('app.map.live_vehicle') }}</div>
+                        <div class="route-summary-vehicle__meta">
+                            <strong id="rssVehicleName">{{ $device->listPrimaryLabel() }}</strong>
+                            @if($plate = $device->listSecondaryLabel())
+                                <span class="route-summary-vehicle__plate" id="rssVehiclePlate"><x-admin.ltr>{{ $plate }}</x-admin.ltr></span>
+                            @else
+                                <span class="route-summary-vehicle__plate" id="rssVehiclePlate" hidden></span>
+                            @endif
+                        </div>
+                        <div class="route-summary-live">
+                            <div class="info-row">
+                                <div class="info-label">{{ __('app.map.current_status') }}</div>
+                                <div class="info-value" id="rssCurrentStatus">{{ __('app.map.dash') }}</div>
+                            </div>
+                            <div class="info-row">
+                                <div class="info-label">{{ __('app.map.current_speed') }}</div>
+                                <div class="info-value" id="rssCurrentSpeed">{{ __('app.map.dash') }}</div>
+                            </div>
+                            <div class="info-row">
+                                <div class="info-label">{{ __('app.map.ignition') }}</div>
+                                <div class="info-value" id="rssIgnition">{{ __('app.map.dash') }}</div>
+                            </div>
+                            <div class="info-row">
+                                <div class="info-label">{{ __('app.map.last_update') }}</div>
+                                <div class="info-value" id="rssLastUpdate">{{ __('app.map.dash') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <h4 class="route-summary-section-title">{{ __('app.map.route_summary') }}</h4>
+                    <div class="route-summary-grid">
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.start_time') }}</div>
+                            <div class="info-value" id="rssStartTime">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.end_time') }}</div>
+                            <div class="info-value" id="rssEndTime">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.total_distance') }}</div>
+                            <div class="info-value" id="rssDistance">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.duration') }}</div>
+                            <div class="info-value" id="rssDuration">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.average_speed') }}</div>
+                            <div class="info-value" id="rssAvgSpeed">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.max_speed') }}</div>
+                            <div class="info-value" id="rssMaxSpeed">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.route_start') }}</div>
+                            <div class="info-value" id="rssStartPoint">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.route_end') }}</div>
+                            <div class="info-value" id="rssEndPoint">{{ __('app.map.dash') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">{{ __('app.map.parking_stops') }}</div>
+                            <div class="info-value" id="rssStopCount">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Compact top HUD (address + quick actions) -->
             <div class="map-hud is-collapsed" id="mapHud">
                 <button type="button" class="map-hud__toggle" id="mapHudToggle" aria-expanded="true" aria-controls="mapHudBody" title="{{ __('app.map.hud_toggle_title') }}">
                     <span class="map-hud__status-dot" id="hudStatusDot"></span>
-                    <span class="map-hud__toggle-text">
-                        <span class="map-hud__label">{{ __('app.map.live_vehicle') }}</span>
-                        <span class="map-hud__name">{{ $device->name }}</span>
+                        <span class="map-hud__toggle-text">
+                            <span class="map-hud__label">{{ __('app.map.live_vehicle') }}</span>
+                            <span class="map-hud__name">{{ $device->mapMarkerTitle() }}</span>
+                            @if($device->mapMarkerPlateLine())
+                                <span class="map-hud__plate">{{ $device->mapMarkerPlateLine() }}</span>
+                            @endif
+                        </span>
+                    <span class="map-hud__mini-group">
+                        <span class="map-hud__mini-status" id="hudMiniStatus"></span>
+                        <span class="map-hud__mini" id="hudMiniSpeed">—</span>
                     </span>
-                    <span class="map-hud__mini" id="hudMiniSpeed">—</span>
                     <i class="fas fa-chevron-up map-hud__chevron" aria-hidden="true"></i>
                 </button>
                 <div class="map-hud__body" id="mapHudBody">
-                <div class="map-hud__grid">
+                <div class="map-hud__last-known" id="hudDelayedInfo" hidden>
+                    <div class="map-hud__route-row"><span>{{ __('app.map.last_seen') }}</span><strong id="hudDelayedLastSeen">—</strong></div>
+                </div>
+                <div class="map-hud__last-known" id="hudLastKnown" hidden>
+                    <div class="map-hud__route-row"><span>{{ __('app.map.last_seen') }}</span><strong id="hudLastSeen">—</strong></div>
+                    <div class="map-hud__route-row"><span>{{ __('app.map.last_known_status') }}</span><strong id="hudLastKnownStatus">—</strong></div>
+                    <div class="map-hud__route-row"><span>{{ __('app.map.last_known_speed') }}</span><strong id="hudLastKnownSpeed">—</strong></div>
+                    <div class="map-hud__route-row"><span>{{ __('app.map.last_known_ignition') }}</span><strong id="hudLastKnownIgnition">—</strong></div>
+                </div>
+                <div class="map-hud__grid" id="hudTelemetryGrid">
                     <div class="map-hud__cell"><span>{{ __('app.map.speed') }}</span><strong id="hudSpeed">—</strong></div>
                     <div class="map-hud__cell"><span>{{ __('app.map.heading') }}</span><strong id="hudHeading">—</strong></div>
+                    <div class="map-hud__cell"><span>{{ __('app.map.ignition') }}</span><strong id="hudIgnition">—</strong></div>
+                    <div class="map-hud__cell"><span>{{ __('app.map.battery') }}</span><strong id="hudBattery">—</strong></div>
+                    <div class="map-hud__cell"><span>{{ __('app.map.gsm_signal') }}</span><strong id="hudGsm">—</strong></div>
+                    <div class="map-hud__cell"><span>{{ __('app.map.satellites') }}</span><strong id="hudSatellites">—</strong></div>
+                    <div class="map-hud__cell"><span>{{ __('app.map.gps_signal') }}</span><strong id="hudGps">—</strong></div>
                     <div class="map-hud__cell"><span>{{ __('app.map.updated') }}</span><strong id="hudUpdated">—</strong></div>
-                    <div class="map-hud__cell"><span>{{ __('app.map.coords') }}</span><strong id="hudCoords">—</strong></div>
                 </div>
                 <div class="map-hud__address" id="hudAddress">{{ __('app.map.address_loading') }}</div>
                 <div class="map-hud__actions">
                     <button type="button" id="btnCopyCoords"><i class="fas fa-copy"></i> {{ __('app.map.copy') }}</button>
                     <button type="button" id="btnOpenMaps"><i class="fas fa-external-link-alt"></i> {{ __('app.map.open_maps') }}</button>
                     <button type="button" id="btnStreetView"><i class="fas fa-street-view"></i> {{ __('app.map.street_view') }}</button>
+                </div>
+                <div class="map-hud__route" id="hudRouteSection" hidden>
+                    <button type="button" class="map-hud__route-toggle" id="hudRouteToggle" aria-expanded="false">
+                        <i class="fas fa-route" aria-hidden="true"></i>
+                        <strong>{{ __('app.map.route_summary') }}</strong>
+                        <span id="hudRoutePeek">—</span>
+                        <i class="fas fa-chevron-down map-hud__chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="map-hud__route-body" id="hudRouteBody">
+                        <div class="map-hud__route-rows">
+                            <div class="map-hud__route-row"><span>{{ __('app.map.start_time') }}</span><strong id="hudRouteStart">—</strong></div>
+                            <div class="map-hud__route-row"><span>{{ __('app.map.end_time') }}</span><strong id="hudRouteEnd">—</strong></div>
+                            <div class="map-hud__route-row"><span>{{ __('app.map.total_distance') }}</span><strong id="hudRouteDistance">—</strong></div>
+                            <div class="map-hud__route-row"><span>{{ __('app.map.max_speed') }}</span><strong id="hudRouteMaxSpeed">—</strong></div>
+                            <div class="map-hud__route-row"><span>{{ __('app.map.average_speed') }}</span><strong id="hudRouteAvgSpeed">—</strong></div>
+                            <div class="map-hud__route-row"><span>{{ __('app.map.duration') }}</span><strong id="hudRouteDuration">—</strong></div>
+                        </div>
+                    </div>
                 </div>
                 </div>
             </div>
@@ -1517,11 +2090,17 @@
 
                     <div class="playback-toolbar">
                         <div class="playback-transport">
+                            <button type="button" class="playback-btn playback-btn--ghost" id="pbStepBack" title="{{ __('app.map.step_back') }}">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
                             <button type="button" class="playback-btn playback-btn--ghost" id="pbRewind" title="{{ __('app.map.restart') }}">
                                 <i class="fas fa-rotate-left"></i>
                             </button>
                             <button type="button" class="playback-btn playback-btn--primary" id="pbPlayPause" title="{{ __('app.map.play') }}">
                                 <i class="fas fa-play" id="pbPlayPauseIcon"></i>
+                            </button>
+                            <button type="button" class="playback-btn playback-btn--ghost" id="pbStepForward" title="{{ __('app.map.step_forward') }}">
+                                <i class="fas fa-step-forward"></i>
                             </button>
                             <button type="button" class="playback-btn playback-btn--ghost" id="pbStop" title="{{ __('app.map.stop') }}">
                                 <i class="fas fa-stop"></i>
@@ -1530,10 +2109,10 @@
                         <div class="playback-speed-group">
                             <span class="playback-speed-label">{{ __('app.map.speed_label') }}</span>
                             <div class="playback-speed-pills">
-                                <button type="button" class="speed-btn" data-speed="0.5">0.5×</button>
                                 <button type="button" class="speed-btn active" data-speed="1">1×</button>
                                 <button type="button" class="speed-btn" data-speed="2">2×</button>
                                 <button type="button" class="speed-btn" data-speed="4">4×</button>
+                                <button type="button" class="speed-btn" data-speed="8">8×</button>
                             </div>
                         </div>
                     </div>
@@ -1580,6 +2159,15 @@
                     <button class="smart-btn" id="btnNightMode" title="{{ __('app.map.night_mode') }}"><i class="fas fa-moon"></i></button>
                     <button class="smart-btn" id="btnExportRoute" title="{{ __('app.map.export_csv_title') }}"><i class="fas fa-download"></i></button>
                     <button class="smart-btn" id="btnStops" title="{{ __('app.map.parking_stops') }}"><i class="fas fa-parking"></i></button>
+                    <button type="button"
+                            class="smart-btn smart-btn--playback js-playback-fab"
+                            id="playbackFab"
+                            data-playback-fab
+                            disabled
+                            title="{{ __('app.map.open_playback') }}"
+                            aria-label="{{ __('app.map.open_playback') }}">
+                        <i class="fas fa-play" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1611,7 +2199,12 @@
             deviceId: {{ $device->id }},
             mapToken: @json($mapToken ?? ''),
             deviceName: @json($device->mapMarkerTitle()),
-            mapDisplayTitle: @json($device->mapDisplayTitle()),
+            mapDisplayTitle: @json($device->vehicleDisplayName()),
+            markerLabel: @json($device->mapMarkerTitle()),
+            markerTitle: @json($device->mapMarkerTitle()),
+            markerPlate: @json($device->mapMarkerPlateLine()),
+            vehicleName: @json($device->vehicle_name),
+            vehicleNumber: @json($device->vehicle_number),
             deviceTypeLabel: @json($device->deviceTypeLabel()),
             isAdminMap: @json($isAdminMap ?? false),
             apiRoutes: @json($mapApiRoutes ?? []),
@@ -1627,8 +2220,10 @@
             idleSpeedKmh: 0.5,
             parkedIconSpeedKmh: 0.1,
             motionDetectKm: 0.004,
-            onlineMinutes: 5,
-            pollIntervalMs: 5000,
+            onlineMinutes: {{ \App\Services\Mobile\MobileMapStatusResolver::OFFLINE_MINUTES }},
+            recentMinutes: {{ \App\Services\Mobile\MobileMapStatusResolver::RECENT_MINUTES }},
+            offlineMinutes: {{ \App\Services\Mobile\MobileMapStatusResolver::OFFLINE_MINUTES }},
+            pollIntervalMs: 3000,
             stopMinMinutes: 2,
             stopIcon: @json(asset('images/stop.svg')),
             startIcon: @json(asset('images/map/marker-start.svg')),
@@ -1636,7 +2231,7 @@
             parkingIcon: @json(asset('images/stop.svg')),
             brandLogo: @json(asset(config('branding.logo'))),
             brandLogoIcon: @json(asset(config('branding.logo_icon'))),
-            vehicleNumber: @json($device->vehicle_number ?: $device->imei),
+            vehicleNumber: @json($device->vehiclePlateNumber()),
             backUrl: @json(($isAdminMap ?? false) ? route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') : route('user.devices.index')),
             mediumSpeedKmh: 60,
             routeGlowEnabled: true,
@@ -1662,6 +2257,9 @@
                 km: @json(__('app.map.km_unit')),
                 ignitionOn: @json(__('app.map.ignition_on')),
                 ignitionOff: @json(__('app.map.ignition_off')),
+                ignition: @json(__('app.map.ignition')),
+                currentStatus: @json(__('app.map.current_status')),
+                vehicleNumber: @json(__('app.forms.vehicle_number')),
                 statusOnline: @json(__('app.map.status_online')),
                 statusPowerCut: @json(__('app.map.status_power_cut')),
                 statusSos: @json(__('app.map.status_sos')),
@@ -1672,6 +2270,11 @@
                 statusParked: @json(__('app.map.status_parked')),
                 statusIdle: @json(__('app.map.status_idle')),
                 statusOffline: @json(__('app.map.status_offline')),
+                statusDelayed: @json(__('app.map.status_delayed')),
+                lastSeen: @json(__('app.map.last_seen')),
+                lastKnownStatus: @json(__('app.map.last_known_status')),
+                lastKnownSpeed: @json(__('app.map.last_known_speed')),
+                lastKnownIgnition: @json(__('app.map.last_known_ignition')),
                 centerVehicle: @json(__('app.map.center_vehicle')),
                 routeStart: @json(__('app.map.route_start')),
                 routeEnd: @json(__('app.map.route_end')),
@@ -1712,6 +2315,7 @@
                 historyFallbackLastKnownActivity: @json(__('app.map.history_fallback_last_known_activity')),
                 historyFallbackLastActivityDay: @json(__('app.map.history_fallback_last_activity_day')),
                 historyFallback30Days: @json(__('app.map.history_fallback_30_days')),
+                historyFallbackSelectedPeriod: @json(__('app.map.history_fallback_selected_period')),
                 deviceOffline: @json(__('app.map.device_offline')),
                 overspeedDetail: @json(__('app.map.overspeed_detail')),
                 adminLocations: @json(__('app.admin.locations.title')),

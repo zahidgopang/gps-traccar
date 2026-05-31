@@ -186,7 +186,9 @@ class AlertController extends Controller
 
         return array_merge($event->toAlertArray(), [
             'device_id' => $event->device_id,
-            'device_name' => $device?->name,
+            'device_name' => $device?->notificationDisplayName(),
+            'vehicle_name' => $device?->vehicle_name,
+            'vehicle_number' => $device?->vehicle_number,
             'read' => in_array($event->id, $readIds, true),
         ]);
     }

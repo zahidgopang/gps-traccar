@@ -93,9 +93,9 @@
                     <tr>
                         <td><x-admin.ltr tag="code">{{ $d->imei }}</x-admin.ltr></td>
                         <td>
-                            <strong>{{ $d->mapDisplayTitle() }}</strong>
-                            @if($d->vehicle_number)
-                                <small class="d-block text-muted"><x-admin.ltr>{{ $d->vehicle_number }}</x-admin.ltr></small>
+                            <strong>{{ $d->listPrimaryLabel() }}</strong>
+                            @if($plate = $d->listSecondaryLabel())
+                                <small class="d-block text-muted"><x-admin.ltr>{{ $plate }}</x-admin.ltr></small>
                             @endif
                             @if($d->vehicle_model)
                                 <small class="d-block text-muted">{{ $d->vehicle_model }}</small>

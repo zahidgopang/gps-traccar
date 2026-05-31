@@ -337,12 +337,89 @@ class Device extends Model
         $type = $this->device_type;
 
         if ($type && isset(self::LEGACY_DEVICE_TYPE_MAP[$type])) {
-            $mapped = self::LEGACY_DEVICE_TYPE_MAP[$type];
-
-            return $this->typeLabelFor($mapped, self::DEVICE_TYPES, 'device_type');
+            $type = self::LEGACY_DEVICE_TYPE_MAP[$type];
         }
 
         return $this->typeLabelFor($type, self::DEVICE_TYPES, 'device_type');
+    }
+
+    /**
+     * Vehicle name for map and fleet UI (primary label with fallbacks).
+     */
+    public function vehicleDisplayName(): string
+    {
+        return $this->mapMarkerTitle();
+    }
+
+    public function vehiclePlateNumber(): ?string
+    {
+        $plate = trim((string) ($this->vehicle_number ?? ''));
+
+        return $plate !== '' ? $plate : null;
+    }
+
+    /**
+     * Primary line on map marker badge: vehicle name, else plate, else fallback.
+     */
+    public function mapMarkerTitle(): string
+    {
+        $name = trim((string) ($this->vehicle_name ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        $plate = $this->vehiclePlateNumber();
+        if ($plate !== null) {
+            return $plate;
+        }
+
+        $label = trim((string) ($this->name ?? ''));
+
+        return $label !== '' ? $label : 'Device';
+    }
+
+    /**
+     * Secondary line on map marker badge: plate shown below vehicle name.
+     */
+    public function mapMarkerPlateLine(): ?string
+    {
+        $name = trim((string) ($this->vehicle_name ?? ''));
+        if ($name === '') {
+            return null;
+        }
+
+        return $this->vehiclePlateNumber();
+    }
+
+    /**
+     * @deprecated Use mapMarkerTitle()
+     */
+    public function mapMarkerLabel(): string
+    {
+        return $this->mapMarkerTitle();
+    }
+
+    /**
+     * Push notifications and alert lists: "Vehicle Name · Plate".
+     */
+    public function notificationDisplayName(): string
+    {
+        $name = trim((string) ($this->vehicle_name ?? ''));
+        $plate = trim((string) ($this->vehicle_number ?? ''));
+
+        if ($name !== '' && $plate !== '') {
+            return $name.' · '.$plate;
+        }
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        if ($plate !== '') {
+            return $plate;
+        }
+
+        return 'Vehicle';
     }
 
     public function deviceTypeIconClass(): string
@@ -373,43 +450,52 @@ class Device extends Model
     }
 
     /**
-     * Primary title on the live map (vehicle name preferred).
+     * Primary title on the live map (vehicle name, else plate, else device label).
      */
     public function mapDisplayTitle(): string
     {
-        $title = trim((string) ($this->vehicle_name ?: $this->name ?: $this->imei));
-
-        return $title !== '' ? $title : '—';
+        return $this->mapMarkerTitle();
     }
 
     /**
-     * Marker tooltip: vehicle name + device type.
+     * Secondary line under map title (plate number only).
      */
-    public function mapMarkerTitle(): string
+    public function mapNavSubtitle(): ?string
     {
-        $name = trim((string) ($this->vehicle_name ?: $this->name));
-        $deviceType = $this->device_type ? $this->deviceTypeLabel() : '';
+        return $this->vehiclePlateNumber();
+    }
 
-        if ($name !== '' && $deviceType !== '' && $deviceType !== '—') {
-            return $name . ' · ' . $deviceType;
+    /**
+     * Primary line for device lists: vehicle name, else plate, else device label.
+     */
+    public function listPrimaryLabel(): string
+    {
+        $name = trim((string) ($this->vehicle_name ?? ''));
+        if ($name !== '') {
+            return $name;
         }
 
-        return $name !== '' ? $name : ($deviceType !== '' && $deviceType !== '—' ? $deviceType : 'Vehicle');
+        $plate = $this->vehiclePlateNumber();
+        if ($plate !== null) {
+            return $plate;
+        }
+
+        $label = trim((string) ($this->name ?? ''));
+
+        return $label !== '' ? $label : 'Device';
     }
 
     /**
-     * Secondary line under map title (plate, vehicle type, device type).
+     * Secondary line for device lists: plate below vehicle name.
      */
-    public function mapNavSubtitle(): string
+    public function listSecondaryLabel(): ?string
     {
-        $parts = array_filter([
-            $this->vehicle_number ? trim($this->vehicle_number) : null,
-            $this->vehicle_model ? trim($this->vehicle_model) : null,
-            $this->vehicle_type ? $this->vehicleTypeLabel() : null,
-            $this->device_type ? $this->deviceTypeLabel() : null,
-        ], fn ($v) => $v !== null && $v !== '' && $v !== '—');
+        $name = trim((string) ($this->vehicle_name ?? ''));
+        if ($name === '') {
+            return null;
+        }
 
-        return implode(' · ', $parts);
+        return $this->vehiclePlateNumber();
     }
 
     /**
@@ -421,9 +507,34 @@ class Device extends Model
             return '—';
         }
 
-        $key = 'app.forms.' . $translationPrefix . '_' . $value;
+        $key = 'app.forms.'.$translationPrefix.'_'.$value;
 
-        return __($key) !== $key ? __($key) : ($types[$value] ?? ucfirst($value));
+        if (__($key) !== $key) {
+            return __($key);
+        }
+
+        if (isset($types[$value])) {
+            return $types[$value];
+        }
+
+        $canonical = $translationPrefix === 'device_type'
+            ? self::canonicalDeviceType($value)
+            : $value;
+
+        if ($canonical !== null && isset($types[$canonical])) {
+            return $types[$canonical];
+        }
+
+        return self::formatRawTypeLabel($value);
+    }
+
+    public static function formatRawTypeLabel(?string $value): string
+    {
+        if ($value === null || trim($value) === '') {
+            return '—';
+        }
+
+        return ucwords(str_replace(['_', '-'], ' ', strtolower(trim($value))));
     }
 
     public function isAccountActive(): bool

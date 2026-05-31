@@ -103,8 +103,12 @@ Route::middleware(['auth', 'user.active', 'tracker.access'])->group(function () 
     Route::get('/user/change-password', [UserController::class, 'changePassword'])->name('user.change.password');
     Route::post('/user/change-password/update', [UserController::class, 'updatePassword'])->name('user.password.update');
 
-    Route::delete('/user/geofence/{id}', [GeofenceController::class, 'destroy']);
-    Route::post('/user/geofence/{id}/update', [GeofenceController::class, 'update']);
+    Route::delete('/user/geofence/{id}', [GeofenceController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('user.geofence.destroy');
+    Route::post('/user/geofence/{id}/update', [GeofenceController::class, 'update'])
+        ->whereNumber('id')
+        ->name('user.geofence.update');
 
     // User Devices Routes
     Route::prefix('user/devices')->name('user.devices.')->group(function () {
@@ -232,9 +236,14 @@ Route::middleware(['auth', 'panel:admin', 'can:admin'])
         Route::post('device/{token}/geofences-save', [GeofenceController::class, 'store'])
             ->where('token', '[A-Za-z0-9_-]+')
             ->name('device.geofences.save');
-        Route::delete('geofence/{id}', [GeofenceController::class, 'destroy'])->name('geofence.destroy');
-        Route::post('geofence/{id}/update', [GeofenceController::class, 'update'])->name('geofence.update');
         });
+
+        Route::delete('geofence/{id}', [GeofenceController::class, 'destroy'])
+            ->whereNumber('id')
+            ->name('geofence.destroy');
+        Route::post('geofence/{id}/update', [GeofenceController::class, 'update'])
+            ->whereNumber('id')
+            ->name('geofence.update');
     });
 
 /*
@@ -326,9 +335,14 @@ Route::middleware(['auth', 'panel:client', 'can:client-panel'])
             Route::post('device/{token}/geofences-save', [GeofenceController::class, 'store'])
                 ->where('token', '[A-Za-z0-9_-]+')
                 ->name('device.geofences.save');
-            Route::delete('geofence/{id}', [GeofenceController::class, 'destroy'])->name('geofence.destroy');
-            Route::post('geofence/{id}/update', [GeofenceController::class, 'update'])->name('geofence.update');
         });
+
+        Route::delete('geofence/{id}', [GeofenceController::class, 'destroy'])
+            ->whereNumber('id')
+            ->name('geofence.destroy');
+        Route::post('geofence/{id}/update', [GeofenceController::class, 'update'])
+            ->whereNumber('id')
+            ->name('geofence.update');
     });
 
 /*

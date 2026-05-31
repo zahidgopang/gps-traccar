@@ -98,10 +98,10 @@
                     @endphp
                     <tr data-device-id="{{ $d->id }}">
                         <td>
-                            <strong>{{ $d->mapDisplayTitle() }}</strong>
+                            <strong>{{ $d->listPrimaryLabel() }}</strong>
                             <small class="d-block text-muted"><x-admin.ltr tag="code">{{ $d->imei }}</x-admin.ltr></small>
-                            @if($d->vehicle_number)
-                                <small class="d-block text-muted"><x-admin.ltr>{{ $d->vehicle_number }}</x-admin.ltr></small>
+                            @if($plate = $d->listSecondaryLabel())
+                                <small class="d-block text-muted"><x-admin.ltr>{{ $plate }}</x-admin.ltr></small>
                             @endif
                         </td>
                         <td>

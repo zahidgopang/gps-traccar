@@ -1,7 +1,5 @@
 ﻿<!-- Premium Map Sidebar -->
 <div class="filter-panel" id="filterPanel">
-    <!-- Sidebar Header -->
-    <!-- Sidebar Header -->
     <div class="sidebar-header">
         <a href="{{ ($isAdminMap ?? false) ? route(request()->routeIs('client.*') ? 'client.locations.index' : 'admin.locations.index') : route('user.devices.index') }}" class="sidebar-back-link" data-map-tour="sidebar-back">
             <i class="fas fa-arrow-left" aria-hidden="true"></i>
@@ -12,590 +10,702 @@
         </button>
     </div>
 
-    <!-- Date Range -->
-    <div class="filter-section" data-map-tour="date-range">
-        <label class="form-label fw-semibold mb-2">
-            <i class="fas fa-calendar-alt me-2"></i>{{ __('app.map.date_range') }}
-        </label>
-        <input id="dateRange" class="form-control form-control-premium mb-2 no-select2"
-               placeholder="{{ __('app.map.date_placeholder') }}" readonly data-flatpickr-manual>
-        <small class="text-muted d-block mb-3" style="font-size: 0.75rem;">
-            {{ __('app.map.date_hint') }}
-        </small>
-    </div>
+    {{-- Date filter --}}
+    <section class="sidebar-section sidebar-section--filter" data-map-tour="date-range">
+        <h6 class="sidebar-section__title">
+            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+            {{ __('app.map.date_range') }}
+        </h6>
 
-    <!-- Apply Filter -->
-    <button id="applyFilter" class="btn btn-premium w-100 mb-4">
-        <i class="fas fa-search me-2"></i>{{ __('app.map.search_history') }}
-    </button>
-
-    <!-- Device Summary Card -->
-    <div class="premium-card mb-4" data-map-tour="device-summary">
-        <div class="card-header">
-            <h6 class="mb-0">
-                <i class="fas fa-info-circle me-2"></i>{{ __('app.map.device_summary') }}
-            </h6>
+        <div class="date-preset-grid" role="group" aria-label="{{ __('app.map.date_range') }}">
+            <button type="button" class="date-preset-btn is-active" data-date-preset="24h">{{ __('app.map.preset_last_24_hours') }}</button>
+            <button type="button" class="date-preset-btn" data-date-preset="today">{{ __('app.map.preset_today') }}</button>
+            <button type="button" class="date-preset-btn" data-date-preset="yesterday">{{ __('app.map.preset_yesterday') }}</button>
+            <button type="button" class="date-preset-btn" data-date-preset="7d">{{ __('app.map.preset_last_7_days') }}</button>
+            <button type="button" class="date-preset-btn" data-date-preset="30d">{{ __('app.map.preset_last_30_days') }}</button>
         </div>
-        <div class="card-body">
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.device_name') }}</div>
-                <div class="info-value">{{ $device->name }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.imei_number') }}</div>
-                <div class="info-value">
-                    <code class="bg-light p-1 rounded">{{ $device->imei }}</code>
+
+        <div class="date-fields-grid">
+            <div class="date-field">
+                <label class="date-field__label" for="dateFrom">{{ __('app.map.from_date') }}</label>
+                <div class="date-field__input-wrap">
+                    <i class="fas fa-calendar-day date-field__icon" aria-hidden="true"></i>
+                    <input id="dateFrom" class="date-field__input no-select2" type="text"
+                           placeholder="{{ __('app.map.date_placeholder') }}" readonly autocomplete="off" data-flatpickr-manual>
                 </div>
             </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.last_update') }}</div>
-                <div class="info-value text-success" id="lastSeen">-</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.current_status') }}</div>
-                <div class="info-value">
-                    <span class="badge bg-secondary" id="curStatus">{{ __('app.map.dash') }}</span>
+            <div class="date-field">
+                <label class="date-field__label" for="dateTo">{{ __('app.map.to_date') }}</label>
+                <div class="date-field__input-wrap">
+                    <i class="fas fa-calendar-day date-field__icon" aria-hidden="true"></i>
+                    <input id="dateTo" class="date-field__input no-select2" type="text"
+                           placeholder="{{ __('app.map.date_placeholder') }}" readonly autocomplete="off" data-flatpickr-manual>
                 </div>
             </div>
         </div>
-    </div>
 
+        <button type="button" id="applyFilter" class="btn-search-history">
+            <span class="search-btn__spinner" hidden aria-hidden="true"><i class="fas fa-circle-notch fa-spin"></i></span>
+            <span class="search-btn__label"><i class="fas fa-search" aria-hidden="true"></i> {{ __('app.map.search') }}</span>
+        </button>
+        <p class="sidebar-hint">{{ __('app.map.date_hint_from_to') }}</p>
+    </section>
 
-    <div class="premium-card mb-4">
-        <div class="card-header"><h6 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>{{ __('app.map.live_telemetry') }}</h6></div>
-        <div class="card-body">
-            <div class="info-row"><div class="info-label">{{ __('app.map.speed') }}</div><div class="info-value" id="telemetrySpeed">{{ __('app.map.dash') }}</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.heading') }}</div><div class="info-value" id="telemetryHeading">{{ __('app.map.dash') }}</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.battery') }}</div><div class="info-value" id="telemetryBattery">{{ __('app.map.dash') }}</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.ignition') }}</div><div class="info-value" id="telemetryIgnition">{{ __('app.map.dash') }}</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.gsm_signal') }}</div><div class="info-value" id="telemetryGsm">{{ __('app.map.dash') }}</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.satellites') }}</div><div class="info-value" id="telemetrySatellites">{{ __('app.map.dash') }}</div></div>
-            <div class="info-row"><div class="info-label">{{ __('app.map.odometer') }}</div><div class="info-value" id="telemetryOdometer">{{ __('app.map.dash') }}</div></div>
+    {{-- Device summary hero --}}
+    <section class="device-hero-card" data-map-tour="device-summary">
+        <div class="device-hero-card__top">
+            <div class="device-hero-card__avatar" aria-hidden="true"><i class="fas fa-truck"></i></div>
+            <div class="device-hero-card__meta">
+                <strong class="device-hero-card__name">{{ $device->listPrimaryLabel() }}</strong>
+                @if($plate = $device->listSecondaryLabel())
+                    <span class="device-hero-card__plate"><x-admin.ltr>{{ $plate }}</x-admin.ltr></span>
+                @endif
+            </div>
+            <span class="map-status-chip map-status-chip--offline" id="curStatus">{{ __('app.map.dash') }}</span>
         </div>
-    </div>
-
-
-    <!-- Route Summary Card -->
-    <div class="premium-card mb-4" data-map-tour="route-summary">
-        <div class="card-header">
-            <h6 class="mb-0">
-                <i class="fas fa-route me-2"></i>{{ __('app.map.route_summary') }}
-            </h6>
-        </div>
-        <div class="card-body">
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.total_distance') }}</div>
-                <div class="info-value" id="totalDistance">- km</div>
+        <div class="device-hero-card__stats">
+            <div class="device-stat">
+                <span class="device-stat__label">{{ __('app.map.last_update') }}</span>
+                <span class="device-stat__value" id="lastSeen">{{ __('app.map.dash') }}</span>
             </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.duration') }}</div>
-                <div class="info-value" id="routeDuration">-</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.average_speed') }}</div>
-                <div class="info-value" id="avgSpeed">- km/h</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.max_speed') }}</div>
-                <div class="info-value" id="maxSpeed">- km/h</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.moving_time') }}</div>
-                <div class="info-value" id="movingTime">{{ __('app.map.dash') }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.stopped_time') }}</div>
-                <div class="info-value" id="stoppedTime">{{ __('app.map.dash') }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.overspeed_events') }}</div>
-                <div class="info-value" id="overspeedCount">0</div>
+            <div class="device-stat">
+                <span class="device-stat__label">{{ __('app.map.imei_number') }}</span>
+                <span class="device-stat__value device-stat__value--mono">{{ $device->imei }}</span>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="premium-card mb-4" data-map-tour="trip-events">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="mb-0"><i class="fas fa-list-ul me-2"></i>{{ __('app.map.trip_events') }}</h6>
-            <small class="text-muted" id="tripEventsCount">0</small>
+    <p class="sidebar-map-hint">
+        <i class="fas fa-route" aria-hidden="true"></i>
+        {{ __('app.map.route_summary_map_hint') }}
+    </p>
+
+    {{-- Collapsible panels --}}
+    <details class="sidebar-accordion" open>
+        <summary class="sidebar-accordion__summary">
+            <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
+            {{ __('app.map.live_telemetry') }}
+        </summary>
+        <div class="sidebar-accordion__body">
+            <div class="telemetry-grid">
+                <div class="telemetry-cell"><span>{{ __('app.map.speed') }}</span><strong id="telemetrySpeed">{{ __('app.map.dash') }}</strong></div>
+                <div class="telemetry-cell"><span>{{ __('app.map.heading') }}</span><strong id="telemetryHeading">{{ __('app.map.dash') }}</strong></div>
+                <div class="telemetry-cell"><span>{{ __('app.map.battery') }}</span><strong id="telemetryBattery">{{ __('app.map.dash') }}</strong></div>
+                <div class="telemetry-cell"><span>{{ __('app.map.ignition') }}</span><strong id="telemetryIgnition">{{ __('app.map.dash') }}</strong></div>
+                <div class="telemetry-cell"><span>{{ __('app.map.gsm_signal') }}</span><strong id="telemetryGsm">{{ __('app.map.dash') }}</strong></div>
+                <div class="telemetry-cell"><span>{{ __('app.map.satellites') }}</span><strong id="telemetrySatellites">{{ __('app.map.dash') }}</strong></div>
+                <div class="telemetry-cell telemetry-cell--wide"><span>{{ __('app.map.odometer') }}</span><strong id="telemetryOdometer">{{ __('app.map.dash') }}</strong></div>
+            </div>
         </div>
-        <div class="card-body p-0">
+    </details>
+
+    <details class="sidebar-accordion" data-map-tour="trip-events">
+        <summary class="sidebar-accordion__summary">
+            <i class="fas fa-list-ul" aria-hidden="true"></i>
+            {{ __('app.map.trip_events') }}
+            <span class="sidebar-accordion__badge" id="tripEventsCount">0</span>
+        </summary>
+        <div class="sidebar-accordion__body sidebar-accordion__body--flush">
             <div class="trip-events-list" id="tripEventsList">
-                <div class="trip-event-empty text-muted small text-center py-3">{{ __('app.map.load_history_stops') }}</div>
+                <div class="trip-event-empty">{{ __('app.map.load_history_stops') }}</div>
             </div>
         </div>
-    </div>
+    </details>
 
-    <div class="premium-card mb-4">
-        <div class="card-header"><h6 class="mb-0"><i class="fas fa-file-export me-2"></i>{{ __('app.map.export') }}</h6></div>
-        <div class="card-body d-grid gap-2">
-            <button type="button" class="btn btn-outline-premium btn-sm" id="btnExportCsv"><i class="fas fa-file-csv me-2"></i>{{ __('app.map.export_csv') }}</button>
-            <button type="button" class="btn btn-outline-premium btn-sm" id="btnExportGpx"><i class="fas fa-route me-2"></i>{{ __('app.map.export_gpx') }}</button>
-        </div>
-    </div>
-
-    <!-- Idle Summary Card -->
-    <div class="premium-card mb-4">
-        <div class="card-header">
-            <h6 class="mb-0">
-                <i class="fas fa-clock me-2"></i>Idle Summary
-            </h6>
-        </div>
-        <div class="card-body">
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.idle_events') }}</div>
-                <div class="info-value" id="idleCount">0</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">{{ __('app.map.total_idle_time') }}</div>
-                <div class="info-value" id="idleTotal">0m</div>
+    <details class="sidebar-accordion">
+        <summary class="sidebar-accordion__summary">
+            <i class="fas fa-file-export" aria-hidden="true"></i>
+            {{ __('app.map.export') }}
+        </summary>
+        <div class="sidebar-accordion__body">
+            <div class="sidebar-actions-stack">
+                <button type="button" class="sidebar-action-btn" id="btnExportCsv"><i class="fas fa-file-csv"></i> {{ __('app.map.export_csv') }}</button>
+                <button type="button" class="sidebar-action-btn" id="btnExportGpx"><i class="fas fa-route"></i> {{ __('app.map.export_gpx') }}</button>
             </div>
         </div>
-    </div>
+    </details>
 
-    <!-- Geofences Card -->
-    <div class="premium-card mb-4" data-map-tour="geofence-list">
-        <div class="card-header">
-            <h6 class="mb-0">
-                <i class="fas fa-draw-polygon me-2"></i>Geofences
-            </h6>
-        </div>
-        <div class="card-body">
+    <details class="sidebar-accordion" data-map-tour="geofence-list">
+        <summary class="sidebar-accordion__summary">
+            <i class="fas fa-draw-polygon" aria-hidden="true"></i>
+            {{ __('app.map.geofences') }}
+        </summary>
+        <div class="sidebar-accordion__body">
             <div class="geofence-list" id="geofenceList">
-                <div class="text-center py-3">
-                    <i class="fas fa-spinner fa-spin me-2"></i>
-                    <span>{{ __('app.map.loading_geofences') }}</span>
-                </div>
+                <div class="sidebar-loading"><i class="fas fa-spinner fa-spin"></i> {{ __('app.map.loading_geofences') }}</div>
             </div>
         </div>
-    </div>
+    </details>
 
-    <!-- Address Lookup -->
-    <div class="premium-card">
-        <div class="card-header">
-            <h6 class="mb-0">
-                <i class="fas fa-map-marker-alt me-2"></i>Address Lookup
-            </h6>
-        </div>
-        <div class="card-body">
-            <div class="geofence-manage-list" id="geofenceManageList"></div>
-            <button id="reverseBtn" class="btn btn-outline-premium w-100 mt-2">
-                <i class="fas fa-search-location me-2"></i>{{ __('app.map.get_address') }}
+    <details class="sidebar-accordion">
+        <summary class="sidebar-accordion__summary">
+            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+            {{ __('app.map.address_lookup') }}
+        </summary>
+        <div class="sidebar-accordion__body">
+            <button type="button" id="reverseBtn" class="sidebar-action-btn sidebar-action-btn--primary">
+                <i class="fas fa-search-location"></i> {{ __('app.map.get_address') }}
             </button>
-            <div id="addressBox" class="address-result mt-3 p-3 rounded"></div>
+            <div id="addressBox" class="address-result" role="status" aria-live="polite"></div>
         </div>
-    </div>
+    </details>
 </div>
 
 <style>
-    /* Premium Map Sidebar Styles */
     .filter-panel {
-        width: 380px;
+        width: 340px;
         position: fixed;
         top: 70px;
         left: 0;
-        right: auto;
         height: calc(100vh - 70px);
-        background: var(--map-sidebar);
-        border-inline-end: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.3);
-        padding: 1.5rem;
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        border-inline-end: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.25);
+        padding: 1rem 1rem 2rem;
         overflow-x: hidden;
         overflow-y: auto;
         transition: transform 0.35s ease;
         z-index: 1050;
         box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.2) transparent;
     }
 
-    html[dir="ltr"] .filter-panel#filterPanel:not(.show) {
-        transform: translateX(-100%);
-    }
-
+    html[dir="ltr"] .filter-panel#filterPanel:not(.show) { transform: translateX(-100%); }
     html[dir="rtl"] .filter-panel#filterPanel {
         left: auto !important;
         right: 0 !important;
         border-inline-end: none;
-        border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: -8px 0 25px rgba(0, 0, 0, 0.3);
+        border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.25);
     }
+    html[dir="rtl"] .filter-panel#filterPanel:not(.show) { transform: translateX(100%) !important; }
+    .filter-panel#filterPanel.show { transform: translateX(0) !important; }
 
-    html[dir="rtl"] .filter-panel#filterPanel:not(.show) {
-        transform: translateX(100%) !important;
-    }
-
-    .filter-panel#filterPanel.show {
-        transform: translateX(0) !important;
-    }
-
-    /* Sidebar Header */
     .sidebar-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 10px;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .sidebar-back-link {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.85);
         text-decoration: none;
-        padding: 4px 0;
-        transition: color 0.2s;
     }
-
-    .sidebar-back-link:hover {
-        color: #fff;
-    }
-
-    .sidebar-back-link i {
-        font-size: 0.72rem;
-    }
-
-    .device-avatar {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, var(--map-primary), #2196F3);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.25rem;
-    }
-
-    .sidebar-header h5 {
-        color: white;
-        font-weight: 600;
-        margin: 0;
-    }
-
-    .sidebar-header small {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 0.8125rem;
-    }
+    .sidebar-back-link:hover { color: #fff; }
 
     .sidebar-close {
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        display: flex;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #fff;
+        display: none;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: all 0.3s ease;
+    }
+
+    .sidebar-section { margin-bottom: 1rem; }
+    .sidebar-section__title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+    }
+
+    .date-preset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .date-preset-btn {
+        min-height: 36px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+    }
+    .date-preset-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+    .date-preset-btn.is-active {
+        background: linear-gradient(135deg, #1976D2, #2563eb);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
+
+    .date-fields-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .date-field__label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.82);
+        letter-spacing: 0.02em;
+    }
+
+    .date-field__input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .date-field__icon {
+        position: absolute;
+        inset-inline-start: 12px;
+        z-index: 2;
+        font-size: 0.85rem;
+        color: #93c5fd;
+        pointer-events: none;
+    }
+
+    .date-field__input,
+    .date-field__input-wrap .flatpickr-input {
+        width: 100%;
+        height: 42px;
+        padding: 0 12px 0 38px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(255, 255, 255, 0.14);
+        color: #f8fafc;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    html[dir="rtl"] .date-field__input,
+    html[dir="rtl"] .date-field__input-wrap .flatpickr-input {
+        padding: 0 38px 0 12px;
+    }
+    .date-field__input::placeholder,
+    .date-field__input-wrap .flatpickr-input::placeholder {
+        color: rgba(255, 255, 255, 0.45);
+        font-weight: 500;
+    }
+    .date-field__input:focus,
+    .date-field__input-wrap .flatpickr-input:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+        background: rgba(255, 255, 255, 0.18);
+    }
+    .date-field__input-wrap .flatpickr-mobile {
         display: none;
     }
 
-    .sidebar-close:hover {
-        background: rgba(239, 68, 68, 0.2);
-        transform: rotate(90deg);
+    /* Flatpickr calendar — dark sidebar theme */
+    #filterPanel .flatpickr-calendar {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        border-radius: 12px;
+    }
+    #filterPanel .flatpickr-months .flatpickr-month,
+    #filterPanel .flatpickr-weekdays,
+    #filterPanel span.flatpickr-weekday {
+        background: #1e293b;
+        color: rgba(255, 255, 255, 0.85);
+    }
+    #filterPanel .flatpickr-current-month .flatpickr-monthDropdown-months,
+    #filterPanel .flatpickr-current-month input.cur-year {
+        color: #fff;
+        font-weight: 700;
+    }
+    #filterPanel .flatpickr-day {
+        color: rgba(255, 255, 255, 0.88);
+    }
+    #filterPanel .flatpickr-day:hover,
+    #filterPanel .flatpickr-day:focus {
+        background: rgba(59, 130, 246, 0.25);
+        border-color: transparent;
+    }
+    #filterPanel .flatpickr-day.selected,
+    #filterPanel .flatpickr-day.startRange,
+    #filterPanel .flatpickr-day.endRange {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+    }
+    #filterPanel .flatpickr-day.today {
+        border-color: #60a5fa;
+    }
+    #filterPanel .flatpickr-day.flatpickr-disabled {
+        color: rgba(255, 255, 255, 0.25);
     }
 
-    /* Form Controls */
-    .form-control-premium {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-        transition: all 0.3s ease;
-    }
-
-    .form-control-premium:focus {
-        background: rgba(255, 255, 255, 0.15);
-        border-color: var(--map-primary);
-        box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
-        color: white;
-    }
-
-    .form-control-premium::placeholder {
-        color: rgba(255, 255, 255, 0.5);
-    }
-
-    /* Premium Cards */
-    .premium-card {
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        border-radius: 16px;
-        padding: 1.25rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-    }
-
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-        border-color: rgba(25, 118, 210, 0.3);
-    }
-
-    .premium-card .card-header {
-        background: transparent;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-        padding: 0 0 1rem 0;
-        margin-bottom: 1rem;
-    }
-
-    .premium-card .card-header h6 {
-        color: var(--map-text);
-        font-weight: 600;
-        font-size: 0.9375rem;
-        margin: 0;
-        display: flex;
+    .btn-search-history {
+        width: 100%;
+        min-height: 42px;
+        display: inline-flex;
         align-items: center;
-    }
-
-    /* Info Rows */
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .info-row:last-child {
-        border-bottom: none;
-    }
-
-    .info-label {
-        color: var(--map-text-light);
-        font-size: 0.8125rem;
-        font-weight: 500;
-    }
-
-    .info-value {
-        color: var(--map-text);
-        font-weight: 500;
-        text-align: right;
-        font-size: 0.875rem;
-    }
-
-    .info-value code {
-        background: rgba(0, 0, 0, 0.05);
-        padding: 0.25rem 0.5rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-    }
-
-    /* Buttons */
-    .btn-premium {
-        background: linear-gradient(135deg, var(--map-primary), #2196F3);
+        justify-content: center;
+        gap: 8px;
         border: none;
-        color: white;
         border-radius: 12px;
-        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #1976D2, #2563eb);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+        transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
+    }
+    .btn-search-history:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+    }
+    .btn-search-history:disabled {
+        opacity: 0.72;
+        cursor: not-allowed;
+        transform: none;
+    }
+    .btn-search-history.is-loading .search-btn__label { opacity: 0.85; }
+
+    .sidebar-hint {
+        margin: 8px 0 0;
+        font-size: 0.68rem;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .device-hero-card {
+        background: rgba(255, 255, 255, 0.97);
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .device-hero-card__top {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .device-hero-card__avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1976D2, #42a5f5);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .device-hero-card__meta { flex: 1; min-width: 0; }
+    .device-hero-card__name {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.25;
+    }
+    .device-hero-card__plate {
+        display: block;
+        font-size: 0.72rem;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .device-hero-card__stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .device-stat__label {
+        display: block;
+        font-size: 0.65rem;
         font-weight: 600;
-        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #94a3b8;
+    }
+    .device-stat__value {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 2px;
+        word-break: break-word;
+    }
+    .device-stat__value--mono {
+        font-family: ui-monospace, monospace;
+        font-size: 0.72rem;
     }
 
-    .btn-premium:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(25, 118, 210, 0.3);
-        background: linear-gradient(135deg, #1565C0, #1976D2);
+    .sidebar-map-hint {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0 0 12px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.68rem;
+        line-height: 1.4;
     }
 
-    .btn-outline-premium {
-        background: transparent;
-        border: 2px solid var(--map-primary);
-        color: var(--map-primary);
+    .sidebar-accordion {
+        margin-bottom: 8px;
         border-radius: 12px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        overflow: hidden;
     }
 
-    .btn-outline-premium:hover {
-        background: var(--map-primary);
-        color: white;
-        transform: translateY(-2px);
+    .sidebar-accordion__summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.9);
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+    }
+    .sidebar-accordion__summary::-webkit-details-marker { display: none; }
+    .sidebar-accordion__summary::after {
+        content: '\f078';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        margin-inline-start: auto;
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.45);
+        transition: transform 0.2s;
+    }
+    .sidebar-accordion[open] .sidebar-accordion__summary::after { transform: rotate(180deg); }
+
+    .sidebar-accordion__badge {
+        margin-inline-start: auto;
+        margin-inline-end: 6px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.65rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-accordion__summary::after { margin-inline-start: 0; }
+    .sidebar-accordion__summary .sidebar-accordion__badge { margin-inline-start: auto; margin-inline-end: 8px; }
+
+    .sidebar-accordion__body {
+        padding: 0 12px 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .sidebar-accordion__body--flush { padding: 0; }
+
+    .telemetry-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding-top: 10px;
+    }
+    .telemetry-cell {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 8px 10px;
+    }
+    .telemetry-cell span {
+        display: block;
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .telemetry-cell strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 0.82rem;
+        color: #fff;
+        font-weight: 700;
+    }
+    .telemetry-cell--wide { grid-column: 1 / -1; }
+
+    .sidebar-actions-stack { display: grid; gap: 8px; padding-top: 10px; }
+
+    .sidebar-action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .sidebar-action-btn:hover { background: rgba(255, 255, 255, 0.12); }
+    .sidebar-action-btn--primary {
+        background: rgba(37, 99, 235, 0.25);
+        border-color: rgba(59, 130, 246, 0.35);
     }
 
-    /* Badges */
-    .badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-weight: 500;
+    .sidebar-loading {
+        padding: 12px;
+        text-align: center;
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.55);
     }
 
-    .badge.bg-success {
-        background: var(--map-success) !important;
-    }
-
-    /* Lists */
-    .geofence-list,
-    .geofence-manage-list {
-        max-height: 220px;
-        overflow-y: auto;
-        padding-right: 5px;
-    }
+    .geofence-list { max-height: 180px; overflow-y: auto; padding-top: 8px; }
 
     .geofence-list-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
-
-    .geofence-list-item:last-child {
-        border-bottom: none;
-    }
-
-    .geofence-list-item__info {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-
-    .geofence-list-item__info strong {
-        font-size: 0.875rem;
-        color: var(--map-text);
-    }
-
-    .geofence-list-item__info small {
-        font-size: 0.75rem;
-    }
+    .geofence-list-item:last-child { border-bottom: none; }
+    .geofence-list-item__info strong { font-size: 0.78rem; color: #fff; display: block; }
+    .geofence-list-item__info small { font-size: 0.68rem; color: rgba(255,255,255,0.5); }
 
     .geofence-list-item__actions {
         display: flex;
-        gap: 6px;
+        gap: 4px;
         flex-shrink: 0;
     }
-
-    .geofence-list-item__actions .btn {
-        padding: 0.25rem 0.5rem;
-        line-height: 1;
-    }
-
-    .geofence-list::-webkit-scrollbar,
-    .geofence-manage-list::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .geofence-list::-webkit-scrollbar-thumb,
-    .geofence-manage-list::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 4px;
-    }
-
-    /* Address Result */
-    .address-result {
-        background: rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        color: var(--map-text);
-        font-size: 0.8125rem;
-        min-height: 40px;
-        display: flex;
+    .geofence-list-item__actions .geofence-action-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.9);
+        cursor: pointer;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
+        font-size: 0.72rem;
+    }
+    .geofence-list-item__actions .geofence-action-btn:hover {
+        background: rgba(255, 255, 255, 0.16);
+    }
+    .geofence-list-item__actions .geofence-action-btn--danger {
+        border-color: rgba(239, 68, 68, 0.45);
+        color: #fca5a5;
+    }
+    .geofence-list-item__actions .geofence-action-btn--danger:hover {
+        background: rgba(239, 68, 68, 0.22);
     }
 
-    .address-result:empty {
-        display: none;
-    }
-
-
-    .trip-events-list { max-height: 200px; overflow-y: auto; }
-    .trip-event-item {
-        padding: 10px 14px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        font-size: 0.8rem;
-        cursor: pointer;
-        transition: background 0.15s;
-    }
-    .trip-event-item:hover { background: rgba(25, 118, 210, 0.06); }
-    .trip-event-item:last-child { border-bottom: none; }
-    .trip-event-item strong { display: block; color: #0f172a; font-size: 0.82rem; }
-    .trip-event-item span { color: #64748b; font-size: 0.72rem; }
-    .trip-event-item--overspeed strong { color: #ea580c; }
-
-    .alerts-list { max-height: 180px; overflow-y: auto; padding: 0.75rem; }
-    .alert-log-item {
-        padding: 0.5rem 0.75rem;
-        margin-bottom: 0.5rem;
-        border-radius: 8px;
-        border-left: 3px solid #4285f4;
-        background: rgba(0,0,0,0.04);
+    .geofence-list-empty {
+        padding: 12px;
+        text-align: center;
         font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.45);
     }
-    .alert-log-item strong { display: block; font-size: 0.8125rem; }
-    .alert-log-item span { color: #555; }
-    .alert-log-item small { display: block; color: #888; margin-top: 2px; }
-    .alert-log-item.alert-error { border-left-color: #ea4335; background: rgba(234,67,53,0.08); }
-    .alert-log-item.alert-warning { border-left-color: #f59e0b; background: rgba(245,158,11,0.08); }
-    .alert-log-item.alert-success { border-left-color: #34a853; }
 
-    /* Responsive */
+    .address-result {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.78rem;
+        line-height: 1.4;
+        min-height: 0;
+    }
+    .address-result:empty { display: none; }
+
+    .trip-events-list { max-height: 180px; overflow-y: auto; }
+    .trip-event-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 0.75rem;
+        cursor: pointer;
+    }
+    .trip-event-item:hover { background: rgba(255, 255, 255, 0.04); }
+    .trip-event-item strong { display: block; color: #fff; font-size: 0.78rem; }
+    .trip-event-item span { color: rgba(255,255,255,0.55); font-size: 0.68rem; }
+    .trip-event-empty {
+        padding: 14px;
+        text-align: center;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    /* Status chips — sidebar device hero */
+    #filterPanel .map-status-chip {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        line-height: 1.2;
+        border: 1px solid transparent;
+    }
+    #filterPanel .map-status-chip--moving { background: #16a34a; color: #fff; }
+    #filterPanel .map-status-chip--idle { background: #ea580c; color: #fff; }
+    #filterPanel .map-status-chip--parked { background: #2563eb; color: #fff; }
+    #filterPanel .map-status-chip--stopped { background: #dc2626; color: #fff; }
+    #filterPanel .map-status-chip--offline { background: #64748b; color: #fff; }
+    #filterPanel .map-status-chip--alert { background: #b91c1c; color: #fff; }
+
     @media (max-width: 768px) {
-        html[dir="ltr"] .filter-panel#filterPanel {
-            border-radius: 0 20px 20px 0;
-        }
-
-        html[dir="rtl"] .filter-panel#filterPanel {
-            border-radius: 20px 0 0 20px;
-        }
-
         .filter-panel#filterPanel {
-            width: min(320px, 88vw);
-            top: 70px;
-            height: calc(100vh - 70px);
+            width: min(320px, 92vw);
             z-index: 1001;
         }
-
-        .sidebar-close {
-            display: flex;
-        }
-
-        .premium-card {
-            padding: 1rem;
-        }
-
-        .btn-premium,
-        .btn-outline-premium {
-            padding: 0.625rem 1rem;
-            font-size: 0.875rem;
-        }
+        .sidebar-close { display: flex; }
     }
 
-    @media (max-width: 576px) {
-        .filter-panel {
-            width: 90%;
-            padding: 1rem;
-        }
-
-        .device-avatar {
-            width: 40px;
-            height: 40px;
-            font-size: 1rem;
-        }
-
-        .sidebar-header h5 {
-            font-size: 1rem;
-        }
-
-        .info-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.25rem;
-        }
-
-        .info-value {
-            text-align: left;
-            width: 100%;
-        }
+    @media (max-width: 400px) {
+        .date-preset-grid { grid-template-columns: 1fr 1fr; }
     }
 </style>
-

@@ -2,7 +2,7 @@
 
 @section('title', __('app.user.devices.title') . ' - ' . __('app.brand'))
 
-@push('styles')
+    @push('styles')
     <style>
         tr.device-row.row-updated { transition: background-color 0.4s ease; background-color: rgba(37, 99, 235, 0.06); }
         .stat-pulse { transition: transform 0.25s ease; transform: scale(1.06); }
@@ -163,23 +163,17 @@
                             $lockTitle = $canTrack ? '' : ($accessCheck['title'] . ' — ' . $accessCheck['message']);
                         @endphp
                         <tr class="device-row" data-device-id="{{ $d->id }}" data-imei="{{ $d->imei }}"
-                            data-search="{{ strtolower(($d->vehicle_name ?? '') . ' ' . $d->name . ' ' . $d->imei . ' ' . ($d->vehicle_model ?? '')) }}">
+                            data-search="{{ strtolower(($d->vehicle_name ?? '') . ' ' . ($d->vehicle_number ?? '') . ' ' . $d->name . ' ' . $d->imei . ' ' . ($d->vehicle_model ?? '')) }}">
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="device-icon me-3">
                                         <i class="fas {{ $d->deviceTypeIconClass() }} fa-lg" style="color: var(--primary-blue);"></i>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-1">{{ $d->mapDisplayTitle() }}</h6>
-                                        <small class="text-muted">
-                                            {{ $d->deviceTypeLabel() }}
-                                            @if($d->vehicle_model)
-                                                · {{ $d->vehicle_model }}
-                                            @endif
-                                            @if($d->vehicle_number)
-                                                · <x-admin.ltr>{{ $d->vehicle_number }}</x-admin.ltr>
-                                            @endif
-                                        </small>
+                                    <div class="vehicle-list-identity">
+                                        <span class="vehicle-list-name">{{ $d->listPrimaryLabel() }}</span>
+                                        @if($secondary = $d->listSecondaryLabel())
+                                            <span class="vehicle-list-plate"><x-admin.ltr>{{ $secondary }}</x-admin.ltr></span>
+                                        @endif
                                     </div>
                                 </div>
                             </td>

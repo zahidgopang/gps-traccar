@@ -479,7 +479,7 @@
            Map Area
         ============================= */
         .tracking-container {
-            --map-sidebar-width: 380px;
+            --map-sidebar-width: 340px;
         }
 
         .map-area {
@@ -814,7 +814,7 @@
         const savedState = localStorage.getItem('sidebarState');
 
         if (isDesktop) {
-            const shouldOpen = savedState ? savedState === 'open' : true;
+            const shouldOpen = savedState === 'open';
             applyMapSidebarState(shouldOpen);
         } else {
             applyMapSidebarState(false);
@@ -880,7 +880,7 @@
 
             // Restore saved state on desktop
             const savedState = localStorage.getItem('sidebarState');
-            const shouldOpen = savedState ? savedState === 'open' : true;
+            const shouldOpen = savedState === 'open';
 
             if (shouldOpen !== sidebarOpen) {
                 applyMapSidebarState(shouldOpen);
