@@ -80,9 +80,15 @@ class DashboardController extends Controller
         $stats = $this->dashboard->getStats($user);
         $alertIds = $this->dashboard->alertDeviceIds($stats['devices']);
 
-        $items = $stats['recentDevices']->map(
-            fn ($device) => $this->presenter->listItem($device, $alertIds)
-        )->values();
+        $items = $stats['recentDevices']->map(function ($device) use ($alertIds) {
+            try {
+                return $this->presenter->listItem($device, $alertIds);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return null;
+            }
+        })->filter()->values();
 
         return $this->mobileSuccess($items);
     }

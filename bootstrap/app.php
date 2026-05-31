@@ -1,10 +1,13 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -49,6 +52,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            if ($e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof AuthorizationException) {
+                return null;
+            }
+
             if ($e instanceof HttpExceptionInterface && $e->getStatusCode() < 500) {
                 return null;
             }
@@ -57,6 +66,8 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($e instanceof HttpExceptionInterface) {
                 $status = $e->getStatusCode();
             }
+
+            report($e);
 
             $message = config('app.debug')
                 ? $e->getMessage()

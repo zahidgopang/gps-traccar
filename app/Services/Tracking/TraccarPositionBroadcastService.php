@@ -9,6 +9,7 @@ use App\Models\TraccarEntityMap;
 use App\Services\Traccar\TraccarIdMap;
 use App\Services\Traccar\TraccarPositionMapper;
 use App\Services\VehicleEventService;
+use App\Support\RuntimeState;
 use App\Support\Tracking\DeviceLocationPayload;
 use App\Support\Traccar\TraccarSchema;
 use Illuminate\Support\Facades\Cache;
@@ -36,11 +37,11 @@ class TraccarPositionBroadcastService
         }
 
         $table = config('traccar.tables.positions', 'tc_positions');
-        $lastId = (int) Cache::get(self::CACHE_KEY, 0);
+        $lastId = $this->lastBroadcastPositionId();
 
         if ($lastId === 0) {
             $currentMax = (int) (DB::table($table)->max('id') ?? 0);
-            Cache::forever(self::CACHE_KEY, $currentMax);
+            $this->saveLastBroadcastPositionId($currentMax);
 
             return 0;
         }
@@ -95,8 +96,31 @@ class TraccarPositionBroadcastService
             $count++;
         }
 
-        Cache::forever(self::CACHE_KEY, $maxId);
+        $this->saveLastBroadcastPositionId($maxId);
 
         return $count;
+    }
+
+    private function lastBroadcastPositionId(): int
+    {
+        $stored = RuntimeState::getInt(self::CACHE_KEY, 0);
+
+        if ($stored > 0) {
+            return $stored;
+        }
+
+        $legacy = (int) Cache::get(self::CACHE_KEY, 0);
+
+        if ($legacy > 0) {
+            $this->saveLastBroadcastPositionId($legacy);
+            Cache::forget(self::CACHE_KEY);
+        }
+
+        return $legacy;
+    }
+
+    private function saveLastBroadcastPositionId(int $id): void
+    {
+        RuntimeState::putInt(self::CACHE_KEY, $id);
     }
 }

@@ -40,9 +40,17 @@ class DeviceController extends Controller
         $this->positionLoader->attachLatestToMany($devices);
         $alertIds = $this->dashboard->alertDeviceIds($devices);
 
-        return $this->mobileSuccess(
-            $devices->map(fn ($d) => $this->presenter->listItem($d, $alertIds))->values()
-        );
+        $items = $devices->map(function ($device) use ($alertIds) {
+            try {
+                return $this->presenter->listItem($device, $alertIds);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return null;
+            }
+        })->filter()->values();
+
+        return $this->mobileSuccess($items);
     }
 
     public function show(Request $request, int $id)
