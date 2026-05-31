@@ -42,8 +42,13 @@ class SafeDeployCacheCommand extends Command
         }
 
         try {
+            $this->purgeBootstrapCacheFiles();
+
+            Artisan::call('package:discover');
+            $this->output->write(Artisan::output());
+
             $this->info('Clearing config, routes, views, and compiled bootstrap (keeping application cache)…');
-            Artisan::call('optimize:clear', ['--except' => ['cache']]);
+            Artisan::call('optimize:clear', ['--except' => 'cache']);
             $this->output->write(Artisan::output());
 
             $this->info('Rebuilding production caches…');
@@ -93,5 +98,12 @@ class SafeDeployCacheCommand extends Command
         }
 
         return true;
+    }
+
+    private function purgeBootstrapCacheFiles(): void
+    {
+        foreach (glob(base_path('bootstrap/cache/*.php')) ?: [] as $file) {
+            @unlink($file);
+        }
     }
 }
