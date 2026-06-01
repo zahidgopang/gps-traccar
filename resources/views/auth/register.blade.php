@@ -161,6 +161,11 @@
 
             <!-- Google reCAPTCHA v3 -->
             <div class="mt-6">
+                @include('partials.bot-shield-fields', [
+                    'includeRecaptchaInput' => false,
+                    'includeRecaptchaNotice' => false,
+                    'recaptchaEnabled' => false,
+                ])
                 <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response" value="">
                 <div id="g-recaptcha-response-error" class="premium-error mt-2 recaptcha-error">
                     @error('g-recaptcha-response')
@@ -943,6 +948,13 @@
     <script>
         const RECAPTCHA_ENABLED = @json($recaptchaEnabled ?? false);
         const RECAPTCHA_SITE_KEY = @json($recaptchaSiteKey ?? '');
+
+        (function () {
+            const timingEl = document.getElementById('form_started_at');
+            if (timingEl) {
+                timingEl.value = Math.floor(Date.now() / 1000);
+            }
+        })();
 
         // Toast notification system
         class Toast {

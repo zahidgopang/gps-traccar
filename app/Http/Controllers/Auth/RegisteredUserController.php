@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\BotProtectionService;
 use App\Services\RecaptchaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +22,7 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, BotProtectionService $bots)
     {
         Log::info('Registration attempt started', [
             'email' => $request->email,
@@ -29,42 +30,38 @@ class RegisteredUserController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        $recaptcha = RecaptchaService::verify(
-            $request->input('g-recaptcha-response'),
-            $request->ip()
-        );
+        $guard = $bots->inspect($request, 'register', 'register');
 
-        if (! $recaptcha['ok']) {
-            Log::warning('reCAPTCHA verification failed', [
-                'email' => $request->email,
-                'score' => $recaptcha['score'] ?? null,
-                'error_codes' => $recaptcha['error_codes'] ?? null,
-            ]);
+        if (! $guard['ok']) {
+            if (! empty($guard['fake_success'])) {
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Registration successful!',
+                        'redirect' => route('dashboard'),
+                    ]);
+                }
 
-            if (function_exists('activity')) {
-                activity()
-                    ->withProperties([
-                        'type' => 'recaptcha_failed',
-                        'email' => $request->email,
-                        'ip' => $request->ip(),
-                        'score' => $recaptcha['score'] ?? null,
-                    ])
-                    ->log('reCAPTCHA blocked registration');
+                return redirect()->route('login')->with('success', 'Registration successful! Please sign in.');
             }
 
-            $message = $recaptcha['message'] ?? 'Security check failed. Please try again.';
+            $message = $guard['message'] ?? 'Security check failed. Please try again.';
 
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'errors' => ['g-recaptcha-response' => [$message]],
-                ], 422);
+                ], $guard['status'] ?? 422);
             }
 
             return back()->withErrors([
                 'g-recaptcha-response' => $message,
             ])->withInput();
         }
+
+        $recaptcha = $guard['recaptcha'] ?? ['ok' => true];
+
+        $bots->recordAttempt($request, 'register');
 
         try {
             $validated = $request->validate([

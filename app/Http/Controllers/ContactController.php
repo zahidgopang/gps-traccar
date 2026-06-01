@@ -7,6 +7,8 @@ use App\Http\Requests\ContactFormRequest;
 use App\Models\ContactMessage;
 use App\Mail\ContactConfirmationMail;
 use App\Mail\ContactNotificationMail;
+use App\Services\BotProtectionService;
+use App\Services\RecaptchaService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,36 +19,31 @@ class ContactController extends Controller
 {
     public function show()
     {
-        return view('frontend.contact');
+        return view('frontend.contact', [
+            'recaptchaEnabled' => RecaptchaService::isEnabled(),
+            'recaptchaSiteKey' => config('captcha.sitekey'),
+        ]);
     }
 
-    public function submit(ContactFormRequest $request)
+    public function submit(ContactFormRequest $request, BotProtectionService $bots)
     {
-        // Honeypot validation (bots fill this invisible field)
-        if (! empty($request->honeypot)) {
-            Log::warning('Contact form honeypot triggered', [
-                'ip' => $request->ip(),
-                'honeypot' => $request->honeypot,
-            ]);
+        $guard = $bots->inspect($request, 'contact', 'contact');
 
-            // Return success to bot but don't actually process
-            return response()->json([
-                'success' => true,
-                'message' => 'Thank you for your message!',
-            ]);
-        }
+        if (! $guard['ok']) {
+            if (! empty($guard['fake_success'])) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Thank you for your message!',
+                ]);
+            }
 
-        // Rate limiting: max 1 attempt per IP per 30 minutes
-        $key = 'contact-form:'.$request->ip();
-
-        if (RateLimiter::tooManyAttempts($key, 1)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Too many submission attempts. Please try again in 30 minutes.',
-            ], 429);
+                'message' => $guard['message'] ?? 'Unable to submit your message. Please try again.',
+            ], $guard['status'] ?? 422);
         }
 
-        RateLimiter::hit($key, 1800);
+        $bots->recordAttempt($request, 'contact', $request->email);
 
         if ($this->isSpam($request)) {
             Log::warning('Contact form spam detected', [
@@ -61,7 +58,9 @@ class ContactController extends Controller
         }
 
         try {
-            $contactMessage = DB::transaction(function () use ($request) {
+            $recaptchaScore = $guard['recaptcha']['score'] ?? null;
+
+            $contactMessage = DB::transaction(function () use ($request, $recaptchaScore) {
                 return ContactMessage::create([
                     'name' => $request->name,
                     'email' => $request->email,
@@ -76,6 +75,7 @@ class ContactController extends Controller
                         'referrer' => $request->headers->get('referer'),
                         'timezone' => $request->header('X-Timezone', 'UTC'),
                         'submission_time' => now()->toIso8601String(),
+                        'recaptcha_score' => $recaptchaScore,
                     ],
                 ]);
             });
@@ -186,19 +186,18 @@ class ContactController extends Controller
         return false;
     }
 
-    /**
-     * Check rate limit status
-     */
-    public function checkRateLimit(Request $request)
+    public function checkRateLimit(Request $request, BotProtectionService $bots)
     {
-        $key = 'contact-form:'.$request->ip();
-        $remaining = RateLimiter::remaining($key, 1);
-        $availableIn = RateLimiter::availableIn($key);
+        $cfg = config('bot_protection.contact', []);
+        $ipKey = $bots->ipRateKey('contact', $request->ip());
+        $ipMax = (int) ($cfg['ip_max_attempts'] ?? 3);
+        $remaining = RateLimiter::remaining($ipKey, $ipMax);
+        $availableIn = RateLimiter::availableIn($ipKey);
 
         return response()->json([
             'remaining' => $remaining,
             'available_in_seconds' => $availableIn,
-            'too_many_attempts' => RateLimiter::tooManyAttempts($key, 1),
+            'too_many_attempts' => RateLimiter::tooManyAttempts($ipKey, $ipMax),
         ]);
     }
 }

@@ -389,7 +389,9 @@ Route::prefix('demo')->group(function () {
 });
 
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
-Route::post('/contact/submit', [ContactController::class, 'submit'])->name('contact.submit');
+Route::post('/contact/submit', [ContactController::class, 'submit'])
+    ->middleware('throttle:6,1')
+    ->name('contact.submit');
 Route::get('/contact/rate-limit', [ContactController::class, 'checkRateLimit'])
     ->name('contact.rate-limit');
 Route::get('/android-app', [AndroidAppController::class, 'show'])->name('android-app');

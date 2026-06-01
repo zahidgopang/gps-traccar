@@ -21,7 +21,8 @@ class ContactFormRequest extends FormRequest
             'company' => 'nullable|string|max:100',
             'subject' => 'required|string|max:200',
             'message' => 'required|string',
-            'honeypot' => 'nullable|string',
+            'form_started_at' => 'nullable|numeric',
+            'g-recaptcha-response' => 'nullable|string',
         ];
     }
 

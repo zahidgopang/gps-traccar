@@ -261,16 +261,10 @@
                                 <div class="text-xs text-red-500 mt-1" id="message-error"></div>
                             </div>
 
-                            <!-- reCAPTCHA (Add your site key) -->
-                            <div style="position: absolute; left: -9999px;" aria-hidden="true">
-                                <input type="text" name="honeypot" id="honeypot" tabindex="-1" autocomplete="off">
-                            </div>
-
                             <!-- Rate limit message -->
                             <div id="rateLimitMessage"
-                                 class="hidden mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
+                                 class="hidden p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
                             </div>
-
 
                             <!-- Submit Button -->
                             <div>
@@ -284,6 +278,15 @@
                                     </div>
                                 </button>
                             </div>
+
+                            @include('partials.bot-shield-fields', [
+                                'recaptchaEnabled' => $recaptchaEnabled ?? false,
+                                'includeHoneypots' => false,
+                                'includeRecaptchaInput' => false,
+                                'includeFormTiming' => false,
+                                'includeRecaptchaNotice' => true,
+                                'recaptchaNoticeStyle' => 'footer',
+                            ])
 
                             <!-- Success Message -->
                             <div id="successMessage"
@@ -318,6 +321,11 @@
                                 </div>
                             </div>
                         </div>
+
+                        @include('partials.bot-shield-fields', [
+                            'recaptchaEnabled' => $recaptchaEnabled ?? false,
+                            'includeRecaptchaNotice' => false,
+                        ])
                     </form>
 
                     <div class="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800">
@@ -378,6 +386,11 @@
 @endpush
 
 @push('scripts')
+    @include('partials.bot-shield-script', [
+        'recaptchaEnabled' => $recaptchaEnabled ?? false,
+        'recaptchaSiteKey' => $recaptchaSiteKey ?? '',
+        'recaptchaAction' => 'contact',
+    ])
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
@@ -459,6 +472,18 @@
                 spinner.classList.remove('hidden');
 
                 try {
+                    await FalconEyeBotShield.acquireToken();
+                } catch (securityError) {
+                    errorMessageText.textContent = securityError.message || 'Security check failed. Please refresh and try again.';
+                    errorMessage.classList.remove('hidden');
+                    successMessage.classList.add('hidden');
+                    submitBtn.disabled = false;
+                    submitText.classList.remove('hidden');
+                    spinner.classList.add('hidden');
+                    return;
+                }
+
+                try {
                     const formData = new FormData(form);
 
                     const response = await fetch(form.action, {
@@ -479,9 +504,10 @@
                         ticketNumber.textContent = `Ticket Number: ${data.ticket_number}`;
 
                         form.reset();
+                        FalconEyeBotShield.initFormTiming();
 
-                        // 🔒 Immediately lock form for 30 minutes
-                        lockFormForMinutes(30);
+                        // Lock form after successful submit
+                        lockFormForMinutes(60);
                         successMessage.scrollIntoView({
                             behavior: 'smooth',
                             block: 'center'
