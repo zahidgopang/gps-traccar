@@ -1,8 +1,8 @@
 <!-- resources/views/frontend/contact.blade.php -->
 @extends('frontend.layout')
 
-@section('title', __('frontend.contact.title'))
-@section('description', __('frontend.contact.description'))
+@section('title', __('seo.pages.contact.title'))
+@section('description', __('seo.pages.contact.description'))
 
 @section('content')
 @php
@@ -24,6 +24,7 @@
         </div>
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+            @include('frontend.partials.page-breadcrumbs')
             <div class="text-center">
             <span class="inline-block px-4 py-1.5 bg-gradient-to-r from-sky-500/10 to-blue-500/10 rounded-full text-sky-600 dark:text-sky-400 font-semibold text-sm mb-4">
                 {{ __('frontend.contact.badge') }}
@@ -366,24 +367,7 @@
                     ];
                 @endphp
 
-                @foreach($faqs as $faq)
-                    <div class="group" x-data="{ open: false }">
-                        <button @click="open = !open"
-                                class="w-full p-6 rounded-xl glass border border-slate-200 dark:border-slate-800 text-left hover:border-sky-300 dark:hover:border-sky-700 transition-all">
-                            <div class="flex items-center justify-between">
-                                <h4 class="font-semibold text-lg">{{ $faq['q'] }}</h4>
-                                <svg class="w-5 h-5 text-slate-500 transform transition-transform duration-300"
-                                     :class="{ 'rotate-180': open }"
-                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                            <div x-show="open" x-collapse class="mt-4 text-slate-600 dark:text-slate-400">
-                                {{ $faq['a'] }}
-                            </div>
-                        </button>
-                    </div>
-                @endforeach
+                @include('frontend.partials.faq-accordion', ['faqs' => $faqs])
             </div>
         </div>
     </section>

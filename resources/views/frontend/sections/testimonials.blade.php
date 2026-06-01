@@ -23,7 +23,7 @@
         </div>
 
         <!-- Testimonials Grid -->
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20 max-w-7xl mx-auto">
             @php
                 $testimonials = __('frontend.testimonials.items');
             @endphp
@@ -77,20 +77,20 @@
         <!-- Stats Bar -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div class="text-center">
-                <div class="text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">10,000+</div>
-                <div class="text-sm text-slate-500 dark:text-slate-400">Active Fleets</div>
+                <div class="text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">120+</div>
+                <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.testimonials.stat_fleets') }}</div>
             </div>
             <div class="text-center">
-                <div class="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">99.9%</div>
-                <div class="text-sm text-slate-500 dark:text-slate-400">Customer Satisfaction</div>
+                <div class="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">92%</div>
+                <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.testimonials.stat_satisfaction') }}</div>
             </div>
             <div class="text-center">
-                <div class="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-700 bg-clip-text text-transparent">4.8/5</div>
-                <div class="text-sm text-slate-500 dark:text-slate-400">Average Rating</div>
+                <div class="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-700 bg-clip-text text-transparent">4.7/5</div>
+                <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.testimonials.stat_rating') }}</div>
             </div>
             <div class="text-center">
-                <div class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">150+</div>
-                <div class="text-sm text-slate-500 dark:text-slate-400">Countries Served</div>
+                <div class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-700 bg-clip-text text-transparent">2</div>
+                <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.testimonials.stat_regions') }}</div>
             </div>
         </div>
     </div>

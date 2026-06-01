@@ -28,9 +28,9 @@ return [
     'theme_color' => '#0A0F2D',
 
     'seo' => [
-        'default_title' => 'FalconEyeGPS — Live GPS & Fleet Tracking',
-        'default_description' => 'FalconEyeGPS delivers real-time GPS tracking, vehicle monitoring, fleet management, live location, route history, and geofencing for businesses and drivers.',
-        'keywords' => 'GPS Tracking, Vehicle Tracking, Fleet Management, Live Tracking, FalconEyeGPS, Real-time GPS, Car Tracking, Fleet Monitoring',
+        'default_title' => 'FalconEyeGPS — Live GPS & Fleet Tracking Software',
+        'default_description' => 'FalconEyeGPS is a live GPS tracking and fleet management platform for businesses in Saudi Arabia, Pakistan, and worldwide. Real-time vehicle tracking, route history, geofencing, alerts, and mobile apps.',
+        'keywords' => 'GPS tracking, fleet management, vehicle tracking, live GPS, car tracker, fleet monitoring, GPS tracker Saudi Arabia, fleet tracking Pakistan, vehicle telematics, geofencing, route history, FalconEyeGPS, real-time tracking, fleet dashboard, Android GPS app',
         'admin_description' => 'FalconEyeGPS admin panel — manage users, devices, subscriptions, and monitor fleet tracking in real time.',
         'admin_keywords' => 'FalconEyeGPS Admin, Fleet Management, Vehicle Tracking System, GPS Device Management',
     ],

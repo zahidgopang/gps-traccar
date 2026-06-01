@@ -36,7 +36,7 @@
                     $releases = [
                         [
                             'date' => 'Dec 15, 2024',
-                            'title' => 'FalconEyeGPS Launches AI-Powered Predictive Maintenance',
+                            'title' => 'FalconEyeGPS Releases Updated Android Fleet App',
                             'excerpt' => 'New feature predicts vehicle maintenance needs up to 30 days in advance, reducing downtime by 40%.',
                             'category' => 'Product Launch'
                         ],

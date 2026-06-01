@@ -199,7 +199,7 @@
                                     Real-time monitoring
                                 </span>
                             <span class="text-slate-400">•</span>
-                            <span>Vehicle: Toyota Corolla</span>
+                            <span>{{ __('demo.tracking.vehicle_name') }}</span>
                         </p>
                     </div>
                 </div>
@@ -244,7 +244,7 @@
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-xl font-bold text-slate-900 dark:text-white">Toyota Corolla</h3>
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white">{{ __('demo.tracking.vehicle_name') }}</h3>
                         <p class="text-slate-600 dark:text-slate-300">License: ABC-1234</p>
                     </div>
                 </div>

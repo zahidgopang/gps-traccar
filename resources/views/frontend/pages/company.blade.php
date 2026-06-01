@@ -87,7 +87,7 @@
                     <ul class="space-y-3">
                         <li class="flex items-start gap-2">
                             <i class="fa-solid fa-rocket text-sky-500 mt-1"></i>
-                            <span>AI-powered predictive analytics</span>
+                            <span>Live GPS tracking and fleet alerts</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <i class="fa-solid fa-rocket text-sky-500 mt-1"></i>

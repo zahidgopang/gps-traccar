@@ -10,7 +10,7 @@
 @endif
 <img
     src="{{ asset($logoSrc) }}"
-    alt="{{ config('branding.name') }}"
+    alt="{{ config('branding.name') }} — GPS tracking and fleet management logo"
     class="{{ $classes }}"
     @if(!empty($style)) style="{{ $style }}" @endif
     loading="lazy"

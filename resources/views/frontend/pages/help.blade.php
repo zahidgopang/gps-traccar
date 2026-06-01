@@ -1,8 +1,8 @@
 <!-- resources/views/frontend/pages/help.blade.php -->
 @extends('frontend.layout')
 
-@section('title', __('frontend.pages.help.title'))
-@section('description', 'Get help with FalconEyeGPS. Find answers, tutorials, and support resources.')
+@section('title', __('seo.pages.help.title'))
+@section('description', __('seo.pages.help.description'))
 
 @section('content')
 
@@ -11,6 +11,7 @@
         <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-sky-50 to-blue-100 dark:from-slate-950 dark:via-sky-950 dark:to-blue-950"></div>
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+            @include('frontend.partials.page-breadcrumbs')
             <div class="grid lg:grid-cols-2 gap-12 items-center">
                 <div>
                 <span class="inline-block px-4 py-1.5 bg-gradient-to-r from-sky-500/10 to-blue-500/10 rounded-full text-sky-600 dark:text-sky-400 font-semibold text-sm mb-4">
@@ -183,49 +184,32 @@
                     $faqs = [
                         [
                             'q' => 'What GPS devices are compatible with FalconEyeGPS?',
-                            'a' => 'FalconEyeGPS supports most standard GPS protocols including GT06, TK103, LTE Cat-1, and all major IoT devices.'
+                            'a' => 'We support common protocols such as GT06 and many LTE trackers. Our team helps configure your device model during onboarding.'
                         ],
                         [
-                            'q' => 'How accurate is the GPS tracking?',
-                            'a' => 'With multi-constellation support, we achieve 15cm accuracy in optimal conditions and sub-second update intervals.'
+                            'q' => 'How often is location updated?',
+                            'a' => 'Update frequency depends on device settings and cellular coverage. Most fleets see near real-time positions when devices are online.'
                         ],
                         [
                             'q' => 'Can I track vehicles in real-time?',
-                            'a' => 'Yes, FalconEyeGPS provides real-time tracking with updates as frequent as every 5 seconds.'
+                            'a' => 'Yes. The web panel and Android app show live positions, speed, and status for authorized devices on your account.'
                         ],
                         [
                             'q' => 'Is there a mobile app available?',
-                            'a' => 'Yes, we have iOS and Android apps available on their respective app stores.'
+                            'a' => 'Yes. The FalconEyeGPS Android app is available for download from our website and uses the same login as the web panel.'
                         ],
                         [
                             'q' => 'How secure is my data?',
-                            'a' => 'All data is encrypted with AES-256 and we maintain SOC 2 Type II compliance.'
+                            'a' => 'We use HTTPS for web and API traffic, password authentication, and role-based access. See our Security page for details.'
                         ],
                         [
                             'q' => 'What kind of support do you offer?',
-                            'a' => 'We offer 24/7 support via phone, email, and WhatsApp for all customers.'
+                            'a' => 'We provide onboarding assistance, device configuration help, and support by email and contact form for active customers.'
                         ],
                     ];
                 @endphp
 
-                @foreach($faqs as $faq)
-                    <div class="group" x-data="{ open: false }">
-                        <button @click="open = !open"
-                                class="w-full p-6 rounded-xl glass border border-slate-200 dark:border-slate-800 text-left hover:border-sky-300 dark:hover:border-sky-700 transition-all">
-                            <div class="flex items-center justify-between">
-                                <h4 class="font-semibold text-lg">{{ $faq['q'] }}</h4>
-                                <svg class="w-5 h-5 text-slate-500 transform transition-transform duration-300"
-                                     :class="{ 'rotate-180': open }"
-                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                            <div x-show="open" x-collapse class="mt-4 text-slate-600 dark:text-slate-400">
-                                {{ $faq['a'] }}
-                            </div>
-                        </button>
-                    </div>
-                @endforeach
+                @include('frontend.partials.faq-accordion', ['faqs' => $faqs])
             </div>
 
             <div class="text-center mt-12">

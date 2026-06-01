@@ -1,7 +1,7 @@
 @extends('frontend.layout')
 
-@section('title', __('frontend.pricing.title'))
-@section('description', __('frontend.pricing.description'))
+@section('title', __('seo.pages.pricing.title'))
+@section('description', __('seo.pages.pricing.description'))
 
 @section('content')
     <!-- Pricing Hero -->
@@ -9,6 +9,9 @@
         <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-sky-100 dark:from-slate-950 dark:via-slate-900 dark:to-sky-950"></div>
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="text-left max-w-3xl mx-auto mb-8">
+                @include('frontend.partials.page-breadcrumbs')
+            </div>
             <span class="inline-block px-4 py-1.5 bg-gradient-to-r from-sky-500/10 to-blue-500/10 rounded-full text-sky-600 dark:text-sky-400 font-semibold text-sm mb-4">
                 {{ __('frontend.pricing.badge') }}
             </span>
@@ -165,15 +168,10 @@
                         </ul>
 
                         <!-- CTA -->
-                        <a href="{{ url('register') }}"
+                        <a href="{{ url('/contact') }}"
                            class="block w-full py-3 text-center rounded-xl bg-white text-sky-700 font-semibold hover:bg-slate-100 transition-colors shadow-lg">
-                            Start Free Trial
+                            {{ __('frontend.pricing.request_demo') }}
                         </a>
-
-                        <!-- Trial Info -->
-                        <p class="text-center text-blue-200 text-sm mt-4">
-                            14-day free trial, no credit card required
-                        </p>
                     </div>
                 </div>
 
@@ -288,26 +286,7 @@
             </div>
 
             <div class="space-y-6">
-                @php $faqs = __('frontend.pricing.faqs'); @endphp
-
-                @foreach($faqs as $faq)
-                    <div class="group" x-data="{ open: false }">
-                        <button @click="open = !open"
-                                class="w-full p-6 rounded-xl glass border border-slate-200 dark:border-slate-800 text-left hover:border-sky-300 dark:hover:border-sky-700 transition-all">
-                            <div class="flex items-center justify-between">
-                                <h4 class="font-semibold text-lg">{{ $faq['q'] }}</h4>
-                                <svg class="w-5 h-5 text-slate-500 transform transition-transform duration-300"
-                                     :class="{ 'rotate-180': open }"
-                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                            <div x-show="open" x-collapse class="mt-4 text-slate-600 dark:text-slate-400">
-                                {{ $faq['a'] }}
-                            </div>
-                        </button>
-                    </div>
-                @endforeach
+                @include('frontend.partials.faq-accordion', ['faqs' => __('frontend.pricing.faqs')])
             </div>
 
             <!-- Still have questions -->
@@ -340,7 +319,7 @@
                 <a href="{{ url('register') }}"
                    class="group relative px-10 py-5 bg-white text-blue-700 rounded-2xl font-bold text-lg overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300">
                     <span class="relative z-10 flex items-center justify-center gap-3">
-                        {{ __('frontend.pricing.start_trial') }}
+                        {{ __('frontend.pricing.request_demo') }}
                         <svg class="w-5 h-5 transform group-hover:translate-x-2 transition-transform" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
                         </svg>
@@ -368,12 +347,4 @@
     @if(isset($plans) && $plans->isNotEmpty())
         <script src="{{ asset('js/pricing-billing-toggle.js') }}?v={{ filemtime(public_path('js/pricing-billing-toggle.js')) }}"></script>
     @endif
-    <script>
-        // FAQ accordion functionality
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('faq', () => ({
-                open: false
-            }));
-        });
-    </script>
 @endpush

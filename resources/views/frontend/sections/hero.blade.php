@@ -41,36 +41,39 @@
                 </h1>
 
                 <!-- Subheadline -->
-                <p class="text-xl lg:text-2xl text-slate-600 dark:text-slate-300 mb-8 max-w-xl">
+                <p class="text-xl lg:text-2xl text-slate-600 dark:text-slate-300 mb-4 max-w-xl">
                     {{ __('frontend.hero.subtitle') }}
+                </p>
+                <p class="text-base text-slate-500 dark:text-slate-400 mb-8 max-w-xl leading-relaxed">
+                    {{ __('frontend.hero.seo_intro') }}
                 </p>
 
                 <!-- Stats Grid -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
                     <div class="text-center p-4 rounded-xl glass">
-                        <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">99.9%</div>
-                        <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.uptime') }}</div>
-                    </div>
-                    <div class="text-center p-4 rounded-xl glass">
                         <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">24/7</div>
                         <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.support') }}</div>
                     </div>
                     <div class="text-center p-4 rounded-xl glass">
-                        <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">15cm</div>
-                        <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.accuracy') }}</div>
+                        <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">Live</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.live_map') }}</div>
                     </div>
                     <div class="text-center p-4 rounded-xl glass">
-                        <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">200ms</div>
-                        <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.updates') }}</div>
+                        <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">GPS</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.uptime') }}</div>
+                    </div>
+                    <div class="text-center p-4 rounded-xl glass">
+                        <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">Trips</div>
+                        <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('frontend.hero.history') }}</div>
                     </div>
                 </div>
 
                 <!-- CTA Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 mb-12">
-                    <a href="{{ url('register') }}"
+                    <a href="{{ url('/contact') }}"
                        class="group relative px-8 py-4 bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
                         <span class="relative z-10 flex items-center justify-center gap-2">
-                            {{ __('frontend.hero.start_trial') }}
+                            {{ __('frontend.hero.request_demo') }}
                             <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                             </svg>
@@ -85,20 +88,17 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            Watch Product Tour
+                            {{ __('frontend.hero.watch_demo') }}
                         </span>
                     </button>
                 </div>
 
                 <!-- Trusted By -->
-                <div class="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                    <span>Trusted by:</span>
-                    <div class="flex gap-6 opacity-60">
-                        <span class="font-medium">FedEx</span>
-                        <span class="font-medium">DHL</span>
-                        <span class="font-medium">Uber</span>
-                        <span class="font-medium">Amazon</span>
-                    </div>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span>{{ __('frontend.hero.trusted_label') }}</span>
+                    @foreach(__('frontend.trusted_partners') as $partner)
+                        <span class="font-medium opacity-80">{{ $partner }}</span>
+                    @endforeach
                 </div>
             </div>
 
@@ -114,11 +114,11 @@
                                     <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
                                     <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
                                 </div>
-                                <span class="text-xs text-slate-400 ml-2">Live Dashboard</span>
+                                <span class="text-xs text-slate-400 ml-2">{{ __('frontend.hero.map_title') }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <span class="text-xs text-emerald-500">47 Vehicles Active</span>
+                                <span class="text-xs text-emerald-500">{{ __('frontend.hero.map_active', ['count' => 18]) }}</span>
                             </div>
                         </div>
 
@@ -157,12 +157,12 @@
                         <!-- Live Stats -->
                         <div class="p-4 grid grid-cols-2 gap-4">
                             <div class="p-3 rounded-lg bg-slate-800/50">
-                                <div class="text-xs text-slate-400 mb-1">Current Speed</div>
-                                <div class="text-lg font-semibold text-white">68 km/h</div>
+                                <div class="text-xs text-slate-400 mb-1">{{ __('frontend.hero.map_speed') }}</div>
+                                <div class="text-lg font-semibold text-white">72 km/h</div>
                             </div>
                             <div class="p-3 rounded-lg bg-slate-800/50">
-                                <div class="text-xs text-slate-400 mb-1">Fuel Level</div>
-                                <div class="text-lg font-semibold text-white">74%</div>
+                                <div class="text-xs text-slate-400 mb-1">{{ __('frontend.hero.map_route') }}</div>
+                                <div class="text-lg font-semibold text-white">284 km</div>
                             </div>
                         </div>
                     </div>
@@ -172,8 +172,8 @@
                 <div class="absolute -bottom-6 -right-6 gradient-border">
                     <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-6 w-40">
                         <div class="text-center text-white">
-                            <div class="text-2xl font-bold">23%</div>
-                            <div class="text-sm">Fuel Saved</div>
+                            <div class="text-2xl font-bold">3</div>
+                            <div class="text-sm">{{ __('frontend.hero.map_alert') }}</div>
                         </div>
                     </div>
                 </div>
@@ -204,8 +204,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold text-white">FalconEyeGPS Product Tour</h3>
-                            <p class="text-sm text-slate-300">See how we transform fleet management</p>
+                            <h3 class="text-xl font-bold text-white">{{ __('frontend.hero.video_title') }}</h3>
+                            <p class="text-sm text-slate-300">{{ __('frontend.hero.video_subtitle') }}</p>
                         </div>
                     </div>
                     <button type="button" onclick="closeVideoModal()"
@@ -233,8 +233,8 @@
                 <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div class="text-sm text-slate-400">
                         Need a personalized demo?
-                        <a href="{{ url('register') }}" class="text-sky-400 hover:text-sky-300 font-medium ml-1">
-                            Book a live session →
+                        <a href="{{ url('/contact') }}" class="text-sky-400 hover:text-sky-300 font-medium ml-1">
+                            {{ __('frontend.hero.video_demo_link') }}
                         </a>
                     </div>
                     <div class="flex gap-3">
@@ -245,9 +245,9 @@
                             </svg>
                             Share
                         </button>
-                        <a href="{{ url('register') }}"
+                        <a href="{{ url('/contact') }}"
                            class="px-6 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 transition-all text-white font-semibold">
-                            {{ __('frontend.hero.start_trial') }}
+                            {{ __('frontend.hero.request_demo') }}
                         </a>
                     </div>
                 </div>

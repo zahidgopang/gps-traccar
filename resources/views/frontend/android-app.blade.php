@@ -1,7 +1,7 @@
 @extends('frontend.layout')
 
-@section('title', 'Download FalconEyeGPS for Android')
-@section('description', 'Official FalconEyeGPS Android APK download with step-by-step installation guide for direct APK installs on Android devices.')
+@section('title', __('seo.pages.android-app.title'))
+@section('description', __('seo.pages.android-app.description'))
 
 @section('content')
 @php
@@ -64,6 +64,9 @@
         <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-sky-300/20 to-blue-400/10 rounded-full blur-3xl"></div>
 
         <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+            <div class="text-left mb-8">
+                @include('frontend.partials.page-breadcrumbs')
+            </div>
             <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-full text-green-700 dark:text-green-400 font-semibold text-sm mb-4">
                 <i class="fa-brands fa-android"></i>
                 Official Android App

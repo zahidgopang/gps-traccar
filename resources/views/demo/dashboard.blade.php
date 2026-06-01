@@ -16,10 +16,10 @@
             <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-10 lg:mb-14">
                 <div>
                     <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-600 dark:from-white dark:via-indigo-300 dark:to-purple-400 mb-3 tracking-tight">
-                        Vehicle Dashboard
+                        {{ __('demo.dashboard.title') }}
                     </h1>
                     <p class="text-lg text-slate-600 dark:text-slate-300 max-w-2xl">
-                        Real-time monitoring and analytics for your fleet. Track, analyze, and optimize performance.
+                        {{ __('demo.dashboard.subtitle') }}
                     </p>
                 </div>
 
@@ -34,8 +34,8 @@
                             </div>
                         </div>
                         <div>
-                            <div class="font-semibold text-slate-900 dark:text-white">Toyota Corolla</div>
-                            <div class="text-sm text-slate-500 dark:text-slate-400">Vehicle ID: VC-2024-001</div>
+                            <div class="font-semibold text-slate-900 dark:text-white">{{ __('demo.dashboard.vehicle_name') }}</div>
+                            <div class="text-sm text-slate-500 dark:text-slate-400">{{ __('demo.dashboard.vehicle_id') }}</div>
                         </div>
                     </div>
                 </div>
@@ -63,9 +63,9 @@
                                 <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
                                 <div class="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-20"></div>
                             </div>
-                            <span class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">Running</span>
+                            <span class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{{ __('demo.dashboard.status') }}</span>
                         </div>
-                        <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">Vehicle is currently active and operational</p>
+                        <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ __('demo.dashboard.status_desc') }}</p>
                     </div>
                 </div>
 
@@ -203,7 +203,7 @@
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
                                 <span class="text-slate-600 dark:text-slate-300">Model</span>
-                                <span class="font-medium text-slate-900 dark:text-white">Toyota Corolla 2023</span>
+                                <span class="font-medium text-slate-900 dark:text-white">{{ __('demo.dashboard.vehicle_name') }}</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-slate-600 dark:text-slate-300">License Plate</span>

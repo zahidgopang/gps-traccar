@@ -1,7 +1,7 @@
 @extends('frontend.layout')
 
-@section('title', __('frontend.meta.title'))
-@section('description', __('frontend.meta.description'))
+@section('title', __('seo.pages.home.title'))
+@section('description', __('seo.pages.home.description'))
 
 @section('content')
 
@@ -219,10 +219,10 @@
 
             <!-- CTA Buttons -->
             <div class="flex flex-col sm:flex-row gap-6 justify-center mb-12">
-                <a href="{{ url('register') }}"
+                <a href="{{ url('/contact') }}"
                    class="group relative px-10 py-5 bg-white text-blue-700 rounded-2xl font-bold text-lg overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300">
                     <span class="relative z-10 flex items-center justify-center gap-3">
-                        {{ __('frontend.home.cta_trial') }}
+                        {{ __('frontend.home.cta_request_demo') }}
                         <svg class="w-5 h-5 transform group-hover:translate-x-2 transition-transform" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
                         </svg>
@@ -230,13 +230,16 @@
                     <div class="absolute inset-0 bg-gradient-to-r from-white to-blue-100 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
                 </a>
 
-                <a href="{{'demo/login'}}"
+                <a href="{{ url('/contact') }}?subject=sales"
                    class="group px-10 py-5 bg-white/20 backdrop-blur-sm text-white rounded-2xl font-bold text-lg border-2 border-white/30 hover:bg-white/30 transition-all">
                     <span class="flex items-center justify-center gap-3">
-                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
-                        </svg>
-                        {{ __('frontend.home.cta_demo') }}
+                        {{ __('frontend.home.cta_contact_sales') }}
+                    </span>
+                </a>
+                <a href="{{ url('demo/login') }}"
+                   class="group px-10 py-5 bg-white/10 backdrop-blur-sm text-white rounded-2xl font-bold text-lg border-2 border-white/20 hover:bg-white/20 transition-all">
+                    <span class="flex items-center justify-center gap-3">
+                        {{ __('frontend.home.cta_schedule') }}
                     </span>
                 </a>
             </div>
@@ -247,31 +250,29 @@
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                     </svg>
-                    <span>{{ __('frontend.hero.no_card') }}</span>
+                    <span>{{ __('frontend.hero.benefit_setup') }}</span>
                 </div>
                 <div class="flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                     </svg>
-                    <span>{{ __('frontend.hero.free_setup') }}</span>
+                    <span>{{ __('frontend.hero.benefit_devices') }}</span>
                 </div>
                 <div class="flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                     </svg>
-                    <span>{{ __('frontend.hero.premium_support') }}</span>
+                    <span>{{ __('frontend.hero.benefit_support') }}</span>
                 </div>
             </div>
 
             <!-- Trust Logos -->
             <div class="mt-16">
                 <p class="text-blue-100/60 text-sm mb-6">{{ __('frontend.home.cta_trusted') }}</p>
-                <div class="flex flex-wrap justify-center gap-8 text-2xl opacity-60">
-                    <span class="font-bold text-white/80">FEDEX</span>
-                    <span class="font-bold text-white/80">DHL</span>
-                    <span class="font-bold text-white/80">AMAZON</span>
-                    <span class="font-bold text-white/80">UBER</span>
-                    <span class="font-bold text-white/80">DHL</span>
+                <div class="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm md:text-base opacity-80">
+                    @foreach(__('frontend.trusted_partners') as $partner)
+                        <span class="font-semibold text-white/90">{{ $partner }}</span>
+                    @endforeach
                 </div>
             </div>
         </div>

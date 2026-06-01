@@ -93,9 +93,12 @@
                         </div>
                         <div class="bg-gradient-to-b from-[#0A0F2D] to-[#121a3a] p-6 min-h-[380px]">
                             <div class="flex items-center gap-3 mb-6">
-                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-                                    <i class="fa-solid fa-location-dot text-white text-xl"></i>
-                                </div>
+                                <img src="{{ asset(config('branding.app_icon')) }}?v={{ @filemtime(public_path(config('branding.app_icon'))) ?: time() }}"
+                                     alt="{{ config('branding.name') }}"
+                                     class="w-12 h-12 rounded-2xl shadow-lg"
+                                     width="48"
+                                     height="48"
+                                     loading="lazy">
                                 <div>
                                     <p class="text-white font-bold">FalconEyeGPS</p>
                                     <p class="text-slate-400 text-xs">{{ __('frontend.meta.tagline') }}</p>

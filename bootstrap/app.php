@@ -43,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->appendToGroup('web', [
+            \App\Http\Middleware\DiscardBrokenAuthSession::class,
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\RestrictScrapers::class,
         ]);

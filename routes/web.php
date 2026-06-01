@@ -26,7 +26,10 @@ use App\Http\Controllers\VehicleAlertController;
 */
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('home');
+
+Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
+Route::get('/robots.txt', \App\Http\Controllers\RobotsController::class)->name('robots');
 
 Route::get('/locale/{locale}', [\App\Http\Controllers\LocaleController::class, 'switch'])
     ->whereIn('locale', ['en', 'ar'])

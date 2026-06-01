@@ -1,8 +1,8 @@
 <!-- resources/views/frontend/pages/about.blade.php -->
 @extends('frontend.layout')
 
-@section('title', __('frontend.pages.about.title'))
-@section('description', __('frontend.pages.about.description'))
+@section('title', __('seo.pages.about.title'))
+@section('description', __('seo.pages.about.description'))
 
 @section('content')
 
@@ -11,6 +11,7 @@
         <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-emerald-50 to-teal-100 dark:from-slate-950 dark:via-emerald-950 dark:to-teal-950"></div>
 
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+            @include('frontend.partials.page-breadcrumbs')
             <div class="grid lg:grid-cols-2 gap-12 items-center">
                 <div>
                 <span class="inline-block px-4 py-1.5 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-full text-emerald-600 dark:text-emerald-400 font-semibold text-sm mb-4">
@@ -59,13 +60,13 @@
                         [
                             'year' => '2017',
                             'title' => 'First Enterprise Client',
-                            'desc' => 'Signed Fortune 500 logistics company with 1000+ vehicles',
+                            'desc' => 'Onboarded first regional logistics fleet in the Middle East',
                             'align' => 'right'
                         ],
                         [
                             'year' => '2019',
-                            'title' => 'AI Integration',
-                            'desc' => 'Launched AI-powered predictive analytics platform',
+                            'title' => 'Mobile App Launch',
+                            'desc' => 'Released Android app for live tracking and fleet alerts',
                             'align' => 'left'
                         ],
                         [
@@ -76,8 +77,8 @@
                         ],
                         [
                             'year' => '2023',
-                            'title' => '10,000+ Clients',
-                            'desc' => 'Reached milestone of serving over 10,000 businesses worldwide',
+                            'title' => 'Regional Growth',
+                            'desc' => 'Expanded fleet operations support across Saudi Arabia and Pakistan',
                             'align' => 'left'
                         ],
                         [

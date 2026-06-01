@@ -22,6 +22,45 @@ class TcAwareUserProvider extends EloquentUserProvider
         parent::__construct($hasher, $model);
     }
 
+    public function retrieveById($identifier): ?Authenticatable
+    {
+        if (! $this->usersTableReady()) {
+            return null;
+        }
+
+        try {
+            return parent::retrieveById($identifier);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function retrieveByToken($identifier, #[\SensitiveParameter] $token): ?Authenticatable
+    {
+        if (! $this->usersTableReady()) {
+            return null;
+        }
+
+        try {
+            return parent::retrieveByToken($identifier, $token);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function retrieveByCredentials(#[\SensitiveParameter] array $credentials): ?Authenticatable
+    {
+        if (! $this->usersTableReady()) {
+            return null;
+        }
+
+        try {
+            return parent::retrieveByCredentials($credentials);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     public function validateCredentials(Authenticatable $user, #[\SensitiveParameter] array $credentials): bool
     {
         $plain = (string) ($credentials['password'] ?? '');
@@ -76,5 +115,12 @@ class TcAwareUserProvider extends EloquentUserProvider
         $saltHex = $saltColumn ? (string) ($row->{$saltColumn} ?? '') : '';
 
         return TraccarPassword::validate($plain, $hashHex, $saltHex);
+    }
+
+    private function usersTableReady(): bool
+    {
+        $model = $this->createModel();
+
+        return TraccarSchema::hasTable($model->getTable());
     }
 }

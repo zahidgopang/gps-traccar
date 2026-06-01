@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
     @include('partials.seo-meta', [
-        'seoTitle' => trim($__env->yieldContent('title')) ?: __('frontend.meta.title'),
-        'seoDescription' => trim($__env->yieldContent('description')) ?: __('frontend.meta.description'),
-        'seoKeywords' => config('branding.seo.keywords'),
+        'seoTitle' => trim($__env->yieldContent('title')) ?: null,
+        'seoDescription' => trim($__env->yieldContent('description')) ?: null,
     ])
+
+    @include('partials.analytics')
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
@@ -15,6 +16,8 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     @if($isRtl ?? false)
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -113,6 +116,10 @@
 </head>
 
 <body class="font-sans bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300 overflow-x-hidden">
+@if(config('seo.google_tag_manager_id'))
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ config('seo.google_tag_manager_id') }}"
+height="0" width="0" style="display:none;visibility:hidden" title="Google Tag Manager"></iframe></noscript>
+@endif
 <!-- Animated Background Elements -->
 <div class="fixed inset-0 overflow-hidden pointer-events-none z-[-1]">
     <div class="absolute top-1/4 -left-32 w-64 h-64 bg-gradient-to-r from-sky-300/20 to-blue-400/10 rounded-full blur-3xl animate-float"></div>
@@ -165,7 +172,7 @@
                        class="site-header__cta-signin text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         {{ __('frontend.nav.sign_in') }}
                     </a>
-                    <a href="{{ url('register') }}"
+                    <a href="{{ url('/contact') }}"
                        class="site-header__cta-primary bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all">
                         {{ __('frontend.nav.get_started') }}
                     </a>
@@ -204,7 +211,7 @@
                         <a href="{{ url('login') }}" class="border border-slate-300 dark:border-slate-600 font-medium text-slate-800 dark:text-slate-200">
                             {{ __('frontend.nav.sign_in') }}
                         </a>
-                        <a href="{{ url('register') }}" class="bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold">
+                        <a href="{{ url('/contact') }}" class="bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold">
                             {{ __('frontend.nav.get_started') }}
                         </a>
                     </div>
@@ -404,5 +411,6 @@
 </script>
 
 @stack('scripts')
+@stack('json-ld')
 </body>
 </html>
