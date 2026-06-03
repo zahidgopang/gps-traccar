@@ -725,12 +725,100 @@
         return VEHICLE_STATE_COLORS[state] || VEHICLE_STATE_COLORS.parked;
     }
 
-    function vehicleSvgDataUrl(color, heading, showDirection) {
+    function resolveVehicleType(source) {
+        const raw = String(
+            source?.vehicle_type || source?.vehicleType || cfg.vehicleType || 'car'
+        ).toLowerCase().trim();
+        const known = ['car', 'suv', 'truck', 'van', 'bus', 'pickup', 'motorcycle', 'trailer', 'other'];
+        if (known.includes(raw)) {
+            return raw;
+        }
+        if (raw.includes('motor')) return 'motorcycle';
+        if (raw.includes('truck')) return 'truck';
+        if (raw.includes('bus')) return 'bus';
+        if (raw.includes('van')) return 'van';
+        if (raw.includes('pickup')) return 'pickup';
+        if (raw.includes('trailer')) return 'trailer';
+        if (raw.includes('suv')) return 'suv';
+        if (raw.includes('equip') || raw.includes('machin')) return 'other';
+        return 'car';
+    }
+
+    function shouldShowVehicleDirection(point, state) {
+        if (state === 'offline' || state === 'parked') {
+            return false;
+        }
+        const heading = parseFloat(point?.heading);
+        return Number.isFinite(heading);
+    }
+
+    function vehicleBodySvgInner(vehicleType, color) {
+        const white = '#ffffff';
+        const wheel = '#1E293B';
+        const stroke = ` stroke="${white}" stroke-width="2.2" stroke-linejoin="round"`;
+        const shadow = `<ellipse cx="26" cy="29" rx="15" ry="6" fill="#000000" opacity="0.18"/>`;
+        const bodies = {
+            car: `${shadow}
+                <rect x="14" y="8" width="24" height="36" rx="5" fill="${color}"${stroke}/>
+                <rect x="19" y="11" width="14" height="8" rx="2" fill="${white}" opacity="0.9"/>
+                <rect x="20" y="32" width="12" height="5" rx="1.5" fill="${white}" opacity="0.55"/>
+                <circle cx="17" cy="16" r="2.6" fill="${wheel}"/><circle cx="35" cy="16" r="2.6" fill="${wheel}"/>
+                <circle cx="17" cy="36" r="2.6" fill="${wheel}"/><circle cx="35" cy="36" r="2.6" fill="${wheel}"/>`,
+            suv: `${shadow.replace('rx="15"', 'rx="17"')}
+                <rect x="12" y="7" width="28" height="38" rx="6" fill="${color}"${stroke}/>
+                <rect x="18" y="10" width="16" height="9" rx="2" fill="${white}" opacity="0.9"/>
+                <circle cx="15" cy="15" r="2.6" fill="${wheel}"/><circle cx="37" cy="15" r="2.6" fill="${wheel}"/>
+                <circle cx="15" cy="38" r="2.6" fill="${wheel}"/><circle cx="37" cy="38" r="2.6" fill="${wheel}"/>`,
+            truck: `<ellipse cx="26" cy="30" rx="17" ry="7" fill="#000000" opacity="0.18"/>
+                <rect x="15" y="8" width="22" height="16" rx="4" fill="${color}"${stroke}/>
+                <rect x="13" y="22" width="26" height="22" rx="3" fill="${color}" opacity="0.92"${stroke}/>
+                <rect x="20" y="10" width="12" height="7" rx="1.5" fill="${white}" opacity="0.88"/>
+                <circle cx="16" cy="22" r="2.6" fill="${wheel}"/><circle cx="36" cy="22" r="2.6" fill="${wheel}"/>
+                <circle cx="16" cy="40" r="2.6" fill="${wheel}"/><circle cx="36" cy="40" r="2.6" fill="${wheel}"/>`,
+            van: `<ellipse cx="26" cy="30" rx="16" ry="6.5" fill="#000000" opacity="0.18"/>
+                <rect x="13" y="6" width="26" height="40" rx="4" fill="${color}"${stroke}/>
+                <rect x="19" y="9" width="14" height="8" rx="2" fill="${white}" opacity="0.9"/>
+                <line x1="13" y1="22" x2="39" y2="22" stroke="${white}" stroke-opacity="0.35" stroke-width="1.2"/>
+                <circle cx="16" cy="17" r="2.6" fill="${wheel}"/><circle cx="36" cy="17" r="2.6" fill="${wheel}"/>
+                <circle cx="16" cy="40" r="2.6" fill="${wheel}"/><circle cx="36" cy="40" r="2.6" fill="${wheel}"/>`,
+            bus: `<ellipse cx="26" cy="30" rx="17" ry="7" fill="#000000" opacity="0.18"/>
+                <rect x="12" y="4" width="28" height="44" rx="5" fill="${color}"${stroke}/>
+                <rect x="17" y="8" width="18" height="6" rx="1" fill="${white}" opacity="0.75"/>
+                <rect x="17" y="18" width="18" height="6" rx="1" fill="${white}" opacity="0.75"/>
+                <rect x="17" y="28" width="18" height="6" rx="1" fill="${white}" opacity="0.75"/>
+                <circle cx="15" cy="14" r="2.8" fill="${wheel}"/><circle cx="37" cy="14" r="2.8" fill="${wheel}"/>
+                <circle cx="15" cy="40" r="2.8" fill="${wheel}"/><circle cx="37" cy="40" r="2.8" fill="${wheel}"/>`,
+            pickup: `<ellipse cx="26" cy="30" rx="17" ry="6.5" fill="#000000" opacity="0.18"/>
+                <rect x="15" y="7" width="22" height="18" rx="4" fill="${color}"${stroke}/>
+                <rect x="14" y="23" width="24" height="16" rx="2" fill="${color}" opacity="0.9"${stroke}/>
+                <rect x="20" y="9" width="12" height="7" rx="1.5" fill="${white}" opacity="0.88"/>
+                <circle cx="16" cy="21" r="2.6" fill="${wheel}"/><circle cx="36" cy="21" r="2.6" fill="${wheel}"/>
+                <circle cx="16" cy="37" r="2.6" fill="${wheel}"/><circle cx="36" cy="37" r="2.6" fill="${wheel}"/>`,
+            motorcycle: `<ellipse cx="26" cy="29" rx="11" ry="5" fill="#000000" opacity="0.18"/>
+                <rect x="21" y="10" width="10" height="28" rx="4" fill="${color}"${stroke}/>
+                <rect x="22" y="12" width="8" height="6" rx="2" fill="${white}" opacity="0.9"/>
+                <circle cx="26" cy="14" r="4.5" fill="none" stroke="${wheel}" stroke-width="2.4"/>
+                <circle cx="26" cy="38" r="4.5" fill="none" stroke="${wheel}" stroke-width="2.4"/>`,
+            trailer: `<ellipse cx="26" cy="30" rx="15" ry="6" fill="#000000" opacity="0.18"/>
+                <rect x="15" y="12" width="22" height="32" rx="3" fill="${color}" opacity="0.9"${stroke}/>
+                <rect x="19" y="16" width="14" height="8" rx="2" fill="${white}" opacity="0.55"/>
+                <circle cx="17" cy="40" r="3" fill="${wheel}"/><circle cx="35" cy="40" r="3" fill="${wheel}"/>`,
+            other: `<ellipse cx="26" cy="29" rx="16" ry="6" fill="#000000" opacity="0.18"/>
+                <rect x="12" y="12" width="28" height="28" rx="4" fill="${color}"${stroke}/>
+                <rect x="18" y="16" width="16" height="8" rx="2" fill="${white}" opacity="0.85"/>
+                <rect x="21" y="21" width="10" height="10" rx="1" fill="none" stroke="${white}" stroke-opacity="0.45" stroke-width="1.6" transform="rotate(45 26 26)"/>
+                <circle cx="15" cy="36" r="2.8" fill="${wheel}"/><circle cx="37" cy="36" r="2.8" fill="${wheel}"/>`,
+        };
+        return bodies[vehicleType] || bodies.car;
+    }
+
+    function vehicleSvgDataUrl(color, heading, showDirection, vehicleType) {
         const rotation = showDirection ? (parseFloat(heading || 0)) : 0;
+        const type = vehicleType || 'car';
+        const body = vehicleBodySvgInner(type, color);
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
             <g transform="rotate(${rotation} 26 26)">
-                <path d="M26 8 L34 36 L30 42 L22 42 L18 36 Z" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
-                <rect x="22" y="16" width="8" height="7" rx="1.5" fill="#ffffff" opacity="0.9"/>
+                ${body}
             </g>
         </svg>`;
         return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
@@ -772,9 +860,11 @@
         return { title, plate };
     }
 
-    function labeledVehicleSvgDataUrl(identity, color, heading, showDirection) {
+    function labeledVehicleSvgDataUrl(identity, color, heading, showDirection, vehicleType) {
         const title = identity.title || 'Vehicle';
         const plate = identity.plate || '';
+        const type = vehicleType || 'car';
+        const body = vehicleBodySvgInner(type, color);
         const esc = (s) => String(s)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -815,8 +905,7 @@
             ${plate ? `<text x="${cx}" y="${plateY}" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="9.5" font-weight="500">${esc(plate)}</text>` : ''}
             <g transform="translate(${cx - pinCx}, ${pinTop}) scale(${pinScale}) rotate(${rotation} 26 26)">
                 <circle cx="26" cy="26" r="21" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.35"/>
-                <path d="M26 7 L33 34 L29 40 L23 40 L19 34 Z" fill="${color}" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>
-                <rect x="22.5" y="15" width="7" height="6" rx="1.5" fill="#ffffff" opacity="0.92"/>
+                ${body}
             </g>
         </svg>`;
 
@@ -831,9 +920,10 @@
         const state = vehicleStateKey(point);
         const color = vehicleStateColor(state);
         const heading = parseFloat(point?.heading || 0);
-        const showDirection = state === 'moving' || state === 'idle' || state === 'stopped' || state === 'alert';
+        const vehicleType = resolveVehicleType(point);
+        const showDirection = shouldShowVehicleDirection(point, state);
         const identity = markerIdentityForPoint(point);
-        const cacheKey = `${identity.title}|${identity.plate || ''}|${color}|${Math.round(heading / 5)}|${showDirection ? 1 : 0}`;
+        const cacheKey = `${identity.title}|${identity.plate || ''}|${color}|${vehicleType}|${Math.round(heading / 5)}|${showDirection ? 1 : 0}`;
         if (!vehicleIcon._cache) {
             vehicleIcon._cache = {};
         }
@@ -841,7 +931,7 @@
             return vehicleIcon._cache[cacheKey];
         }
 
-        const sized = labeledVehicleSvgDataUrl(identity, color, heading, showDirection);
+        const sized = labeledVehicleSvgDataUrl(identity, color, heading, showDirection, vehicleType);
         const scale = Math.min(1, 152 / sized.width);
         const w = Math.round(sized.width * scale);
         const h = Math.round(sized.height * scale);

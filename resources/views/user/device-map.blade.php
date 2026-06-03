@@ -2205,6 +2205,7 @@
             markerPlate: @json($device->mapMarkerPlateLine()),
             vehicleName: @json($device->vehicle_name),
             vehicleNumber: @json($device->vehicle_number),
+            vehicleType: @json($device->vehicle_type),
             deviceTypeLabel: @json($device->deviceTypeLabel()),
             isAdminMap: @json($isAdminMap ?? false),
             apiRoutes: @json($mapApiRoutes ?? []),
