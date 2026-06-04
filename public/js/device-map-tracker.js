@@ -2005,9 +2005,50 @@ ${pts}
             key,
             libraries: 'drawing,geometry,visualization,places',
             v: 'weekly',
-            loading: 'async',
         });
         return `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+    }
+
+    /** drawing library must be ready before DrawingManager. */
+    async function ensureDrawingLibrary(maxMs = 12000) {
+        const start = Date.now();
+        while (Date.now() - start < maxMs) {
+            if (mapsAuthFailed) {
+                return false;
+            }
+            if (google?.maps?.drawing?.DrawingManager) {
+                return true;
+            }
+            if (typeof google?.maps?.importLibrary === 'function') {
+                try {
+                    await google.maps.importLibrary('drawing');
+                    if (google?.maps?.drawing?.DrawingManager) {
+                        return true;
+                    }
+                } catch (_) {
+                    /* retry */
+                }
+            }
+            await sleep(50);
+        }
+        return !!google?.maps?.drawing?.DrawingManager;
+    }
+
+    function initDrawingManager() {
+        if (drawingManager || !map) {
+            return drawingManager;
+        }
+        if (!google?.maps?.drawing?.DrawingManager) {
+            return null;
+        }
+        try {
+            drawingManager = new google.maps.drawing.DrawingManager({ drawingControl: false });
+            drawingManager.setMap(map);
+        } catch (drawErr) {
+            console.warn('[device-map] DrawingManager init failed', drawErr);
+            drawingManager = null;
+        }
+        return drawingManager;
     }
 
     function waitForGoogleMaps(maxMs = 15000) {
@@ -2230,13 +2271,7 @@ ${pts}
             maxZoom: 21,
         });
 
-        try {
-            drawingManager = new google.maps.drawing.DrawingManager({ drawingControl: false });
-            drawingManager.setMap(map);
-        } catch (drawErr) {
-            console.warn('[device-map] DrawingManager unavailable', drawErr);
-            drawingManager = null;
-        }
+        initDrawingManager();
         trafficLayer = new google.maps.TrafficLayer();
         customInfoWindow = new google.maps.InfoWindow({ maxWidth: 320, pixelOffset: new google.maps.Size(0, -8) });
         customInfoWindow.addListener('closeclick', () => {
@@ -2295,6 +2330,7 @@ ${pts}
         try {
             await waitForMapContainerSize();
             await loadGoogleMapsApi();
+            await ensureDrawingLibrary();
 
             if (!map) {
                 createMapInstance();
@@ -2433,6 +2469,49 @@ ${pts}
         }
     }
 
+    function bindDrawingControls() {
+        const drawIds = ['btnDrawPolygon', 'btnDrawCircle', 'btnSaveGeofence', 'btnCancelGeofence'];
+        const dm = drawingManager || initDrawingManager();
+        if (!dm || !google?.maps?.drawing) {
+            drawIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = true;
+                }
+            });
+            return;
+        }
+
+        google.maps.event.addListener(dm, 'overlaycomplete', (e) => {
+            currentDrawing = e.overlay;
+            document.getElementById('btnSaveGeofence').disabled = false;
+            dm.setDrawingMode(null);
+        });
+        document.getElementById('btnDrawPolygon')?.addEventListener('click', () => {
+            if (!initDrawingManager()) {
+                showNotification('Drawing tools unavailable', 'error');
+                return;
+            }
+            currentDrawing?.setMap(null);
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+        });
+        document.getElementById('btnDrawCircle')?.addEventListener('click', () => {
+            if (!initDrawingManager()) {
+                showNotification('Drawing tools unavailable', 'error');
+                return;
+            }
+            currentDrawing?.setMap(null);
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
+        });
+        document.getElementById('btnSaveGeofence')?.addEventListener('click', saveGeofence);
+        document.getElementById('btnCancelGeofence')?.addEventListener('click', () => {
+            currentDrawing?.setMap(null);
+            drawingManager?.setDrawingMode(null);
+            document.getElementById('btnSaveGeofence').disabled = true;
+            document.getElementById('geofencePanel')?.classList.remove('active');
+        });
+    }
+
     function bindControls() {
         document.getElementById('btnRecenter')?.addEventListener('click', () => {
             centerOnVehicle();
@@ -2506,26 +2585,7 @@ ${pts}
 
         window.addEventListener('map-sidebar-toggled', resizeMap);
 
-        google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
-            currentDrawing = e.overlay;
-            document.getElementById('btnSaveGeofence').disabled = false;
-            drawingManager.setDrawingMode(null);
-        });
-        document.getElementById('btnDrawPolygon')?.addEventListener('click', () => {
-            currentDrawing?.setMap(null);
-            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-        });
-        document.getElementById('btnDrawCircle')?.addEventListener('click', () => {
-            currentDrawing?.setMap(null);
-            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
-        });
-        document.getElementById('btnSaveGeofence')?.addEventListener('click', saveGeofence);
-        document.getElementById('btnCancelGeofence')?.addEventListener('click', () => {
-            currentDrawing?.setMap(null);
-            drawingManager.setDrawingMode(null);
-            document.getElementById('btnSaveGeofence').disabled = true;
-            document.getElementById('geofencePanel')?.classList.remove('active');
-        });
+        bindDrawingControls();
 
         document.getElementById('pbPlayPause')?.addEventListener('click', togglePlayPause);
         document.getElementById('pbStop')?.addEventListener('click', stopPlayback);
