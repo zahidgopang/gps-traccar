@@ -58,12 +58,13 @@
     let realtimePolylines = [];
     let markers = [];
     let currentPositionMarker = null;
+    let fleetRenderer = null;
     let startMarker = null;
     let currentDrawing = null;
     let playbackPoints = [];
     let playbackTimer, playbackIndex = 0, isPlaying = false, playbackSpeed = 1;
     let playbackAnimFrame = null;
-    let playbackMarker = null;
+    let playbackActive = false;
     let followVehicle = true;
     let flatpickrFrom;
     let flatpickrTo;
@@ -105,7 +106,6 @@
     let animFromPos = null;
     let animFromHeading = 0;
     let animStartTime = 0;
-    let vehiclePulseOverlay = null;
     let endMarker = null;
     let eventMarkers = [];
     let routeGlowPolylines = [];
@@ -114,106 +114,42 @@
     const mediumSpeedKmh = cfg.mediumSpeedKmh ?? 60;
     const ANIM_DURATION_MS = cfg.markerAnimMs ?? 1200;
 
-    const VEHICLE_STATE_COLORS = {
-        moving: '#22c55e',
-        idle: '#f97316',
-        stopped: '#ef4444',
-        parked: '#3b82f6',
-        offline: '#94a3b8',
-        delayed: '#eab308',
-        alert: '#ef4444',
-    };
-
-    function getVehiclePulseOverlayClass() {
-        if (typeof google === 'undefined' || !google.maps?.OverlayView) {
+    function ensureFleetRenderer() {
+        if (!map) return null;
+        if (!window.FleetMapRenderer) {
+            console.warn('[device-map] FleetMapRenderer module missing');
             return null;
         }
-        if (getVehiclePulseOverlayClass._cls) {
-            return getVehiclePulseOverlayClass._cls;
+        if (!fleetRenderer) {
+            fleetRenderer = new window.FleetMapRenderer({
+                googleMaps: google,
+                getIdentity: markerIdentityForPoint,
+                getState: vehicleStateKey,
+                getColor: vehicleStateColor,
+                getVehicleType: resolveVehicleType,
+                shouldShowDirection: shouldShowVehicleDirection,
+                isHidden: hasNoGpsData,
+                speedToColor,
+                mediumSpeedKmh,
+                overSpeedLimit,
+                routeGlowEnabled,
+                getNightMode: () => nightModeOn,
+                animDurationMs: ANIM_DURATION_MS,
+                startIconUrl: cfg.startIcon,
+                endIconUrl: cfg.endIcon,
+                onVehicleClick: () => {
+                    if (lastTelemetry) openLiveVehiclePopup(lastTelemetry);
+                },
+            });
+            fleetRenderer.attachMap(map);
+            fleetRenderer.setFollowVehicle(followVehicle);
         }
-        getVehiclePulseOverlayClass._cls = class extends google.maps.OverlayView {
-            constructor() {
-                super();
-                this.position = null;
-                this.color = VEHICLE_STATE_COLORS.moving;
-                this.container = null;
-            }
-
-            onAdd() {
-                const div = document.createElement('div');
-                div.className = 'vehicle-live-pulse-wrap';
-                div.innerHTML = [
-                    '<div class="vehicle-live-pulse-glow"></div>',
-                    '<div class="vehicle-live-pulse-ring"></div>',
-                    '<div class="vehicle-live-pulse-ring vehicle-live-pulse-ring--delay"></div>',
-                    '<div class="vehicle-live-pulse-ring vehicle-live-pulse-ring--delay2"></div>',
-                    '<div class="vehicle-live-pulse-core"></div>',
-                ].join('');
-                this.container = div;
-                const pane = this.getPanes().floatPane || this.getPanes().overlayMouseTarget;
-                pane.appendChild(div);
-            }
-
-            onRemove() {
-                if (this.container?.parentNode) {
-                    this.container.parentNode.removeChild(this.container);
-                }
-                this.container = null;
-            }
-
-            draw() {
-                if (!this.container || !this.position) return;
-                const projection = this.getProjection();
-                if (!projection) return;
-                const point = projection.fromLatLngToDivPixel(
-                    new google.maps.LatLng(this.position.lat, this.position.lng)
-                );
-                if (!point) return;
-                this.container.style.left = `${point.x}px`;
-                this.container.style.top = `${point.y}px`;
-                this.container.style.setProperty('--pulse-color', this.color);
-            }
-
-            setPosition(lat, lng) {
-                this.position = { lat, lng };
-                this.draw();
-            }
-
-            setColor(color) {
-                this.color = color || VEHICLE_STATE_COLORS.moving;
-                if (this.container) {
-                    this.container.style.setProperty('--pulse-color', this.color);
-                }
-            }
-        };
-        return getVehiclePulseOverlayClass._cls;
-    }
-
-    function ensureVehiclePulseOverlay() {
-        if (!map) return null;
-        const Cls = getVehiclePulseOverlayClass();
-        if (!Cls) return null;
-        if (!vehiclePulseOverlay) {
-            vehiclePulseOverlay = new Cls();
-            vehiclePulseOverlay.setMap(map);
-            map.addListener('bounds_changed', () => vehiclePulseOverlay?.draw());
-        }
-        return vehiclePulseOverlay;
+        currentPositionMarker = fleetRenderer.getMarker();
+        return fleetRenderer;
     }
 
     function updateVehiclePulseOverlay(point) {
-        if (!point || hasNoGpsData(point)) {
-            if (vehiclePulseOverlay) {
-                vehiclePulseOverlay.setMap(null);
-                vehiclePulseOverlay = null;
-            }
-            return;
-        }
-        const overlay = ensureVehiclePulseOverlay();
-        if (!overlay) return;
-        const state = vehicleStateKey(point);
-        overlay.setColor(vehicleStateColor(state));
-        overlay.setPosition(point.lat, point.lng);
+        ensureFleetRenderer()?.syncPulse(point);
     }
 
     const NIGHT_MAP_STYLES = [
@@ -722,7 +658,7 @@
     }
 
     function vehicleStateColor(state) {
-        return VEHICLE_STATE_COLORS[state] || VEHICLE_STATE_COLORS.parked;
+        return window.VehicleMarker?.stateColor(state) || '#3b82f6';
     }
 
     function resolveVehicleType(source) {
@@ -750,78 +686,6 @@
         }
         const heading = parseFloat(point?.heading);
         return Number.isFinite(heading);
-    }
-
-    function vehicleBodySvgInner(vehicleType, color) {
-        const white = '#ffffff';
-        const wheel = '#1E293B';
-        const stroke = ` stroke="${white}" stroke-width="2.2" stroke-linejoin="round"`;
-        const shadow = `<ellipse cx="26" cy="29" rx="15" ry="6" fill="#000000" opacity="0.18"/>`;
-        const bodies = {
-            car: `${shadow}
-                <rect x="14" y="8" width="24" height="36" rx="5" fill="${color}"${stroke}/>
-                <rect x="19" y="11" width="14" height="8" rx="2" fill="${white}" opacity="0.9"/>
-                <rect x="20" y="32" width="12" height="5" rx="1.5" fill="${white}" opacity="0.55"/>
-                <circle cx="17" cy="16" r="2.6" fill="${wheel}"/><circle cx="35" cy="16" r="2.6" fill="${wheel}"/>
-                <circle cx="17" cy="36" r="2.6" fill="${wheel}"/><circle cx="35" cy="36" r="2.6" fill="${wheel}"/>`,
-            suv: `${shadow.replace('rx="15"', 'rx="17"')}
-                <rect x="12" y="7" width="28" height="38" rx="6" fill="${color}"${stroke}/>
-                <rect x="18" y="10" width="16" height="9" rx="2" fill="${white}" opacity="0.9"/>
-                <circle cx="15" cy="15" r="2.6" fill="${wheel}"/><circle cx="37" cy="15" r="2.6" fill="${wheel}"/>
-                <circle cx="15" cy="38" r="2.6" fill="${wheel}"/><circle cx="37" cy="38" r="2.6" fill="${wheel}"/>`,
-            truck: `<ellipse cx="26" cy="30" rx="17" ry="7" fill="#000000" opacity="0.18"/>
-                <rect x="15" y="8" width="22" height="16" rx="4" fill="${color}"${stroke}/>
-                <rect x="13" y="22" width="26" height="22" rx="3" fill="${color}" opacity="0.92"${stroke}/>
-                <rect x="20" y="10" width="12" height="7" rx="1.5" fill="${white}" opacity="0.88"/>
-                <circle cx="16" cy="22" r="2.6" fill="${wheel}"/><circle cx="36" cy="22" r="2.6" fill="${wheel}"/>
-                <circle cx="16" cy="40" r="2.6" fill="${wheel}"/><circle cx="36" cy="40" r="2.6" fill="${wheel}"/>`,
-            van: `<ellipse cx="26" cy="30" rx="16" ry="6.5" fill="#000000" opacity="0.18"/>
-                <rect x="13" y="6" width="26" height="40" rx="4" fill="${color}"${stroke}/>
-                <rect x="19" y="9" width="14" height="8" rx="2" fill="${white}" opacity="0.9"/>
-                <line x1="13" y1="22" x2="39" y2="22" stroke="${white}" stroke-opacity="0.35" stroke-width="1.2"/>
-                <circle cx="16" cy="17" r="2.6" fill="${wheel}"/><circle cx="36" cy="17" r="2.6" fill="${wheel}"/>
-                <circle cx="16" cy="40" r="2.6" fill="${wheel}"/><circle cx="36" cy="40" r="2.6" fill="${wheel}"/>`,
-            bus: `<ellipse cx="26" cy="30" rx="17" ry="7" fill="#000000" opacity="0.18"/>
-                <rect x="12" y="4" width="28" height="44" rx="5" fill="${color}"${stroke}/>
-                <rect x="17" y="8" width="18" height="6" rx="1" fill="${white}" opacity="0.75"/>
-                <rect x="17" y="18" width="18" height="6" rx="1" fill="${white}" opacity="0.75"/>
-                <rect x="17" y="28" width="18" height="6" rx="1" fill="${white}" opacity="0.75"/>
-                <circle cx="15" cy="14" r="2.8" fill="${wheel}"/><circle cx="37" cy="14" r="2.8" fill="${wheel}"/>
-                <circle cx="15" cy="40" r="2.8" fill="${wheel}"/><circle cx="37" cy="40" r="2.8" fill="${wheel}"/>`,
-            pickup: `<ellipse cx="26" cy="30" rx="17" ry="6.5" fill="#000000" opacity="0.18"/>
-                <rect x="15" y="7" width="22" height="18" rx="4" fill="${color}"${stroke}/>
-                <rect x="14" y="23" width="24" height="16" rx="2" fill="${color}" opacity="0.9"${stroke}/>
-                <rect x="20" y="9" width="12" height="7" rx="1.5" fill="${white}" opacity="0.88"/>
-                <circle cx="16" cy="21" r="2.6" fill="${wheel}"/><circle cx="36" cy="21" r="2.6" fill="${wheel}"/>
-                <circle cx="16" cy="37" r="2.6" fill="${wheel}"/><circle cx="36" cy="37" r="2.6" fill="${wheel}"/>`,
-            motorcycle: `<ellipse cx="26" cy="29" rx="11" ry="5" fill="#000000" opacity="0.18"/>
-                <rect x="21" y="10" width="10" height="28" rx="4" fill="${color}"${stroke}/>
-                <rect x="22" y="12" width="8" height="6" rx="2" fill="${white}" opacity="0.9"/>
-                <circle cx="26" cy="14" r="4.5" fill="none" stroke="${wheel}" stroke-width="2.4"/>
-                <circle cx="26" cy="38" r="4.5" fill="none" stroke="${wheel}" stroke-width="2.4"/>`,
-            trailer: `<ellipse cx="26" cy="30" rx="15" ry="6" fill="#000000" opacity="0.18"/>
-                <rect x="15" y="12" width="22" height="32" rx="3" fill="${color}" opacity="0.9"${stroke}/>
-                <rect x="19" y="16" width="14" height="8" rx="2" fill="${white}" opacity="0.55"/>
-                <circle cx="17" cy="40" r="3" fill="${wheel}"/><circle cx="35" cy="40" r="3" fill="${wheel}"/>`,
-            other: `<ellipse cx="26" cy="29" rx="16" ry="6" fill="#000000" opacity="0.18"/>
-                <rect x="12" y="12" width="28" height="28" rx="4" fill="${color}"${stroke}/>
-                <rect x="18" y="16" width="16" height="8" rx="2" fill="${white}" opacity="0.85"/>
-                <rect x="21" y="21" width="10" height="10" rx="1" fill="none" stroke="${white}" stroke-opacity="0.45" stroke-width="1.6" transform="rotate(45 26 26)"/>
-                <circle cx="15" cy="36" r="2.8" fill="${wheel}"/><circle cx="37" cy="36" r="2.8" fill="${wheel}"/>`,
-        };
-        return bodies[vehicleType] || bodies.car;
-    }
-
-    function vehicleSvgDataUrl(color, heading, showDirection, vehicleType) {
-        const rotation = showDirection ? (parseFloat(heading || 0)) : 0;
-        const type = vehicleType || 'car';
-        const body = vehicleBodySvgInner(type, color);
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
-            <g transform="rotate(${rotation} 26 26)">
-                ${body}
-            </g>
-        </svg>`;
-        return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
     }
 
     function truncateMarkerText(text, maxLen) {
@@ -860,88 +724,11 @@
         return { title, plate };
     }
 
-    function labeledVehicleSvgDataUrl(identity, color, heading, showDirection, vehicleType) {
-        const title = identity.title || 'Vehicle';
-        const plate = identity.plate || '';
-        const type = vehicleType || 'car';
-        const body = vehicleBodySvgInner(type, color);
-        const esc = (s) => String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/"/g, '&quot;');
-
-        const titleLen = title.length * 6.8;
-        const plateLen = plate ? plate.length * 5.8 : 0;
-        const pillW = Math.max(48, Math.min(148, Math.max(titleLen, plateLen) + 16));
-        const titleLineH = 13;
-        const plateLineH = plate ? 11 : 0;
-        const innerGap = plate ? 2 : 0;
-        const pillPadY = 5;
-        const pillH = pillPadY + titleLineH + innerGap + plateLineH + pillPadY;
-        const labelGap = 6;
-        const pinSize = 44;
-        const totalW = Math.max(pillW + 6, pinSize);
-        const totalH = pillH + labelGap + pinSize;
-        const cx = totalW / 2;
-        const pillX = (totalW - pillW) / 2;
-        const titleY = pillPadY + titleLineH - 3;
-        const plateY = titleY + innerGap + plateLineH;
-        const pinTop = pillH + labelGap;
-        const rotation = showDirection ? (parseFloat(heading || 0)) : 0;
-        const pinScale = pinSize / 52;
-        const pinCx = 26 * pinScale;
-        const pinCy = 26 * pinScale;
-
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}">
-            <defs>
-                <filter id="badgeShadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#000000" flood-opacity="0.45"/>
-                </filter>
-            </defs>
-            <g filter="url(#badgeShadow)">
-                <rect x="${pillX}" y="0" width="${pillW}" height="${pillH}" rx="${Math.min(12, pillH / 2)}" fill="rgba(15,23,42,0.94)" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
-            </g>
-            <text x="${cx}" y="${titleY}" text-anchor="middle" fill="#ffffff" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="700">${esc(title)}</text>
-            ${plate ? `<text x="${cx}" y="${plateY}" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-size="9.5" font-weight="500">${esc(plate)}</text>` : ''}
-            <g transform="translate(${cx - pinCx}, ${pinTop}) scale(${pinScale}) rotate(${rotation} 26 26)">
-                <circle cx="26" cy="26" r="21" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.35"/>
-                ${body}
-            </g>
-        </svg>`;
-
-        return {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-            width: totalW,
-            height: totalH,
-        };
-    }
-
     function vehicleIcon(point) {
-        const state = vehicleStateKey(point);
-        const color = vehicleStateColor(state);
-        const heading = parseFloat(point?.heading || 0);
-        const vehicleType = resolveVehicleType(point);
-        const showDirection = shouldShowVehicleDirection(point, state);
-        const identity = markerIdentityForPoint(point);
-        const cacheKey = `${identity.title}|${identity.plate || ''}|${color}|${vehicleType}|${Math.round(heading / 5)}|${showDirection ? 1 : 0}`;
-        if (!vehicleIcon._cache) {
-            vehicleIcon._cache = {};
-        }
-        if (vehicleIcon._cache[cacheKey]) {
-            return vehicleIcon._cache[cacheKey];
-        }
-
-        const sized = labeledVehicleSvgDataUrl(identity, color, heading, showDirection, vehicleType);
-        const scale = Math.min(1, 152 / sized.width);
-        const w = Math.round(sized.width * scale);
-        const h = Math.round(sized.height * scale);
-        const icon = {
-            url: sized.url,
-            scaledSize: new google.maps.Size(w, h),
-            anchor: new google.maps.Point(w / 2, h),
-        };
-        vehicleIcon._cache[cacheKey] = icon;
-        return icon;
+        ensureFleetRenderer();
+        return fleetRenderer?.iconBuilder?.iconFor(point, {
+            showLiveBadge: !playbackActive,
+        }) || null;
     }
 
     function routeMarkerIcon(type) {
@@ -1282,9 +1069,9 @@
             showNotification(mi('noPosition', 'No position available'), 'info');
             return;
         }
-        map.panTo(pos);
-        map.setZoom(Math.max(map.getZoom() || 15, 16));
+        ensureFleetRenderer()?.focusOnVehicle(16);
         followVehicle = true;
+        fleetRenderer?.setFollowVehicle(true);
         document.getElementById('btnFollow')?.classList.add('active');
     }
 
@@ -1938,132 +1725,44 @@ ${pts}
     }
 
     function updateCurrentMarker(point, skipAnimation) {
-        const position = { lat: point.lat, lng: point.lng };
-        const icon = vehicleIcon(point);
+        const renderer = ensureFleetRenderer();
+        if (!renderer) return;
 
-        if (!currentPositionMarker) {
-            currentPositionMarker = new google.maps.Marker({
-                position,
-                map,
-                title: markerIdentityFromConfig(point).title,
-                icon,
-                zIndex: 999,
-            });
-            currentPositionMarker.addListener('click', () => {
-                if (lastTelemetry) {
-                    openLiveVehiclePopup(lastTelemetry);
+        renderer.setFollowVehicle(followVehicle);
+        renderer.setPlaybackActive(playbackActive);
+        renderer.setCurrentVehicle(point, {
+            skipAnimation: !!skipAnimation,
+            focusZoom: skipAnimation ? null : 16,
+            onComplete: () => {
+                currentPositionMarker = renderer.getMarker();
+                if (vehiclePopupPinned && lastTelemetry) {
+                    updateLiveVehiclePopup(lastTelemetry);
                 }
-            });
+            },
+        });
+        currentPositionMarker = renderer.getMarker();
+        if (currentPositionMarker && !markers.includes(currentPositionMarker)) {
             markers.push(currentPositionMarker);
-            if (followVehicle) map.panTo(position);
-            updateVehiclePulseOverlay(point);
-            return;
         }
-
-        if (skipAnimation) {
-            currentPositionMarker.setPosition(position);
-            currentPositionMarker.setIcon(icon);
-            currentPositionMarker.setTitle(markerIdentityFromConfig(point).title);
-            if (followVehicle) map.panTo(position);
-            updateVehiclePulseOverlay(point);
-            if (vehiclePopupPinned && lastTelemetry) {
-                updateLiveVehiclePopup(lastTelemetry);
-            }
-            return;
-        }
-
-        animateMarkerTo(point);
     }
 
     function animateMarkerTo(point) {
-        const target = { lat: point.lat, lng: point.lng };
-        const startPos = currentPositionMarker?.getPosition();
-
-        if (!startPos) {
-            currentPositionMarker.setPosition(target);
-            currentPositionMarker.setIcon(vehicleIcon(point));
-            return;
-        }
-
-        animFromPos = { lat: startPos.lat(), lng: startPos.lng() };
-        animFromHeading = parseFloat(lastTelemetry?.heading ?? point.heading ?? 0);
-        animStartTime = performance.now();
-
-        if (markerAnimationFrame) {
-            cancelAnimationFrame(markerAnimationFrame);
-        }
-
-        const step = (now) => {
-            const t = Math.min(1, (now - animStartTime) / ANIM_DURATION_MS);
-            const eased = 1 - Math.pow(1 - t, 3);
-            const lat = animFromPos.lat + (target.lat - animFromPos.lat) * eased;
-            const lng = animFromPos.lng + (target.lng - animFromPos.lng) * eased;
-            const heading = interpolateHeading(animFromHeading, parseFloat(point.heading || 0), eased);
-
-            currentPositionMarker.setPosition({ lat, lng });
-            currentPositionMarker.setIcon(vehicleIcon({ ...point, heading, lat, lng }));
-            updateVehiclePulseOverlay({ ...point, lat, lng, heading });
-
-            if (followVehicle && t > 0.5) {
-                map.panTo({ lat, lng });
-            }
-
-            if (t < 1) {
-                markerAnimationFrame = requestAnimationFrame(step);
-            } else {
-                markerAnimationFrame = null;
-                currentPositionMarker.setPosition(target);
-                currentPositionMarker.setIcon(vehicleIcon(point));
-                updateVehiclePulseOverlay(point);
-                if (vehiclePopupPinned) {
-                    updateLiveVehiclePopup(point);
-                }
-            }
-        };
-
-        markerAnimationFrame = requestAnimationFrame(step);
+        updateCurrentMarker(point, false);
     }
 
     function createRouteSegment(from, to, speed, options) {
-        const clickable = options?.clickable !== false;
-        const path = [{ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng }];
-        const color = speedToColor(speed);
-        const weight = speed <= 0 ? 6 : speed <= mediumSpeedKmh ? 8 : speed <= overSpeedLimit ? 9 : 10;
-        const segments = [];
-
-        if (routeGlowEnabled) {
-            const glow = new google.maps.Polyline({
-                path,
-                strokeColor: color,
-                strokeOpacity: nightModeOn ? 0.35 : 0.22,
-                strokeWeight: weight + 10,
-                clickable: false,
-                map,
-                zIndex: 1,
-            });
-            routeGlowPolylines.push(glow);
-            segments.push(glow);
-        }
-
-        const line = new google.maps.Polyline({
-            path,
-            strokeColor: color,
-            strokeOpacity: 0.95,
-            strokeWeight: weight,
-            clickable,
-            map,
-            zIndex: 2,
+        const renderer = ensureFleetRenderer();
+        if (!renderer) return [];
+        return renderer._createSegment(from, to, speed, {
+            clickable: options?.clickable !== false,
+            night: nightModeOn,
+            glowOn: routeGlowEnabled,
+            onClick: options?.onClick,
         });
-        segments.push(line);
-        return segments;
     }
 
     function drawRealtimeSegment(from, to, speed) {
-        const segs = createRouteSegment(from, to, speed, { clickable: false });
-        segs.forEach((seg) => realtimePolylines.push(seg));
-        while (realtimePolylines.length > 200) {
-            realtimePolylines.shift().setMap(null);
-        }
+        ensureFleetRenderer()?.drawRealtimeSegment(from, to, speed);
     }
 
     function applyLivePoint(raw) {
@@ -2082,16 +1781,15 @@ ${pts}
         const positionChanged = hasSignificantPositionChange(point, prev);
         const key = positionKey(point);
 
-        if (positionChanged) {
+        if (positionChanged && !playbackActive) {
             lastAppliedPositionKey = key;
             updateCurrentMarker(point, !prev);
             if (prev && lastRealtimePoint) {
                 drawRealtimeSegment(lastRealtimePoint, point, point.speed);
             }
             lastRealtimePoint = { lat: point.lat, lng: point.lng };
-        } else if (currentPositionMarker) {
-            currentPositionMarker.setIcon(vehicleIcon(point));
-            updateVehiclePulseOverlay(point);
+        } else if (!playbackActive) {
+            ensureFleetRenderer()?.updateVehicleIcon(point);
         }
 
         updateTelemetryUI(point);
@@ -2532,6 +2230,8 @@ ${pts}
             mapControlsBound = true;
         }
 
+        ensureFleetRenderer();
+
         if (initial) {
             applyLivePoint(initial);
             lastRealtimePoint = { lat: initial.lat, lng: initial.lng };
@@ -2697,6 +2397,7 @@ ${pts}
         document.getElementById('btnCenterVehicle')?.addEventListener('click', centerOnVehicle);
         document.getElementById('btnFollow')?.addEventListener('click', () => {
             followVehicle = !followVehicle;
+            fleetRenderer?.setFollowVehicle(followVehicle);
             document.getElementById('btnFollow')?.classList.toggle('active', followVehicle);
             showNotification(followVehicle ? 'Follow mode on' : 'Follow mode off', 'info');
         });
@@ -2892,21 +2593,10 @@ ${pts}
         updatePlaybackAtIndex(playbackIndex);
     }
 
-    function updatePlaybackAtIndex(index, skipAnimation) {
+    function updatePlaybackAtIndex(index) {
         const p = playbackPoints[index];
         if (!p) return;
-        if (!playbackMarker) {
-            playbackMarker = new google.maps.Marker({
-                map,
-                title: 'Playback',
-                zIndex: 1000,
-                icon: vehicleIcon(p),
-            });
-        } else {
-            playbackMarker.setPosition({ lat: p.lat, lng: p.lng });
-            playbackMarker.setIcon(vehicleIcon(p));
-        }
-        updateVehiclePulseOverlay(p);
+        updateCurrentMarker(p, true);
         setText('pbLiveSpeed', parseFloat(p.speed || 0).toFixed(0));
         setText('pbPointIndex', String(index + 1));
         updatePlaybackProgress();
@@ -2917,49 +2607,31 @@ ${pts}
         const from = playbackPoints[playbackIndex];
         const to = playbackPoints[nextIndex];
         if (!from || !to || playbackIndex === nextIndex) {
-            updatePlaybackAtIndex(nextIndex, true);
+            updatePlaybackAtIndex(nextIndex);
             onDone?.();
             return;
         }
         if (playbackAnimFrame) cancelAnimationFrame(playbackAnimFrame);
-        const start = performance.now();
-        const duration = Math.max(200, 1000 / playbackSpeed);
+        playbackAnimFrame = null;
         const fromH = parseFloat(from.heading || 0);
-        const toH = parseFloat(to.heading || 0);
-
-        const step = (now) => {
-            const t = Math.min(1, (now - start) / duration);
-            const eased = 1 - Math.pow(1 - t, 3);
-            const lat = from.lat + (to.lat - from.lat) * eased;
-            const lng = from.lng + (to.lng - from.lng) * eased;
-            const heading = interpolateHeading(fromH, toH, eased);
-            const point = { ...to, lat, lng, heading };
-
-            if (!playbackMarker) {
-                playbackMarker = new google.maps.Marker({
-                    map,
-                    title: 'Playback',
-                    zIndex: 1000,
-                    icon: vehicleIcon(point),
-                });
-            } else {
-                playbackMarker.setPosition({ lat, lng });
-                playbackMarker.setIcon(vehicleIcon(point));
-            }
-            updateVehiclePulseOverlay(point);
-            setText('pbLiveSpeed', parseFloat(point.speed || 0).toFixed(0));
-            if (followVehicle) map.panTo({ lat, lng });
-
-            if (t < 1) {
-                playbackAnimFrame = requestAnimationFrame(step);
-            } else {
+        const renderer = ensureFleetRenderer();
+        renderer?.setPlaybackActive(true);
+        renderer?.cancelAnimation();
+        const animPoint = {
+            ...to,
+            _fromHeading: fromH,
+        };
+        renderer?.setCurrentVehicle(animPoint, {
+            skipAnimation: false,
+            animDurationMs: Math.max(200, 1000 / playbackSpeed),
+            onComplete: () => {
                 playbackAnimFrame = null;
                 playbackIndex = nextIndex;
-                updatePlaybackAtIndex(nextIndex, true);
+                setText('pbLiveSpeed', parseFloat(to.speed || 0).toFixed(0));
+                updatePlaybackAtIndex(nextIndex);
                 onDone?.();
-            }
-        };
-        playbackAnimFrame = requestAnimationFrame(step);
+            },
+        });
     }
 
     function advancePlaybackStep() {
@@ -3159,12 +2831,12 @@ ${pts}
                 satellites: data[data.length - 1]?.satellites,
             });
 
-            polylines.forEach((p) => p.setMap(null));
+            const renderer = ensureFleetRenderer();
+            renderer?.clearRoute({ keepVehicle: true, keepRealtime: true });
             polylines = [];
-            routeGlowPolylines.forEach((p) => p.setMap(null));
             routeGlowPolylines = [];
             clearEventMarkers();
-            markers.forEach((m) => { if (m !== currentPositionMarker) m.setMap(null); });
+            renderer?.clearExtraMarkers();
             markers = currentPositionMarker ? [currentPositionMarker] : [];
 
             if (!data.length) {
@@ -3182,37 +2854,35 @@ ${pts}
             }
 
             historyData = data;
-            const bounds = new google.maps.LatLngBounds();
 
-            for (let i = 1; i < data.length; i++) {
-                const a = data[i - 1], b = data[i];
-                bounds.extend({ lat: a.lat, lng: a.lng });
-                bounds.extend({ lat: b.lat, lng: b.lng });
-                const speed = b.speed;
-                const segs = createRouteSegment(a, b, speed, { clickable: true });
-                const line = segs[segs.length - 1];
-                line._segmentData = {
-                    start: a,
-                    end: b,
-                    speed,
-                    distance: haversineDistance(a.lat, a.lng, b.lat, b.lng),
-                    startTime: a.recorded_at,
-                    endTime: b.recorded_at,
-                };
-                google.maps.event.addListener(line, 'click', (e) => showPolylineInfo(line, e.latLng));
-                polylines.push(...segs);
-            }
+            const bounds = renderer.drawRoute(data, {
+                clickable: true,
+                haversineDistance,
+                onSegmentClick: (line, latLng) => showPolylineInfo(line, latLng),
+                startTitle: mi('routeStart', 'Route start'),
+                endTitle: mi('routeEnd', 'Route end'),
+                updateCurrent: false,
+            });
 
-            addStartEndMarkers(data[0], data[data.length - 1]);
+            polylines = renderer.polylines;
+            routeGlowPolylines = renderer.glowPolylines;
+            startMarker = renderer.startMarker;
+            endMarker = renderer.endMarker;
+            if (startMarker) markers.push(startMarker);
+            if (endMarker) markers.push(endMarker);
+
             renderEventMarkers(detectRouteEvents(data));
             if (showsEventMarkers) {
                 document.getElementById('btnEventMarkers')?.classList.add('active');
             }
             lastRealtimePoint = { lat: data[data.length - 1].lat, lng: data[data.length - 1].lng };
-            applyLivePoint(data[data.length - 1]);
+            updateCurrentMarker(data[data.length - 1], true);
 
-            if (data.length < 100) map.fitBounds(bounds);
-            else { map.setCenter({ lat: data[data.length - 1].lat, lng: data[data.length - 1].lng }); map.setZoom(14); }
+            if (bounds && data.length < 100) {
+                renderer.fitBounds(bounds, 56);
+            } else {
+                renderer.focusOnVehicle(16);
+            }
 
             playbackPoints = data;
             playbackIndex = 0;
@@ -3263,39 +2933,28 @@ ${pts}
     }
 
     function addStartEndMarkers(start, end) {
-        startMarker?.setMap(null);
-        endMarker?.setMap(null);
-
-        startMarker = new google.maps.Marker({
-            position: { lat: start.lat, lng: start.lng },
-            map,
-            title: mi('routeStart', 'Route start'),
-            icon: routeMarkerIcon('start'),
-            zIndex: 998,
+        const renderer = ensureFleetRenderer();
+        renderer?.setRouteEndpoints(start, end, {
+            startTitle: mi('routeStart', 'Route start'),
+            endTitle: mi('routeEnd', 'Route end'),
+            updateCurrent: true,
         });
-        endMarker = new google.maps.Marker({
-            position: { lat: end.lat, lng: end.lng },
-            map,
-            title: mi('routeEnd', 'Route end'),
-            icon: routeMarkerIcon('end'),
-            zIndex: 997,
-        });
-        markers.push(startMarker, endMarker);
-        updateCurrentMarker(end, true);
+        startMarker = renderer?.startMarker ?? null;
+        endMarker = renderer?.endMarker ?? null;
+        if (startMarker) markers.push(startMarker);
+        if (endMarker) markers.push(endMarker);
+        currentPositionMarker = renderer?.getMarker() ?? currentPositionMarker;
     }
 
     function clearRoute() {
-        polylines.forEach((p) => p.setMap(null));
+        ensureFleetRenderer()?.clearRoute({ keepVehicle: true });
         polylines = [];
-        routeGlowPolylines.forEach((p) => p.setMap(null));
         routeGlowPolylines = [];
-        realtimePolylines.forEach((p) => p.setMap(null));
         realtimePolylines = [];
         clearEventMarkers();
         startMarker = null;
         endMarker = null;
         document.getElementById('btnEventMarkers')?.classList.remove('active');
-        markers.forEach((m) => { if (m !== currentPositionMarker) m.setMap(null); });
         markers = currentPositionMarker ? [currentPositionMarker] : [];
         stopPlayback();
         historyData = [];
@@ -3318,6 +2977,8 @@ ${pts}
     function startPlayback() {
         if (!playbackPoints.length) return showNotification('No playback data', 'error');
         if (playbackIndex >= playbackPoints.length) playbackIndex = 0;
+        playbackActive = true;
+        ensureFleetRenderer()?.setPlaybackActive(true);
         isPlaying = true;
         setPlayPauseUi(true);
         updatePlaybackMeta();
@@ -3343,16 +3004,16 @@ ${pts}
         if (playbackAnimFrame) cancelAnimationFrame(playbackAnimFrame);
         playbackAnimFrame = null;
         isPlaying = false;
+        playbackActive = false;
+        ensureFleetRenderer()?.setPlaybackActive(false);
         playbackIndex = 0;
         setPlayPauseUi(false);
-        playbackMarker?.setMap(null);
-        playbackMarker = null;
         setText('pbLiveSpeed', '0');
         setText('pbPointIndex', '0');
         updatePlaybackProgress();
         updatePlaybackMeta();
         if (lastTelemetry) {
-            updateVehiclePulseOverlay(lastTelemetry);
+            updateCurrentMarker(lastTelemetry, true);
         }
     }
 

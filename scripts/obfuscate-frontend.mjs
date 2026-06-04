@@ -16,6 +16,8 @@ const OUT_DIR = path.join(root, 'public', 'assets', 'protected', 'js');
 
 const FILES = [
     { in: path.join(SOURCE_DIR, 'admin-locations-live.js'), out: 'admin-locations-live.js' },
+    { in: path.join(SOURCE_DIR, 'vehicle-marker.js'), out: 'vehicle-marker.js' },
+    { in: path.join(SOURCE_DIR, 'fleet-map-renderer.js'), out: 'fleet-map-renderer.js' },
     { in: path.join(SOURCE_DIR, 'device-map-tracker.js'), out: 'device-map-tracker.js' },
     { in: path.join(SOURCE_DIR, 'device-status-toggle.js'), out: 'device-status-toggle.js' },
     { in: path.join(SOURCE_DIR, 'form-enhancements.js'), out: 'form-enhancements.js' },

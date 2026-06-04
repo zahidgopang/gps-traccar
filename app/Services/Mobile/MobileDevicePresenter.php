@@ -54,6 +54,7 @@ class MobileDevicePresenter
             'satellites' => $latest?->satellites,
             'lat' => $latest ? (float) $latest->lat : null,
             'lng' => $latest ? (float) $latest->lng : null,
+            'map_rendering' => MapRenderingSpec::toArray(),
         ];
     }
 
@@ -109,6 +110,7 @@ class MobileDevicePresenter
             'vehicle_number' => $device->vehicle_number,
             'map_marker_title' => $device->mapMarkerTitle(),
             'map_marker_plate' => $device->mapMarkerPlateLine(),
+            'map_rendering' => MapRenderingSpec::toArray(),
         ];
     }
 }

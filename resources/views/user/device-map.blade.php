@@ -1,6 +1,7 @@
 @extends('user.layout')
 
 @push('styles')
+    <link rel="stylesheet" href="{{ asset('css/fleet-map.css') }}?v={{ filemtime(public_path('css/fleet-map.css')) }}">
     <style>
         :root {
             --map-ui-bg: rgba(255, 255, 255, 0.92);
@@ -656,75 +657,6 @@
         .gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
         .gm-style-iw-c { padding: 0 !important; border-radius: 14px !important; box-shadow: 0 12px 40px rgba(15,23,42,0.18) !important; }
 
-        /* Live vehicle pulse — fleet tracking style */
-        .vehicle-live-pulse-wrap {
-            position: absolute;
-            width: 140px;
-            height: 140px;
-            margin-left: -70px;
-            margin-top: -96px;
-            pointer-events: none;
-            z-index: 999;
-            --pulse-color: #22c55e;
-        }
-        .vehicle-live-pulse-glow {
-            position: absolute;
-            inset: 24px;
-            border-radius: 50%;
-            background: radial-gradient(
-                circle,
-                color-mix(in srgb, var(--pulse-color) 42%, transparent) 0%,
-                color-mix(in srgb, var(--pulse-color) 18%, transparent) 45%,
-                transparent 72%
-            );
-            animation: vehicle-live-glow-breathe 1.5s ease-in-out infinite;
-        }
-        @keyframes vehicle-live-glow-breathe {
-            0%, 100% { opacity: 0.65; transform: scale(0.88); }
-            50% { opacity: 1; transform: scale(1.08); }
-        }
-        .vehicle-live-pulse-ring {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            border: 3.5px solid var(--pulse-color);
-            opacity: 0;
-            will-change: transform, opacity;
-            animation: vehicle-live-pulse 1.5s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-        }
-        .vehicle-live-pulse-ring--delay {
-            animation-delay: 0.75s;
-        }
-        .vehicle-live-pulse-ring--delay2 {
-            animation-delay: 1.125s;
-        }
-        .vehicle-live-pulse-core {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: 14px;
-            height: 14px;
-            margin: -7px 0 0 -7px;
-            border-radius: 50%;
-            background: var(--pulse-color);
-            opacity: 0.9;
-            box-shadow:
-                0 0 12px color-mix(in srgb, var(--pulse-color) 70%, transparent),
-                0 0 24px color-mix(in srgb, var(--pulse-color) 40%, transparent);
-        }
-        @keyframes vehicle-live-pulse {
-            0% {
-                transform: scale(0.25);
-                opacity: 0.75;
-            }
-            60% {
-                opacity: 0.2;
-            }
-            100% {
-                transform: scale(1.35);
-                opacity: 0;
-            }
-        }
         .map-live-panel__toggle {
             flex-shrink: 0;
             width: 34px;
@@ -2238,6 +2170,7 @@
             routeGlowEnabled: true,
             showEventMarkers: true,
             markerAnimMs: 1200,
+            mapRendering: @json(\App\Services\Mobile\MapRenderingSpec::toArray()),
             mapTour: {
                 showOnLoad: @json($showMapTourOnLoad ?? true),
                 mode: @json($mapTourMode ?? 'repeat'),
@@ -2380,6 +2313,8 @@
     @endif
     <script src="{{ protected_js('map-session-guard.js') }}"></script>
     <script src="{{ protected_js('app-datetime.js') }}"></script>
+    <script src="{{ protected_js('vehicle-marker.js') }}"></script>
+    <script src="{{ protected_js('fleet-map-renderer.js') }}"></script>
     <script src="{{ protected_js('device-map-tracker.js') }}"></script>
     <script src="{{ protected_js('map-tour.js') }}"></script>
 @endpush

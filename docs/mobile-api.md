@@ -110,6 +110,12 @@ Test from CLI: `php artisan push:test {user_id}`
 | GET | `/api/export/csv?device_id=&from=&to=` | CSV download |
 | GET | `/api/export/gpx?device_id=&from=&to=` | GPX download |
 
+## Map rendering (`map_rendering`)
+
+Device list, detail, and live responses include `map_rendering` (see `App\Services\Mobile\MapRenderingSpec`). Native apps should use these values for vehicle size, pulse diameter, status colors, and GPS anchor so maps match the web tracker.
+
+Full spec: [map-rendering-spec.md](./map-rendering-spec.md)
+
 ## Real-time tracking
 
 1. Call `GET /api/devices/{id}/live-stream` for channel name `device.{id}` and event `DeviceLocationUpdated`.
