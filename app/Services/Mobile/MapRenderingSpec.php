@@ -9,7 +9,9 @@ class MapRenderingSpec
 {
     public const VEHICLE_BODY_PX = 76;
 
-    public const DISPLAY_SCALE = 1.85;
+    public const DISPLAY_SCALE = 1.2;
+
+    public const MAX_ICON_WIDTH = 200;
 
     public const PULSE_SIZE_PX = 210;
 
@@ -31,6 +33,7 @@ class MapRenderingSpec
         return [
             'vehicle_body_px' => self::VEHICLE_BODY_PX,
             'display_scale' => self::DISPLAY_SCALE,
+            'max_icon_width' => self::MAX_ICON_WIDTH,
             'pulse_size_px' => self::PULSE_SIZE_PX,
             'route_start_marker_px' => self::ROUTE_START_MARKER_PX,
             'route_end_marker_px' => self::ROUTE_END_MARKER_PX,

@@ -21,8 +21,8 @@
     const DEFAULTS = {
         vehicleBodyPx: 76,
         labelGap: 8,
-        displayScale: 1.85,
-        maxIconWidth: 300,
+        displayScale: 1.2,
+        maxIconWidth: 200,
         headingStepDeg: 4,
     };
 
