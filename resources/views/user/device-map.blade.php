@@ -1307,6 +1307,13 @@
             gap: 16px;
         }
         .loading-overlay.active { display: flex; }
+        #loadingText {
+            max-width: min(92vw, 420px);
+            padding: 0 16px;
+            text-align: center;
+            line-height: 1.45;
+            white-space: pre-line;
+        }
         .loading-spinner {
             width: 60px;
             height: 60px;
@@ -2144,6 +2151,7 @@
             baseUrl: @json(url('/')),
             csrfToken: @json(csrf_token()),
             googleMapsKey: @json(config('services.google.maps_key')),
+            appDebug: @json((bool) config('app.debug')),
             initialPoint: @json($initialPoint ?? null),
             defaultLat: 24.8607,
             defaultLng: 67.0011,

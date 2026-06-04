@@ -88,15 +88,18 @@
     let unreadAlertCount = 0;
 
     const MAP_BOOT_MAX = 4;
-    const MAP_READY_TIMEOUT_MS = 12000;
-    const MAP_HEALTH_INTERVAL_MS = 20000;
+    const MAP_READY_TIMEOUT_MS = 20000;
+    const MAP_HEALTH_INTERVAL_MS = 30000;
+    const MAP_HEALTH_MISS_MAX = 2;
     let mapReady = false;
     let mapBootAttempts = 0;
     let mapBootRunning = false;
     let mapControlsBound = false;
     let mapDataStarted = false;
     let mapHealthTimer = null;
+    let mapHealthMisses = 0;
     let mapResizeObserver = null;
+    let lastMapBootError = '';
     let lastAppliedPositionKey = '';
     let vehiclePopupPinned = false;
     let livePopupAddress = '';
@@ -1890,7 +1893,18 @@ ${pts}
     }
 
     function hasGoogleMapDom(el) {
-        return !!(el && el.querySelector('.gm-style'));
+        if (!el) {
+            return false;
+        }
+        if (el.querySelector('.gm-style, .gm-style-cc, .gm-err-container')) {
+            return !el.querySelector('.gm-err-container');
+        }
+        const hasMapSurface = !!(
+            el.querySelector('iframe')
+            || el.querySelector('canvas')
+            || el.querySelector('[role="region"]')
+        );
+        return hasMapSurface && el.children.length > 0;
     }
 
     function waitForMapContainerSize(maxMs = 8000) {
@@ -1991,6 +2005,7 @@ ${pts}
             key,
             libraries: 'drawing,geometry,visualization,places',
             v: 'weekly',
+            loading: 'async',
         });
         return `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     }
@@ -2092,7 +2107,15 @@ ${pts}
             google.maps.event.addListenerOnce(map, 'idle', () => {
                 setTimeout(() => finish(true), 250);
             });
+            google.maps.event.addListenerOnce(map, 'projection_changed', () => {
+                setTimeout(() => finish(true), 120);
+            });
             google.maps.event.trigger(map, 'resize');
+            setTimeout(() => {
+                if (!settled && hasGoogleMapDom(div)) {
+                    finish(true);
+                }
+            }, 600);
         });
     }
 
@@ -2108,6 +2131,8 @@ ${pts}
 
     function onMapTilesReady() {
         mapReady = true;
+        mapHealthMisses = 0;
+        lastMapBootError = '';
         hideLoading();
         resizeMap();
         if (!mapDataStarted) {
@@ -2167,11 +2192,18 @@ ${pts}
             }
             const div = document.getElementById('map');
             if (mapReady && div && !hasGoogleMapDom(div)) {
+                mapHealthMisses += 1;
+                if (mapHealthMisses < MAP_HEALTH_MISS_MAX) {
+                    return;
+                }
                 console.warn('[device-map] render health check failed — reloading map');
+                mapHealthMisses = 0;
                 mapReady = false;
                 map = null;
                 bootDeviceMap();
+                return;
             }
+            mapHealthMisses = 0;
         }, MAP_HEALTH_INTERVAL_MS);
     }
 
@@ -2198,8 +2230,13 @@ ${pts}
             maxZoom: 21,
         });
 
-        drawingManager = new google.maps.drawing.DrawingManager({ drawingControl: false });
-        drawingManager.setMap(map);
+        try {
+            drawingManager = new google.maps.drawing.DrawingManager({ drawingControl: false });
+            drawingManager.setMap(map);
+        } catch (drawErr) {
+            console.warn('[device-map] DrawingManager unavailable', drawErr);
+            drawingManager = null;
+        }
         trafficLayer = new google.maps.TrafficLayer();
         customInfoWindow = new google.maps.InfoWindow({ maxWidth: 320, pixelOffset: new google.maps.Size(0, -8) });
         customInfoWindow.addListener('closeclick', () => {
@@ -2270,7 +2307,9 @@ ${pts}
             onMapTilesReady();
             mapBootAttempts = 0;
         } catch (err) {
-            console.warn('[device-map] boot failed', mapBootAttempts, err);
+            lastMapBootError = String(err?.message || err || 'unknown');
+            console.error('[device-map] boot failed', mapBootAttempts, lastMapBootError, err);
+            window.__deviceMapLastError = lastMapBootError;
             map = null;
             mapReady = false;
 
@@ -2286,7 +2325,11 @@ ${pts}
                 return bootDeviceMap();
             }
 
-            showLoading(mi('loadingMapFailed', 'Map failed to load. Retrying…'));
+            const retryMsg = mi('loadingMapFailed', 'Map failed to load. Retrying…');
+            const detail = cfg.appDebug && lastMapBootError
+                ? `${retryMsg}\n(${lastMapBootError})`
+                : retryMsg;
+            showLoading(detail);
             mapBootAttempts = 0;
             await sleep(8000);
             mapBootRunning = false;
