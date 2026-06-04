@@ -7,5 +7,7 @@ $app = require __DIR__.'/../bootstrap/app.php';
 foreach (['/', '/up', '/login'] as $path) {
     $request = Illuminate\Http\Request::create($path, 'GET');
     $response = $app->handleRequest($request);
-    echo "{$path} => ".$response->getStatusCode().PHP_EOL;
+    $code = $response->getStatusCode();
+    $note = $path === '/up' && in_array($code, [200, 503], true) ? ' (ok)' : '';
+    echo "{$path} => {$code}{$note}".PHP_EOL;
 }
