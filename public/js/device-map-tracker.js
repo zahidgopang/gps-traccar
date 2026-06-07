@@ -65,6 +65,8 @@
     let playbackTimer, playbackIndex = 0, isPlaying = false, playbackSpeed = 1;
     let playbackAnimFrame = null;
     let playbackActive = false;
+    /** When true, marker/pulse color uses fix-time motion, not wall-clock offline tier. */
+    let routeScrubUsesMotion = false;
     let followVehicle = true;
     let flatpickrFrom;
     let flatpickrTo;
@@ -608,6 +610,14 @@
     function vehicleStateKey(point) {
         if (hasNoGpsData(point)) {
             return 'offline';
+        }
+
+        // Playback / historical scrub: motion at that GPS fix, not "offline" due to age.
+        if (playbackActive || routeScrubUsesMotion) {
+            if (point?.status_key) {
+                return normalizeVehicleStateKey(point.status_key);
+            }
+            return vehicleStateKeyFromMetrics(point);
         }
 
         const tier = connectivityTier(point);
@@ -1456,21 +1466,28 @@ ${pts}
     function updateTelemetryUI(point) {
         if (!point) return;
 
-        const speed = parseFloat(point.speed || 0);
+        const tier = connectivityTier(point);
+        const isRecent = tier === 'recent';
+        const isOffline = tier === 'offline';
+        const speed = isRecent ? parseFloat(point.speed || 0) : lastKnownSpeed(point);
         const battery = point.battery != null ? parseInt(point.battery, 10) : null;
         const status = resolveVehicleStatus(point);
+        const ignitionVal = isRecent ? point.ignition : lastKnownIgnition(point);
+        const ignitionText = ignitionVal != null
+            ? (ignitionVal ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF'))
+            : dash();
 
         setText('lastSeen', point.recorded_at ? (window.AppDateTime?.formatDateTime(point.recorded_at) ?? point.recorded_at) : dash());
         setText('telemetrySpeed', speed.toFixed(0) + ' ' + mi('kmh', 'km/h'));
         setText('telemetryHeading', point.heading != null && point.heading !== '' ? point.heading + '°' : dash());
         setText('telemetryBattery', battery != null ? battery + '%' : dash());
-        setText('telemetryIgnition', point.ignition != null ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF')) : dash());
+        setText('telemetryIgnition', ignitionText);
         setText('telemetryGsm', formatGsmDisplay(point.gsm_signal));
         setText('telemetrySatellites', point.satellites != null ? String(point.satellites) : dash());
         setText('telemetryOdometer', point.odometer != null ? Number(point.odometer).toLocaleString() + ' ' + mi('km', 'km') : dash());
 
         setText('livePanelSpeed', speed.toFixed(0) + ' ' + mi('kmh', 'km/h'));
-        setText('livePanelIgnition', point.ignition != null ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF')) : dash());
+        setText('livePanelIgnition', ignitionText);
         setText('livePanelGps', point.gps_fix != null ? String(point.gps_fix) : dash());
         setText('livePanelGsm', formatGsmDisplay(point.gsm_signal));
         setText('livePanelSatellites', point.satellites != null ? String(point.satellites) : dash());
@@ -1808,6 +1825,10 @@ ${pts}
             lastRealtimePoint = { lat: point.lat, lng: point.lng };
         } else if (!playbackActive) {
             ensureFleetRenderer()?.updateVehicleIcon(point);
+        }
+
+        if (connectivityTier(point) === 'recent') {
+            routeScrubUsesMotion = false;
         }
 
         updateTelemetryUI(point);
@@ -2714,6 +2735,7 @@ ${pts}
     function updatePlaybackAtIndex(index) {
         const p = playbackPoints[index];
         if (!p) return;
+        routeScrubUsesMotion = true;
         updateCurrentMarker(p, true);
         setText('pbLiveSpeed', parseFloat(p.speed || 0).toFixed(0));
         setText('pbPointIndex', String(index + 1));
@@ -2994,6 +3016,7 @@ ${pts}
                 document.getElementById('btnEventMarkers')?.classList.add('active');
             }
             lastRealtimePoint = { lat: data[data.length - 1].lat, lng: data[data.length - 1].lng };
+            routeScrubUsesMotion = true;
             updateCurrentMarker(data[data.length - 1], true);
 
             if (bounds && data.length < 100) {
