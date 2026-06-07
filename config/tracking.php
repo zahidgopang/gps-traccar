@@ -7,11 +7,20 @@ return [
     'low_battery_percent' => (int) env('TRACKING_LOW_BATTERY', 20),
     'event_cooldown_seconds' => (int) env('TRACKING_EVENT_COOLDOWN', 300),
 
-    /** Seconds with recent GPS before motion status is shown. */
-    'recent_seconds' => (int) env('TRACKING_RECENT_SECONDS', 60),
+    /** Speed (km/h) above which a vehicle is considered moving/running. */
+    'moving_speed_kmh' => (float) env('TRACKING_MOVING_SPEED_KMH', 5),
 
-    /** Seconds without GPS before a device is shown as offline in UI. */
-    'offline_seconds' => (int) env('TRACKING_OFFLINE_SECONDS', 120),
+    /** Seconds before delayed tier (2 min). Fresh motion uses fixes newer than this. */
+    'delayed_min_seconds' => (int) env('TRACKING_DELAYED_MIN_SECONDS', 120),
+
+    /** Seconds before weak signal / stale tier (10 min). */
+    'stale_min_seconds' => (int) env('TRACKING_STALE_MIN_SECONDS', 600),
+
+    /** Seconds without GPS before offline (30 min). Offline is communication timeout only. */
+    'offline_seconds' => (int) env('TRACKING_OFFLINE_SECONDS', 1800),
+
+    /** @deprecated use delayed_min_seconds */
+    'recent_seconds' => (int) env('TRACKING_RECENT_SECONDS', 120),
 
     /** @deprecated use recent_seconds */
     'recent_minutes' => (int) env('TRACKING_RECENT_MINUTES', 1),

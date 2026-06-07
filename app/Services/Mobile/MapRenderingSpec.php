@@ -40,19 +40,15 @@ class MapRenderingSpec
             'history_dot_scale' => self::HISTORY_DOT_SCALE,
             'focus_zoom' => self::FOCUS_ZOOM,
             'anim_duration_ms' => self::ANIM_DURATION_MS,
-            'state_colors' => [
-                'moving' => '#22c55e',
-                'idle' => '#f97316',
-                'ignition_off' => '#94a3b8',
-                'stopped' => '#94a3b8',
-                'parked' => '#94a3b8',
-                'offline' => '#ef4444',
-                'delayed' => '#eab308',
-                'alert' => '#ef4444',
-            ],
+            'state_colors' => VehicleStatusSpec::STATE_COLORS,
             'connectivity' => [
-                'recent_seconds' => MobileMapStatusResolver::RECENT_SECONDS,
-                'offline_seconds' => MobileMapStatusResolver::OFFLINE_SECONDS,
+                'delayed_min_seconds' => VehicleStatusSpec::DELAYED_MIN_SECONDS,
+                'motion_window_seconds' => VehicleStatusSpec::MOTION_WINDOW_SECONDS,
+                'stale_min_seconds' => VehicleStatusSpec::STALE_MIN_SECONDS,
+                'offline_seconds' => VehicleStatusSpec::OFFLINE_SECONDS,
+                'moving_speed_kmh' => VehicleStatusSpec::MOVING_SPEED_KMH,
+                /** @deprecated use delayed_min_seconds */
+                'recent_seconds' => VehicleStatusSpec::DELAYED_MIN_SECONDS,
             ],
             'anchor' => [
                 'mode' => 'vehicle_center',

@@ -9,14 +9,16 @@
     const VIEWBOX = 52;
 
     const STATE_COLORS = {
-        moving: '#22c55e',
+        running: '#22c55e',
+        stopped: '#f97316',
+        parked: '#94a3b8',
+        moving: '#a855f7',
+        delayed: '#eab308',
+        stale: '#f59e0b',
+        offline: '#ef4444',
+        alert: '#ef4444',
         idle: '#f97316',
         ignition_off: '#94a3b8',
-        stopped: '#94a3b8',
-        parked: '#94a3b8',
-        offline: '#ef4444',
-        delayed: '#eab308',
-        alert: '#ef4444',
     };
 
     const DEFAULTS = {

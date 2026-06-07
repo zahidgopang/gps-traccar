@@ -8,17 +8,20 @@ use App\Models\DeviceLocation;
 /**
  * Canonical vehicle status for mobile API, web live map, and fleet lists.
  *
- * Connectivity (from last GPS fix timestamp):
- * - < 60 s + valid GPS: Running / Stopped / Ignition OFF from telemetry
- * - ≥ 60 s or > 120 s or no GPS: Offline (with last-known telemetry)
+ * @see VehicleStatusSpec for thresholds and motion rules.
  */
 class MobileMapStatusResolver
 {
-    public const RECENT_SECONDS = 60;
+    public const MOVING_SPEED_KMH = VehicleStatusSpec::MOVING_SPEED_KMH;
 
-    public const OFFLINE_SECONDS = 120;
+    public const DELAYED_MIN_SECONDS = VehicleStatusSpec::DELAYED_MIN_SECONDS;
 
-    public const MOVING_SPEED_KMH = 3;
+    public const STALE_MIN_SECONDS = VehicleStatusSpec::STALE_MIN_SECONDS;
+
+    public const OFFLINE_SECONDS = VehicleStatusSpec::OFFLINE_SECONDS;
+
+    /** @deprecated use DELAYED_MIN_SECONDS */
+    public const RECENT_SECONDS = VehicleStatusSpec::RECENT_SECONDS;
 
     /**
      * @return array{
@@ -55,7 +58,7 @@ class MobileMapStatusResolver
             );
         }
 
-        if (! $latest || ! $latest->recorded_at || ! $this->hasValidGpsFix($latest)) {
+        if (! $latest || ! $latest->recorded_at) {
             return $this->pack(
                 key: 'offline',
                 label: (string) __('app.map.status_offline'),
@@ -66,41 +69,35 @@ class MobileMapStatusResolver
         }
 
         $seconds = $this->secondsSinceUpdate($latest);
+        $speed = (float) ($latest->speed ?? 0);
+        $ignition = (bool) $latest->ignition;
 
-        if ($seconds === null || $seconds > self::OFFLINE_SECONDS || $seconds >= self::RECENT_SECONDS) {
-            return $this->pack(
-                key: 'offline',
-                label: (string) __('app.map.status_offline'),
-                tier: 'offline',
-                lastKnown: $lastKnown,
-                latest: $latest,
-            );
-        }
-
-        if ($latest->power_cut) {
+        if ($latest->power_cut && VehicleStatusSpec::connectivityTier($seconds) === 'live') {
             return $this->pack(
                 key: 'alert',
                 label: (string) __('app.map.status_power_cut'),
-                tier: 'recent',
+                tier: 'live',
                 lastKnown: $lastKnown,
                 latest: $latest,
             );
         }
 
-        if ($latest->panic) {
+        if ($latest->panic && VehicleStatusSpec::connectivityTier($seconds) === 'live') {
             return $this->pack(
                 key: 'alert',
                 label: (string) __('app.map.status_sos'),
-                tier: 'recent',
+                tier: 'live',
                 lastKnown: $lastKnown,
                 latest: $latest,
             );
         }
 
+        $resolved = VehicleStatusSpec::resolve($seconds, $speed, $ignition);
+
         return $this->pack(
-            key: $lastKnown['key'],
-            label: $lastKnown['label'],
-            tier: 'recent',
+            key: $resolved['key'],
+            label: $resolved['label'],
+            tier: $resolved['tier'],
             lastKnown: $lastKnown,
             latest: $latest,
         );
@@ -117,25 +114,14 @@ class MobileMapStatusResolver
             return null;
         }
 
-        $speed = (float) ($latest->speed ?? 0);
-
-        if (! $latest->ignition) {
-            return [
-                'key' => 'ignition_off',
-                'label' => (string) __('app.map.status_ignition_off'),
-            ];
-        }
-
-        if ($speed > self::MOVING_SPEED_KMH) {
-            return [
-                'key' => 'moving',
-                'label' => (string) __('app.map.status_running'),
-            ];
-        }
+        $key = VehicleStatusSpec::motionKey(
+            (float) ($latest->speed ?? 0),
+            (bool) $latest->ignition,
+        );
 
         return [
-            'key' => 'idle',
-            'label' => (string) __('app.map.status_idle'),
+            'key' => $key,
+            'label' => VehicleStatusSpec::motionLabel($key),
         ];
     }
 
@@ -147,7 +133,8 @@ class MobileMapStatusResolver
 
         $seconds = $this->secondsSinceUpdate($latest);
 
-        return $seconds !== null && $seconds < self::RECENT_SECONDS;
+        return $seconds !== null
+            && VehicleStatusSpec::connectivityTier($seconds) !== 'offline';
     }
 
     public function secondsSinceUpdate(?DeviceLocation $latest): ?int
@@ -202,7 +189,7 @@ class MobileMapStatusResolver
 
     /**
      * @param  \Illuminate\Support\Collection<int, Device>  $devices
-     * @return array{running: int, parked: int, idle: int, stopped: int, delayed: int, offline: int, alert: int, with_gps: int}
+     * @return array{running: int, parked: int, idle: int, stopped: int, delayed: int, stale: int, offline: int, alert: int, with_gps: int}
      */
     public function fleetCounts(\Illuminate\Support\Collection $devices): array
     {
@@ -212,6 +199,7 @@ class MobileMapStatusResolver
             'idle' => 0,
             'stopped' => 0,
             'delayed' => 0,
+            'stale' => 0,
             'offline' => 0,
             'alert' => 0,
             'with_gps' => 0,
@@ -225,11 +213,15 @@ class MobileMapStatusResolver
                 $counts['with_gps']++;
             }
 
-            match ($map['key']) {
+            match (VehicleStatusSpec::normalizeKey($map['key'])) {
+                'running' => $counts['running']++,
+                'stopped' => $counts['stopped']++,
+                'parked' => $counts['parked']++,
                 'moving' => $counts['running']++,
-                'idle' => $counts['idle']++,
-                'ignition_off' => $counts['parked']++,
+                'delayed' => $counts['delayed']++,
+                'stale' => $counts['delayed']++,
                 'alert' => $counts['alert']++,
+                'idle' => $counts['stopped']++,
                 default => $counts['offline']++,
             };
         }

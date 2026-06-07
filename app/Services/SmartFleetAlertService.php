@@ -51,7 +51,7 @@ class SmartFleetAlertService
         $tier = $map['connectivity_tier'];
         $name = $device->notificationDisplayName();
 
-        if ($tier === 'recent') {
+        if ($tier === 'live') {
             $this->clearConnectivityEpisode($device->id);
 
             return;
@@ -67,12 +67,12 @@ class SmartFleetAlertService
             ? (int) $latest->recorded_at->diffInMinutes(now())
             : null;
 
-        if ($tier === 'delayed') {
+        if ($tier === 'delayed' || $tier === 'stale') {
             $this->emitOnce(
                 "device.{$device->id}.alert.delayed",
                 now()->addHours(6),
                 function () use ($device, $name, $minutesSince, $lat, $lng, $at) {
-                    $mins = $minutesSince ?? (int) ceil(MobileMapStatusResolver::RECENT_SECONDS / 60);
+                    $mins = $minutesSince ?? (int) ceil(MobileMapStatusResolver::DELAYED_MIN_SECONDS / 60);
                     $event = $this->record(
                         $device,
                         VehicleEvent::TYPE_DELAYED,
@@ -87,7 +87,8 @@ class SmartFleetAlertService
                 }
             );
 
-            if ($lastKnownKey === 'moving' || $lastKnownSpeed > config('tracking.stopped_speed_kmh', 5)) {
+            if (in_array($lastKnownKey, ['running', 'moving'], true)
+                || $lastKnownSpeed > MobileMapStatusResolver::MOVING_SPEED_KMH) {
                 $this->emitOnce(
                     "device.{$device->id}.alert.tampering",
                     now()->addHours(6),
@@ -117,8 +118,8 @@ class SmartFleetAlertService
             return;
         }
 
-        $commLostMoving = $lastKnownKey === 'moving'
-            || $lastKnownSpeed > config('tracking.stopped_speed_kmh', 5);
+        $commLostMoving = in_array($lastKnownKey, ['running', 'moving'], true)
+            || $lastKnownSpeed > MobileMapStatusResolver::MOVING_SPEED_KMH;
 
         if ($commLostMoving) {
             $this->emitOnce(

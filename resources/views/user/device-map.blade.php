@@ -577,17 +577,21 @@
             line-height: 1.2;
             border: 1px solid transparent;
         }
-        .map-status-chip--moving { background: #16a34a; color: #fff; border-color: #15803d; }
-        .map-status-chip--idle { background: #ea580c; color: #fff; border-color: #c2410c; }
-        .map-status-chip--parked { background: #2563eb; color: #fff; border-color: #1d4ed8; }
-        .map-status-chip--stopped { background: #dc2626; color: #fff; border-color: #b91c1c; }
-        .map-status-chip--offline { background: #64748b; color: #fff; border-color: #475569; }
+        .map-status-chip--running { background: #22c55e; color: #fff; border-color: #16a34a; }
+        .map-status-chip--moving { background: #a855f7; color: #fff; border-color: #9333ea; }
+        .map-status-chip--stopped { background: #f97316; color: #fff; border-color: #ea580c; }
+        .map-status-chip--parked { background: #94a3b8; color: #fff; border-color: #64748b; }
+        .map-status-chip--idle { background: #f97316; color: #fff; border-color: #ea580c; }
+        .map-status-chip--offline { background: #ef4444; color: #fff; border-color: #dc2626; }
         .map-status-chip--delayed { background: #eab308; color: #422006; border-color: #ca8a04; }
+        .map-status-chip--stale { background: #f59e0b; color: #422006; border-color: #d97706; }
         .map-status-chip--alert { background: #b91c1c; color: #fff; border-color: #991b1b; }
-        body.map-night-mode .map-status-chip--moving { background: #22c55e; color: #052e16; border-color: #16a34a; }
-        body.map-night-mode .map-status-chip--idle { background: #fb923c; color: #431407; border-color: #ea580c; }
-        body.map-night-mode .map-status-chip--stopped { background: #f87171; color: #450a0a; border-color: #dc2626; }
-        body.map-night-mode .map-status-chip--offline { background: #94a3b8; color: #0f172a; border-color: #64748b; }
+        body.map-night-mode .map-status-chip--running { background: #22c55e; color: #052e16; border-color: #16a34a; }
+        body.map-night-mode .map-status-chip--moving { background: #c084fc; color: #3b0764; border-color: #a855f7; }
+        body.map-night-mode .map-status-chip--stopped { background: #fb923c; color: #431407; border-color: #ea580c; }
+        body.map-night-mode .map-status-chip--parked { background: #94a3b8; color: #0f172a; border-color: #64748b; }
+        body.map-night-mode .map-status-chip--offline { background: #f87171; color: #450a0a; border-color: #dc2626; }
+        body.map-night-mode .map-status-chip--stale { background: #fbbf24; color: #451a03; border-color: #f59e0b; }
 
         /* Vehicle marker popup */
         .vehicle-map-popup {
@@ -2158,13 +2162,15 @@
             defaultLng: 67.0011,
             overSpeedLimit: 80,
             lowBatteryThreshold: 20,
-            movingSpeedKmh: {{ \App\Services\UserDashboardService::MOVING_SPEED_KMH }},
+            movingSpeedKmh: {{ \App\Services\Mobile\VehicleStatusSpec::MOVING_SPEED_KMH }},
             idleSpeedKmh: 0.5,
             parkedIconSpeedKmh: 0.1,
             motionDetectKm: 0.004,
-            onlineMinutes: {{ (int) ceil(\App\Services\Mobile\MobileMapStatusResolver::OFFLINE_SECONDS / 60) }},
-            recentSeconds: {{ \App\Services\Mobile\MobileMapStatusResolver::RECENT_SECONDS }},
-            offlineSeconds: {{ \App\Services\Mobile\MobileMapStatusResolver::OFFLINE_SECONDS }},
+            onlineMinutes: {{ \App\Services\UserDashboardService::ONLINE_MINUTES }},
+            delayedMinSeconds: {{ \App\Services\Mobile\VehicleStatusSpec::DELAYED_MIN_SECONDS }},
+            staleMinSeconds: {{ \App\Services\Mobile\VehicleStatusSpec::STALE_MIN_SECONDS }},
+            offlineSeconds: {{ \App\Services\Mobile\VehicleStatusSpec::OFFLINE_SECONDS }},
+            recentSeconds: {{ \App\Services\Mobile\VehicleStatusSpec::DELAYED_MIN_SECONDS }},
             pollIntervalMs: 3000,
             stopMinMinutes: 2,
             stopIcon: @json(asset('images/stop.svg')),
@@ -2216,6 +2222,7 @@
                 statusIdle: @json(__('app.map.status_idle')),
                 statusOffline: @json(__('app.map.status_offline')),
                 statusDelayed: @json(__('app.map.status_delayed')),
+                statusStale: @json(__('app.map.status_stale')),
                 lastSeen: @json(__('app.map.last_seen')),
                 lastKnownStatus: @json(__('app.map.last_known_status')),
                 lastKnownSpeed: @json(__('app.map.last_known_speed')),

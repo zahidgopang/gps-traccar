@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\VehicleEvent;
 use App\Models\User;
 use App\Services\Mobile\MobileMapStatusResolver;
+use App\Services\Mobile\VehicleStatusSpec;
 use App\Services\Tracking\DevicePositionLoader;
 use App\Services\Tracking\TrackingMetricsService;
 use App\Services\Traccar\TraccarTrackingGate;
@@ -29,7 +30,7 @@ class UserDashboardService
 
     public const ONLINE_MINUTES = 10;
 
-    public const MOVING_SPEED_KMH = 3;
+    public const MOVING_SPEED_KMH = VehicleStatusSpec::MOVING_SPEED_KMH;
 
     public function getStats(User $user): array
     {

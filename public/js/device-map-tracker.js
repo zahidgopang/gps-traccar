@@ -24,13 +24,21 @@
     const accessDeniedRedirect = api.accessDeniedRedirect || `${baseUrl}/user/devices`;
     const overSpeedLimit = cfg.overSpeedLimit || 80;
     const lowBatteryThreshold = cfg.lowBatteryThreshold || 20;
-    const movingSpeedKmh = cfg.movingSpeedKmh ?? 3;
+    const movingSpeedKmh = cfg.movingSpeedKmh
+        ?? cfg.mapRendering?.connectivity?.moving_speed_kmh ?? 5;
     const idleSpeedKmh = cfg.idleSpeedKmh ?? 0.5;
     const parkedIconSpeedKmh = cfg.parkedIconSpeedKmh ?? 0.1;
     const motionDetectKm = cfg.motionDetectKm ?? 0.004;
-    const recentSeconds = cfg.recentSeconds ?? (cfg.recentMinutes != null ? cfg.recentMinutes * 60 : 60);
-    const offlineSeconds = cfg.offlineSeconds ?? (cfg.offlineMinutes != null ? cfg.offlineMinutes * 60 : 120);
-    const recentTimeoutMs = recentSeconds * 1000;
+    const delayedMinSeconds = cfg.delayedMinSeconds
+        ?? cfg.mapRendering?.connectivity?.delayed_min_seconds ?? 120;
+    const staleMinSeconds = cfg.staleMinSeconds
+        ?? cfg.mapRendering?.connectivity?.stale_min_seconds ?? 600;
+    const offlineSeconds = cfg.offlineSeconds
+        ?? cfg.mapRendering?.connectivity?.offline_seconds ?? 1800;
+    /** @deprecated use delayedMinSeconds */
+    const recentSeconds = cfg.recentSeconds ?? delayedMinSeconds;
+    const delayedTimeoutMs = delayedMinSeconds * 1000;
+    const staleTimeoutMs = staleMinSeconds * 1000;
     const offlineTimeoutMs = offlineSeconds * 1000;
     const onlineTimeoutMs = offlineTimeoutMs;
     const debugGps = cfg.debugGps === true
@@ -517,30 +525,49 @@
     function connectivityTier(point) {
         const age = gpsAgeMs(point);
         if (age != null) {
-            if (age > offlineTimeoutMs || age >= recentTimeoutMs) {
+            const secs = age / 1000;
+            if (secs > offlineSeconds) {
                 return 'offline';
             }
-            return 'recent';
+            if (secs >= staleMinSeconds) {
+                return 'stale';
+            }
+            if (secs >= delayedMinSeconds) {
+                return 'delayed';
+            }
+            return 'live';
         }
-        if (point?.connectivity_tier === 'recent') {
+        if (point?.connectivity_tier) {
             return point.connectivity_tier;
         }
         return 'offline';
     }
 
-    /** True when there is no GPS fix. */
-    function hasNoGpsData(point) {
-        return !point || !point.recorded_at;
-    }
-
-    /** Offline tier — >30 min or missing GPS. */
+    /** True when communication exceeded offline timeout (> 30 min). */
     function isVehicleOffline(point) {
         return connectivityTier(point) === 'offline';
     }
 
+    function isVehicleStale(point) {
+        return connectivityTier(point) === 'stale';
+    }
+
+    function isVehicleDelayed(point) {
+        return connectivityTier(point) === 'delayed';
+    }
+
+    function isVehicleLive(point) {
+        return connectivityTier(point) === 'live';
+    }
+
+    /** True when there is no GPS fix timestamp. */
+    function hasNoGpsData(point) {
+        return !point || !point.recorded_at;
+    }
+
     /** @deprecated use isVehicleOffline */
     function isConnectivityStale(point) {
-        return isVehicleOffline(point);
+        return isVehicleStale(point);
     }
 
     /** @deprecated use hasNoGpsData — kept for minimal diff in call sites */
@@ -550,37 +577,30 @@
 
     function statusLabelForKey(key, point) {
         const labels = {
-            moving: mi('statusRunning', 'Running'),
-            idle: mi('statusIdle', 'Idle'),
-            ignition_off: mi('statusStopped', 'Stopped'),
-            parked: mi('statusStopped', 'Stopped'),
+            running: mi('statusRunning', 'Running'),
             stopped: mi('statusStopped', 'Stopped'),
+            parked: mi('statusParked', 'Parked'),
+            moving: mi('statusMoving', 'Moving'),
+            idle: mi('statusIdle', 'Idle'),
+            ignition_off: mi('statusParked', 'Parked'),
             offline: mi('statusOffline', 'Offline'),
-            delayed: mi('statusDelayed', 'Delayed / No Recent Data'),
+            delayed: mi('statusDelayed', 'Delayed'),
+            stale: mi('statusStale', 'Weak Signal / Stale'),
             alert: point?.panic
                 ? mi('statusSos', 'SOS')
                 : (point?.power_cut ? mi('statusPowerCut', 'Power cut') : mi('statusOverspeed', 'Overspeed')),
             blocked: mi('statusOffline', 'Offline'),
         };
 
-        return labels[key] || labels.idle;
+        return labels[key] || labels.stopped;
     }
 
     function statusClassForKey(key) {
-        if (key === 'moving') {
-            return 'map-status-chip--moving';
-        }
-        if (key === 'idle') {
-            return 'map-status-chip--idle';
-        }
-        if (key === 'ignition_off' || key === 'stopped' || key === 'parked') {
-            return 'map-status-chip--stopped';
-        }
-        if (key === 'blocked') {
-            return 'map-status-chip--offline';
-        }
-
-        return 'map-status-chip--' + key;
+        const k = String(key || '').toLowerCase();
+        if (k === 'idle') return 'map-status-chip--stopped';
+        if (k === 'ignition_off') return 'map-status-chip--parked';
+        if (k === 'blocked') return 'map-status-chip--offline';
+        return 'map-status-chip--' + k;
     }
 
     function vehicleStateKeyFromMetrics(point) {
@@ -588,22 +608,18 @@
             return 'alert';
         }
         const speed = parseFloat(point.speed || 0);
-        const movingThreshold = typeof movingSpeedKmh === 'number' ? movingSpeedKmh : 3;
-        if (point.ignition !== true) {
-            return 'ignition_off';
+        const movingThreshold = typeof movingSpeedKmh === 'number' ? movingSpeedKmh : 5;
+        if (point.ignition === true) {
+            return speed > movingThreshold ? 'running' : 'stopped';
         }
-        if (speed > movingThreshold) {
-            return 'moving';
-        }
-        return 'idle';
+        return speed > movingThreshold ? 'moving' : 'parked';
     }
 
     function normalizeVehicleStateKey(key) {
         if (!key) return key;
         const k = String(key).toLowerCase();
-        if (k === 'running') return 'moving';
-        if (k === 'parked') return 'ignition_off';
-        if (k === 'stopped') return 'idle';
+        if (k === 'idle') return 'stopped';
+        if (k === 'ignition_off') return 'parked';
         return k;
     }
 
@@ -623,6 +639,12 @@
         const tier = connectivityTier(point);
         if (tier === 'offline') {
             return 'offline';
+        }
+        if (tier === 'stale') {
+            return 'stale';
+        }
+        if (tier === 'delayed') {
+            return 'delayed';
         }
 
         if (point?.status_key) {
@@ -966,7 +988,7 @@
         if (!point) return;
         const status = resolveVehicleStatus(point);
         const tier = status.tier;
-        const isRecent = tier === 'recent';
+        const isRecent = tier === 'live';
         const isDelayed = tier === 'delayed';
         const isOffline = tier === 'offline';
         const speed = isRecent ? parseFloat(point.speed || 0) : lastKnownSpeed(point);
@@ -1467,7 +1489,7 @@ ${pts}
         if (!point) return;
 
         const tier = connectivityTier(point);
-        const isRecent = tier === 'recent';
+        const isRecent = tier === 'live';
         const isOffline = tier === 'offline';
         const speed = isRecent ? parseFloat(point.speed || 0) : lastKnownSpeed(point);
         const battery = point.battery != null ? parseInt(point.battery, 10) : null;
@@ -1827,7 +1849,7 @@ ${pts}
             ensureFleetRenderer()?.updateVehicleIcon(point);
         }
 
-        if (connectivityTier(point) === 'recent') {
+        if (connectivityTier(point) === 'live') {
             routeScrubUsesMotion = false;
         }
 

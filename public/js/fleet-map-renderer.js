@@ -129,7 +129,7 @@
                 return;
             }
             const state = this.opts.getState?.(point) ?? 'offline';
-            if (state === 'offline' || state === 'blocked') {
+            if (state === 'offline' || state === 'blocked' || state === 'stale') {
                 this.pulse?.hide();
                 return;
             }
