@@ -330,8 +330,9 @@
                     <div class="password-input-group">
                         <input type="password" name="new_password"
                                class="form-control-password @error('new_password') is-invalid @enderror"
-                               placeholder="Enter your new password"
+                               placeholder="Enter your new password (min 6 characters)"
                                id="newPassword"
+                               minlength="6"
                                required>
                         <button type="button" class="password-toggle" data-target="newPassword">
                             <i class="fas fa-eye"></i>
@@ -349,20 +350,8 @@
                             <div class="strength-fill" id="strengthFill"></div>
                         </div>
                         <ul class="strength-requirements" id="strengthRequirements">
-                            <li id="reqLength">
-                                <i class="fas fa-circle"></i> At least 8 characters
-                            </li>
-                            <li id="reqUppercase">
-                                <i class="fas fa-circle"></i> One uppercase letter
-                            </li>
-                            <li id="reqLowercase">
-                                <i class="fas fa-circle"></i> One lowercase letter
-                            </li>
-                            <li id="reqNumber">
-                                <i class="fas fa-circle"></i> One number
-                            </li>
-                            <li id="reqSpecial">
-                                <i class="fas fa-circle"></i> One special character
+                            <li id="reqLength" class="requirement-not-met">
+                                <i class="fas fa-circle"></i> At least 6 characters
                             </li>
                         </ul>
                     </div>
@@ -392,27 +381,15 @@
 
             <!-- Password Hints -->
             <div class="password-hints">
-                <h6><i class="fas fa-lightbulb"></i> Password Tips</h6>
+                <h6><i class="fas fa-lightbulb"></i> Password Requirements</h6>
                 <ul>
                     <li>
                         <i class="fas fa-check"></i>
-                        <div>Use a mix of uppercase and lowercase letters</div>
+                        <div>Minimum 6 characters</div>
                     </li>
                     <li>
                         <i class="fas fa-check"></i>
-                        <div>Include numbers and special characters (!@#$%^&*)</div>
-                    </li>
-                    <li>
-                        <i class="fas fa-check"></i>
-                        <div>Avoid using personal information like birthdays</div>
-                    </li>
-                    <li>
-                        <i class="fas fa-check"></i>
-                        <div>Don't reuse passwords from other accounts</div>
-                    </li>
-                    <li>
-                        <i class="fas fa-check"></i>
-                        <div>Consider using a password manager for strong, unique passwords</div>
+                        <div>New password and confirmation must match</div>
                     </li>
                 </ul>
             </div>
@@ -451,45 +428,19 @@
                 });
             });
 
-            // Password strength checker
+            // Password length checker (min 6 characters only)
             newPasswordInput.addEventListener('input', function() {
                 const password = this.value;
-                let strength = 0;
+                const hasLength = password.length >= 6;
 
-                // Check requirements
-                const hasLength = password.length >= 8;
-                const hasUppercase = /[A-Z]/.test(password);
-                const hasLowercase = /[a-z]/.test(password);
-                const hasNumber = /[0-9]/.test(password);
-                const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-
-                // Update requirement indicators
                 updateRequirement('reqLength', hasLength);
-                updateRequirement('reqUppercase', hasUppercase);
-                updateRequirement('reqLowercase', hasLowercase);
-                updateRequirement('reqNumber', hasNumber);
-                updateRequirement('reqSpecial', hasSpecial);
 
-                // Calculate strength
-                if (hasLength) strength += 20;
-                if (hasUppercase) strength += 20;
-                if (hasLowercase) strength += 20;
-                if (hasNumber) strength += 20;
-                if (hasSpecial) strength += 20;
-
-                // Update strength meter
+                const strength = hasLength ? 100 : Math.min(100, (password.length / 6) * 100);
                 strengthFill.style.width = `${strength}%`;
+                strengthFill.style.backgroundColor = hasLength
+                    ? 'var(--success)'
+                    : 'var(--warning)';
 
-                // Update strength color
-                if (strength < 40) {
-                    strengthFill.style.backgroundColor = 'var(--danger)';
-                } else if (strength < 80) {
-                    strengthFill.style.backgroundColor = 'var(--warning)';
-                } else {
-                    strengthFill.style.backgroundColor = 'var(--success)';
-                }
-
-                // Validate password match
                 validatePasswordMatch();
             });
 
@@ -561,18 +512,9 @@
                     return;
                 }
 
-                // Validate password strength
-                const hasLength = newPassword.length >= 8;
-                const hasUppercase = /[A-Z]/.test(newPassword);
-                const hasLowercase = /[a-z]/.test(newPassword);
-                const hasNumber = /[0-9]/.test(newPassword);
-                const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
-
-                const strength = (hasLength + hasUppercase + hasLowercase + hasNumber + hasSpecial) * 20;
-
-                if (strength < 60) {
+                if (newPassword.length < 6) {
                     e.preventDefault();
-                    alert('Please use a stronger password. Your password should include uppercase letters, lowercase letters, numbers, and special characters.');
+                    alert('Password must be at least 6 characters.');
                     newPasswordInput.focus();
                     return;
                 }

@@ -570,6 +570,7 @@ return [
         'status_moving' => 'Moving',
         'status_running' => 'Running',
         'status_parked' => 'Parked',
+        'status_ignition_off' => 'Ignition OFF',
         'status_idle' => 'Idle',
         'status_offline' => 'Offline',
         'status_delayed' => 'Delayed / No Recent Data',

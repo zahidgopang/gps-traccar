@@ -37,6 +37,14 @@ final class DeviceLocationTelemetryMerger
             }
         }
 
+        if ($primary->recorded_at && $supplement->recorded_at) {
+            if ($supplement->recorded_at->greaterThan($primary->recorded_at)) {
+                $primary->recorded_at = $supplement->recorded_at;
+            }
+        } elseif (! $primary->recorded_at && $supplement->recorded_at) {
+            $primary->recorded_at = $supplement->recorded_at;
+        }
+
         return $primary;
     }
 }

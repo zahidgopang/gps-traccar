@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Device;
+use App\Services\Auth\UserPasswordVerifier;
 use App\Services\DeviceSubscriptionService;
 use App\Services\UserAvatarService;
 use App\Services\UserDashboardService;
@@ -75,20 +76,21 @@ class UserController extends Controller
         return view('user.change_password');
     }
 
-    public function updatePassword(Request $req)
+    public function updatePassword(Request $req, UserPasswordVerifier $passwordVerifier)
     {
         $req->validate([
             'current_password' => 'required',
-            'new_password'     => 'required|min:6|confirmed',
+            'new_password' => 'required|string|min:6|confirmed',
         ]);
 
         $user = auth()->user();
 
-        if (!Hash::check($req->current_password, $user->password)) {
+        if (! $passwordVerifier->verify($user, $req->current_password)) {
             return back()->withErrors(['current_password' => 'Current password is incorrect']);
         }
 
         $user->password = Hash::make($req->new_password);
+        $user->setTraccarPlainPasswordForNextSave($req->new_password);
         $user->save();
 
         return back()->with('success', 'Password updated successfully!');

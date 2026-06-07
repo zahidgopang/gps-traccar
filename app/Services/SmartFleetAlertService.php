@@ -72,7 +72,7 @@ class SmartFleetAlertService
                 "device.{$device->id}.alert.delayed",
                 now()->addHours(6),
                 function () use ($device, $name, $minutesSince, $lat, $lng, $at) {
-                    $mins = $minutesSince ?? MobileMapStatusResolver::RECENT_MINUTES;
+                    $mins = $minutesSince ?? (int) ceil(MobileMapStatusResolver::RECENT_SECONDS / 60);
                     $event = $this->record(
                         $device,
                         VehicleEvent::TYPE_DELAYED,
@@ -132,7 +132,7 @@ class SmartFleetAlertService
                         (string) __('app.alerts.comm_lost_moving_message', [
                             'device' => $name,
                             'speed' => number_format($lastKnownSpeed, 0),
-                            'minutes' => $minutesSince ?? MobileMapStatusResolver::OFFLINE_MINUTES,
+                            'minutes' => $minutesSince ?? (int) ceil(MobileMapStatusResolver::OFFLINE_SECONDS / 60),
                         ]),
                         $lastKnownSpeed,
                         $lat,
@@ -161,7 +161,7 @@ class SmartFleetAlertService
                         (string) __('app.alerts.comm_lost_ignition_title'),
                         (string) __('app.alerts.comm_lost_ignition_message', [
                             'device' => $name,
-                            'minutes' => $minutesSince ?? MobileMapStatusResolver::OFFLINE_MINUTES,
+                            'minutes' => $minutesSince ?? (int) ceil(MobileMapStatusResolver::OFFLINE_SECONDS / 60),
                         ]),
                         null,
                         $lat,
@@ -183,7 +183,7 @@ class SmartFleetAlertService
                     (string) __('app.alerts.offline_title'),
                     (string) __('app.alerts.offline_message', [
                         'device' => $name,
-                        'minutes' => $minutesSince ?? MobileMapStatusResolver::OFFLINE_MINUTES,
+                        'minutes' => $minutesSince ?? (int) ceil(MobileMapStatusResolver::OFFLINE_SECONDS / 60),
                     ]),
                     null,
                     $lat,

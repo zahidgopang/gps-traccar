@@ -8,6 +8,7 @@ use App\Http\Concerns\RespondsWithMobileJson;
 use App\Services\Mobile\MobileEntitlementService;
 use App\Services\UserAvatarService;
 use Illuminate\Http\Request;
+use App\Services\Auth\UserPasswordVerifier;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
@@ -86,7 +87,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function changePassword(Request $request)
+    public function changePassword(Request $request, UserPasswordVerifier $passwordVerifier)
     {
         $request->validate([
             'current_password' => 'required|string',
@@ -95,13 +96,12 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        $authPassword = $user->getAuthPassword();
-        $checked = $authPassword !== '' && Hash::check($request->current_password, $authPassword);
+        $checked = $passwordVerifier->verify($user, $request->current_password);
 
         Log::info('mobile_change_password_check', [
             'user_id' => $user->id,
-            'auth_password_len' => strlen($authPassword),
-            'hash_check_ok' => $checked,
+            'auth_password_len' => strlen((string) $user->getAuthPassword()),
+            'verify_ok' => $checked,
         ]);
 
         if (! $checked) {
@@ -109,6 +109,7 @@ class ProfileController extends Controller
         }
 
         $user->password = Hash::make($request->new_password);
+        $user->setTraccarPlainPasswordForNextSave($request->new_password);
         $user->save();
 
         return $this->mobileSuccess(['message' => 'Password updated successfully.']);

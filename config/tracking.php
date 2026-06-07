@@ -7,11 +7,17 @@ return [
     'low_battery_percent' => (int) env('TRACKING_LOW_BATTERY', 20),
     'event_cooldown_seconds' => (int) env('TRACKING_EVENT_COOLDOWN', 300),
 
-    /** Minutes with recent GPS before motion status is shown. */
-    'recent_minutes' => (int) env('TRACKING_RECENT_MINUTES', 10),
+    /** Seconds with recent GPS before motion status is shown. */
+    'recent_seconds' => (int) env('TRACKING_RECENT_SECONDS', 60),
 
-    /** Minutes without GPS before a device is shown as offline in UI. */
-    'offline_minutes' => (int) env('TRACKING_OFFLINE_MINUTES', 30),
+    /** Seconds without GPS before a device is shown as offline in UI. */
+    'offline_seconds' => (int) env('TRACKING_OFFLINE_SECONDS', 120),
+
+    /** @deprecated use recent_seconds */
+    'recent_minutes' => (int) env('TRACKING_RECENT_MINUTES', 1),
+
+    /** @deprecated use offline_seconds */
+    'offline_minutes' => (int) env('TRACKING_OFFLINE_MINUTES', 2),
 
     /** Minutes without GPS before a device is treated as offline for push alerts. */
     'online_minutes' => (int) env('TRACKING_ONLINE_MINUTES', 30),
