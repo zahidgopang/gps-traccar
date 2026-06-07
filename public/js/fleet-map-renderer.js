@@ -128,6 +128,11 @@
                 this.pulse?.hide();
                 return;
             }
+            const state = this.opts.getState?.(point) ?? 'offline';
+            if (state === 'offline' || state === 'blocked') {
+                this.pulse?.hide();
+                return;
+            }
             this.pulse?.update(point);
         }
 

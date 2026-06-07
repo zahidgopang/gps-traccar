@@ -683,7 +683,7 @@
     }
 
     function shouldShowVehicleDirection(point, state) {
-        if (state === 'offline' || state === 'parked') {
+        if (state === 'offline' || state === 'ignition_off' || state === 'parked') {
             return false;
         }
         const heading = parseFloat(point?.heading);
@@ -1458,6 +1458,7 @@ ${pts}
 
         const speed = parseFloat(point.speed || 0);
         const battery = point.battery != null ? parseInt(point.battery, 10) : null;
+        const status = resolveVehicleStatus(point);
 
         setText('lastSeen', point.recorded_at ? (window.AppDateTime?.formatDateTime(point.recorded_at) ?? point.recorded_at) : dash());
         setText('telemetrySpeed', speed.toFixed(0) + ' ' + mi('kmh', 'km/h'));
@@ -1468,16 +1469,31 @@ ${pts}
         setText('telemetrySatellites', point.satellites != null ? String(point.satellites) : dash());
         setText('telemetryOdometer', point.odometer != null ? Number(point.odometer).toLocaleString() + ' ' + mi('km', 'km') : dash());
 
+        setText('livePanelSpeed', speed.toFixed(0) + ' ' + mi('kmh', 'km/h'));
+        setText('livePanelIgnition', point.ignition != null ? (point.ignition ? mi('ignitionOn', 'ON') : mi('ignitionOff', 'OFF')) : dash());
+        setText('livePanelGps', point.gps_fix != null ? String(point.gps_fix) : dash());
+        setText('livePanelGsm', formatGsmDisplay(point.gsm_signal));
+        setText('livePanelSatellites', point.satellites != null ? String(point.satellites) : dash());
+        setText('livePanelBattery', battery != null ? battery + '%' : dash());
+        setText('livePanelUpdated', point.recorded_at ? (window.AppDateTime?.formatDateTime(point.recorded_at) ?? point.recorded_at) : dash());
+
+        const liveChip = document.getElementById('liveStatusChip');
+        if (liveChip) {
+            liveChip.className = 'map-status-chip ' + status.cls;
+            liveChip.textContent = status.label;
+        }
+
         const statusEl = document.getElementById('curStatus');
         if (statusEl) {
-            const status = resolveVehicleStatus(point);
             statusEl.className = 'map-status-chip ' + status.cls;
             statusEl.textContent = status.label;
         }
 
         const navStatus = document.getElementById('navLiveStatus');
         if (navStatus) {
-            navStatus.innerHTML = statusEl ? statusEl.innerHTML : '<span class="badge bg-success">Live</span>';
+            navStatus.innerHTML = liveChip
+                ? liveChip.outerHTML
+                : (statusEl ? statusEl.innerHTML : '<span class="badge bg-success">Live</span>');
         }
 
         updateMapHud(point);
