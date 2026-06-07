@@ -6,8 +6,8 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 210px;
-    height: 210px;
+    width: 100px;
+    height: 100px;
     margin: 0;
     pointer-events: none;
     z-index: 1;

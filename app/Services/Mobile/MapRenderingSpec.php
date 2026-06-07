@@ -13,7 +13,7 @@ class MapRenderingSpec
 
     public const MAX_ICON_WIDTH = 200;
 
-    public const PULSE_SIZE_PX = 210;
+    public const PULSE_SIZE_PX = 100;
 
     public const ROUTE_START_MARKER_PX = 48;
 
@@ -43,15 +43,16 @@ class MapRenderingSpec
             'state_colors' => [
                 'moving' => '#22c55e',
                 'idle' => '#f97316',
-                'stopped' => '#ef4444',
-                'parked' => '#3b82f6',
-                'offline' => '#94a3b8',
+                'ignition_off' => '#94a3b8',
+                'stopped' => '#94a3b8',
+                'parked' => '#94a3b8',
+                'offline' => '#ef4444',
                 'delayed' => '#eab308',
                 'alert' => '#ef4444',
             ],
             'connectivity' => [
-                'recent_minutes' => MobileMapStatusResolver::RECENT_MINUTES,
-                'offline_minutes' => MobileMapStatusResolver::OFFLINE_MINUTES,
+                'recent_seconds' => MobileMapStatusResolver::RECENT_SECONDS,
+                'offline_seconds' => MobileMapStatusResolver::OFFLINE_SECONDS,
             ],
             'anchor' => [
                 'mode' => 'vehicle_center',

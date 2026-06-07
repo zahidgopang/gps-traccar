@@ -29,7 +29,7 @@ class UserDashboardService
 
     public const ONLINE_MINUTES = 10;
 
-    public const MOVING_SPEED_KMH = 5;
+    public const MOVING_SPEED_KMH = 3;
 
     public function getStats(User $user): array
     {

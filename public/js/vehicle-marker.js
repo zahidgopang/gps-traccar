@@ -11,9 +11,10 @@
     const STATE_COLORS = {
         moving: '#22c55e',
         idle: '#f97316',
-        stopped: '#ef4444',
-        parked: '#3b82f6',
-        offline: '#94a3b8',
+        ignition_off: '#94a3b8',
+        stopped: '#94a3b8',
+        parked: '#94a3b8',
+        offline: '#ef4444',
         delayed: '#eab308',
         alert: '#ef4444',
     };

@@ -24,14 +24,14 @@
     const accessDeniedRedirect = api.accessDeniedRedirect || `${baseUrl}/user/devices`;
     const overSpeedLimit = cfg.overSpeedLimit || 80;
     const lowBatteryThreshold = cfg.lowBatteryThreshold || 20;
-    const movingSpeedKmh = cfg.movingSpeedKmh ?? 5;
+    const movingSpeedKmh = cfg.movingSpeedKmh ?? 3;
     const idleSpeedKmh = cfg.idleSpeedKmh ?? 0.5;
     const parkedIconSpeedKmh = cfg.parkedIconSpeedKmh ?? 0.1;
     const motionDetectKm = cfg.motionDetectKm ?? 0.004;
-    const recentMinutes = cfg.recentMinutes ?? 10;
-    const offlineMinutes = cfg.offlineMinutes ?? 30;
-    const recentTimeoutMs = recentMinutes * 60 * 1000;
-    const offlineTimeoutMs = offlineMinutes * 60 * 1000;
+    const recentSeconds = cfg.recentSeconds ?? (cfg.recentMinutes != null ? cfg.recentMinutes * 60 : 60);
+    const offlineSeconds = cfg.offlineSeconds ?? (cfg.offlineMinutes != null ? cfg.offlineMinutes * 60 : 120);
+    const recentTimeoutMs = recentSeconds * 1000;
+    const offlineTimeoutMs = offlineSeconds * 1000;
     const onlineTimeoutMs = offlineTimeoutMs;
     const debugGps = cfg.debugGps === true
         || (typeof URLSearchParams !== 'undefined'
@@ -513,20 +513,17 @@
     }
 
     function connectivityTier(point) {
-        if (point?.connectivity_tier) {
+        const age = gpsAgeMs(point);
+        if (age != null) {
+            if (age > offlineTimeoutMs || age >= recentTimeoutMs) {
+                return 'offline';
+            }
+            return 'recent';
+        }
+        if (point?.connectivity_tier === 'recent') {
             return point.connectivity_tier;
         }
-        const age = gpsAgeMs(point);
-        if (age == null) {
-            return 'offline';
-        }
-        if (age > offlineTimeoutMs) {
-            return 'offline';
-        }
-        if (age > recentTimeoutMs) {
-            return 'delayed';
-        }
-        return 'recent';
+        return 'offline';
     }
 
     /** True when there is no GPS fix. */
@@ -553,7 +550,8 @@
         const labels = {
             moving: mi('statusRunning', 'Running'),
             idle: mi('statusIdle', 'Idle'),
-            parked: mi('statusParked', 'Parked'),
+            ignition_off: mi('statusStopped', 'Stopped'),
+            parked: mi('statusStopped', 'Stopped'),
             stopped: mi('statusStopped', 'Stopped'),
             offline: mi('statusOffline', 'Offline'),
             delayed: mi('statusDelayed', 'Delayed / No Recent Data'),
@@ -563,14 +561,17 @@
             blocked: mi('statusOffline', 'Offline'),
         };
 
-        return labels[key] || labels.parked;
+        return labels[key] || labels.idle;
     }
 
     function statusClassForKey(key) {
         if (key === 'moving') {
             return 'map-status-chip--moving';
         }
-        if (key === 'stopped') {
+        if (key === 'idle') {
+            return 'map-status-chip--idle';
+        }
+        if (key === 'ignition_off' || key === 'stopped' || key === 'parked') {
             return 'map-status-chip--stopped';
         }
         if (key === 'blocked') {
@@ -585,22 +586,23 @@
             return 'alert';
         }
         const speed = parseFloat(point.speed || 0);
-        if (speed > 0) {
+        const movingThreshold = typeof movingSpeedKmh === 'number' ? movingSpeedKmh : 3;
+        if (point.ignition !== true) {
+            return 'ignition_off';
+        }
+        if (speed > movingThreshold) {
             return 'moving';
         }
-        if (point.ignition === true) {
-            return 'idle';
-        }
-
-        return 'stopped';
+        return 'idle';
     }
 
     function normalizeVehicleStateKey(key) {
-        if (key === 'parked' || key === 'running') {
-            return key === 'running' ? 'moving' : 'stopped';
-        }
-
-        return key;
+        if (!key) return key;
+        const k = String(key).toLowerCase();
+        if (k === 'running') return 'moving';
+        if (k === 'parked') return 'ignition_off';
+        if (k === 'stopped') return 'idle';
+        return k;
     }
 
     function vehicleStateKey(point) {
@@ -612,11 +614,8 @@
         if (tier === 'offline') {
             return 'offline';
         }
-        if (tier === 'delayed') {
-            return 'delayed';
-        }
 
-        if (point.status_key && !['offline', 'delayed'].includes(point.status_key)) {
+        if (point?.status_key) {
             return normalizeVehicleStateKey(point.status_key);
         }
 

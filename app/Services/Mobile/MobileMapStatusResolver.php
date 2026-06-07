@@ -8,16 +8,17 @@ use App\Models\DeviceLocation;
 /**
  * Canonical vehicle status for mobile API, web live map, and fleet lists.
  *
- * Connectivity tiers (from last GPS fix):
- * - 0–10 min: show motion status (Running / Idle / Stopped)
- * - 10–30 min: Delayed / No Recent Data
- * - >30 min or no GPS: Offline (with last-known telemetry)
+ * Connectivity (from last GPS fix timestamp):
+ * - < 60 s + valid GPS: Running / Stopped / Ignition OFF from telemetry
+ * - ≥ 60 s or > 120 s or no GPS: Offline (with last-known telemetry)
  */
 class MobileMapStatusResolver
 {
-    public const RECENT_MINUTES = 10;
+    public const RECENT_SECONDS = 60;
 
-    public const OFFLINE_MINUTES = 30;
+    public const OFFLINE_SECONDS = 120;
+
+    public const MOVING_SPEED_KMH = 3;
 
     /**
      * @return array{
@@ -54,7 +55,7 @@ class MobileMapStatusResolver
             );
         }
 
-        if (! $latest || ! $latest->recorded_at) {
+        if (! $latest || ! $latest->recorded_at || ! $this->hasValidGpsFix($latest)) {
             return $this->pack(
                 key: 'offline',
                 label: (string) __('app.map.status_offline'),
@@ -64,23 +65,13 @@ class MobileMapStatusResolver
             );
         }
 
-        $minutes = $this->minutesSinceUpdate($latest);
+        $seconds = $this->secondsSinceUpdate($latest);
 
-        if ($minutes > self::OFFLINE_MINUTES) {
+        if ($seconds === null || $seconds > self::OFFLINE_SECONDS || $seconds >= self::RECENT_SECONDS) {
             return $this->pack(
                 key: 'offline',
                 label: (string) __('app.map.status_offline'),
                 tier: 'offline',
-                lastKnown: $lastKnown,
-                latest: $latest,
-            );
-        }
-
-        if ($minutes > self::RECENT_MINUTES) {
-            return $this->pack(
-                key: 'delayed',
-                label: (string) __('app.map.status_delayed'),
-                tier: 'delayed',
                 lastKnown: $lastKnown,
                 latest: $latest,
             );
@@ -128,23 +119,23 @@ class MobileMapStatusResolver
 
         $speed = (float) ($latest->speed ?? 0);
 
-        if ($speed > 0) {
+        if (! $latest->ignition) {
+            return [
+                'key' => 'ignition_off',
+                'label' => (string) __('app.map.status_ignition_off'),
+            ];
+        }
+
+        if ($speed > self::MOVING_SPEED_KMH) {
             return [
                 'key' => 'moving',
                 'label' => (string) __('app.map.status_running'),
             ];
         }
 
-        if ($latest->ignition) {
-            return [
-                'key' => 'idle',
-                'label' => (string) __('app.user.devices.status_idle'),
-            ];
-        }
-
         return [
-            'key' => 'stopped',
-            'label' => (string) __('app.map.status_stopped'),
+            'key' => 'idle',
+            'label' => (string) __('app.map.status_idle'),
         ];
     }
 
@@ -154,16 +145,59 @@ class MobileMapStatusResolver
             return false;
         }
 
-        return $this->minutesSinceUpdate($latest) <= self::RECENT_MINUTES;
+        $seconds = $this->secondsSinceUpdate($latest);
+
+        return $seconds !== null && $seconds < self::RECENT_SECONDS;
     }
 
-    public function minutesSinceUpdate(?DeviceLocation $latest): ?int
+    public function secondsSinceUpdate(?DeviceLocation $latest): ?int
     {
         if (! $latest?->recorded_at) {
             return null;
         }
 
-        return (int) $latest->recorded_at->diffInMinutes(now());
+        return (int) $latest->recorded_at->diffInSeconds(now());
+    }
+
+    /** @deprecated use secondsSinceUpdate() */
+    public function minutesSinceUpdate(?DeviceLocation $latest): ?int
+    {
+        $seconds = $this->secondsSinceUpdate($latest);
+
+        return $seconds === null ? null : (int) floor($seconds / 60);
+    }
+
+    public function hasValidGpsFix(?DeviceLocation $latest): bool
+    {
+        if (! $latest) {
+            return false;
+        }
+
+        $fix = strtolower(trim((string) ($latest->gps_fix ?? '')));
+        if (in_array($fix, ['0', 'false', 'invalid', 'no', 'no fix', 'no_fix'], true)) {
+            return false;
+        }
+
+        $lat = (float) ($latest->lat ?? 0);
+        $lng = (float) ($latest->lng ?? 0);
+
+        if (abs($lat) < 0.000001 && abs($lng) < 0.000001) {
+            return false;
+        }
+
+        if (in_array($fix, ['fix', '2d', '3d'], true)) {
+            return true;
+        }
+
+        if ((int) ($latest->satellites ?? 0) >= 3) {
+            return true;
+        }
+
+        if ((int) ($latest->gps_signal ?? 0) > 0) {
+            return true;
+        }
+
+        return true;
     }
 
     /**
@@ -194,8 +228,7 @@ class MobileMapStatusResolver
             match ($map['key']) {
                 'moving' => $counts['running']++,
                 'idle' => $counts['idle']++,
-                'stopped' => $counts['stopped']++,
-                'delayed' => $counts['delayed']++,
+                'ignition_off' => $counts['parked']++,
                 'alert' => $counts['alert']++,
                 default => $counts['offline']++,
             };
