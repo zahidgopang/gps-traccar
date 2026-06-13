@@ -38,6 +38,7 @@ class UserController extends Controller
 
         $users = $q
             ->withCount('clientMemberships')
+            ->withCount('devices as tracker_devices_count')
             ->with(['clients:id,name'])
             ->orderByDesc('id')
             ->paginate(15)

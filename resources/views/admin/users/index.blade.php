@@ -122,6 +122,14 @@
                         <td>
                             <a href="{{ route($panel . '.users.edit', $u) }}" class="btn btn-sm btn-outline-primary">{{ __('app.common.edit') }}</a>
 
+                            @if($isEndUser && ($u->tracker_devices_count ?? 0) > 0 && Gate::allows('permission', 'maps.view'))
+                                <a href="{{ route($panel . '.users.fleet-map', $u) }}"
+                                   class="btn btn-sm btn-primary"
+                                   title="{{ __('app.admin.users.track_devices_title') }}">
+                                    <i class="fas fa-map-marked-alt me-1"></i>{{ __('app.admin.nav.track_devices') }}
+                                </a>
+                            @endif
+
                             @if($panel === 'admin')
                             <form method="POST" action="{{ route('admin.users.destroy', $u) }}" class="d-inline delete-form">
                                 @csrf @method('DELETE')

@@ -122,12 +122,17 @@
 
         <!-- Devices Table -->
         <div class="premium-card">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
                     <h5 class="mb-1">{{ __('app.user.devices.list_title') }}</h5>
                     <p class="text-muted mb-0">{{ __('app.user.devices.list_subtitle') }}</p>
                 </div>
-                <div class="d-flex">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    @if(($fleetMapEligibleCount ?? 0) > 0)
+                        <a href="{{ route('user.devices.fleet-map') }}" class="btn btn-premium btn-sm">
+                            <i class="fas fa-map-marked-alt me-1"></i>{{ __('app.user.devices.fleet_map_button') }}
+                        </a>
+                    @endif
                     <div class="input-group input-group-sm" style="width: 250px;">
                         <span class="input-group-text bg-transparent border-end-0">
                             <i class="fas fa-search text-muted"></i>

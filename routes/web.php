@@ -8,6 +8,7 @@ use App\Http\Controllers\GeofenceController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DeviceController as AdminDeviceController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\UserFleetMapController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\DeviceStockController;
@@ -116,6 +117,8 @@ Route::middleware(['auth', 'user.active', 'tracker.access'])->group(function () 
     // User Devices Routes
     Route::prefix('user/devices')->name('user.devices.')->group(function () {
         Route::get('/', [UserDevicesController::class, 'index'])->name('index');
+        Route::get('/fleet-map', [UserDevicesController::class, 'fleetMap'])->name('fleet-map');
+        Route::get('/fleet-map/live-json', [UserDevicesController::class, 'fleetMapLiveJson'])->name('fleet-map.live-json');
         Route::get('/live-json', [UserDevicesController::class, 'liveJson'])->name('live-json');
     });
 
@@ -212,6 +215,11 @@ Route::middleware(['auth', 'panel:admin', 'can:admin'])
 
             Route::get('locations/device/{device}/launch-map', [MapAccessController::class, 'launchAdminMap'])
                 ->name('locations.launch-map');
+
+            Route::get('users/{user}/fleet-map', [UserFleetMapController::class, 'show'])
+                ->name('users.fleet-map');
+            Route::get('users/{user}/fleet-map/live-json', [UserFleetMapController::class, 'liveJson'])
+                ->name('users.fleet-map.live-json');
         });
 
         Route::middleware('map.access')->group(function () {
@@ -311,6 +319,11 @@ Route::middleware(['auth', 'panel:client', 'can:client-panel'])
 
             Route::get('locations/device/{device}/launch-map', [MapAccessController::class, 'launchAdminMap'])
                 ->name('locations.launch-map');
+
+            Route::get('users/{user}/fleet-map', [UserFleetMapController::class, 'show'])
+                ->name('users.fleet-map');
+            Route::get('users/{user}/fleet-map/live-json', [UserFleetMapController::class, 'liveJson'])
+                ->name('users.fleet-map.live-json');
         });
 
         Route::middleware('map.access')->group(function () {

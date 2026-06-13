@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Device;
 use App\Services\DeviceSubscriptionService;
+use App\Services\FleetMapDeviceService;
+use App\Services\Mobile\MapRenderingSpec;
 use App\Services\Traccar\TraccarTrackingGate;
 use App\Services\Tracking\DevicePositionLoader;
 use App\Services\UserDashboardService;
@@ -21,13 +23,17 @@ class UserDevicesController extends Controller
     {
         try {
             $user = Auth::user();
-            $devices = $user
+            $allDevices = $user
                 ->trackerDevicesQuery()
                 ->with(['subscription'])
                 ->orderByDesc('id')
                 ->get();
 
-            $devices = app(TraccarTrackingGate::class)->filterTrackable($user, $devices, requireSubscription: false);
+            $trackingGate = app(TraccarTrackingGate::class);
+            $fleetMapEligibleCount = $trackingGate
+                ->filterTrackable($user, $allDevices, requireSubscription: true)
+                ->count();
+            $devices = $trackingGate->filterTrackable($user, $allDevices, requireSubscription: false);
 
             app(DevicePositionLoader::class)->attachLatestToMany($devices);
 
@@ -40,6 +46,7 @@ class UserDevicesController extends Controller
                     'alertDeviceIds' => $alertDeviceIds,
                     'dashboardService' => $dashboard,
                     'subscriptionService' => app(DeviceSubscriptionService::class),
+                    'fleetMapEligibleCount' => $fleetMapEligibleCount,
                 ]
             ));
         } catch (\Exception $e) {
@@ -57,8 +64,55 @@ class UserDevicesController extends Controller
                 'alerts' => 0,
                 'alertDeviceIds' => collect(),
                 'dashboardService' => $dashboard,
+                'fleetMapEligibleCount' => 0,
             ]);
         }
+    }
+
+    /**
+     * Cluster fleet map — active devices with active subscription only.
+     */
+    public function fleetMap(UserDashboardService $dashboard, FleetMapDeviceService $fleetMap)
+    {
+        $user = Auth::user();
+        $devices = $fleetMap->attachPositions($fleetMap->loadForEndUser($user));
+
+        if ($devices->isEmpty()) {
+            return redirect()
+                ->route('user.devices.index')
+                ->with('access_denied_title', __('app.user.devices.fleet_map_unavailable_title'))
+                ->with('access_denied_message', __('app.user.devices.fleet_map_unavailable_message'));
+        }
+
+        $payload = $fleetMap->buildPayload(
+            $devices,
+            $dashboard,
+            fn (Device $device) => route('user.devices.launch-map', $device),
+        );
+
+        return view('user.fleet-map', [
+            'devices' => $devices,
+            'mapSpec' => MapRenderingSpec::toArray(),
+            'initialPayload' => $payload,
+            'stats' => $dashboard->getDevicePageStats($devices),
+        ]);
+    }
+
+    public function fleetMapLiveJson(UserDashboardService $dashboard, FleetMapDeviceService $fleetMap): JsonResponse
+    {
+        $user = Auth::user();
+        $devices = $fleetMap->attachPositions($fleetMap->loadForEndUser($user));
+
+        $payload = $fleetMap->buildPayload(
+            $devices,
+            $dashboard,
+            fn (Device $device) => route('user.devices.launch-map', $device),
+        );
+
+        return response()->json([
+            'devices' => $payload,
+            'stats' => $dashboard->getDevicePageStats($devices),
+        ]);
     }
 
     /**
